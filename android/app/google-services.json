@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "855430135303",
+    "project_id": "twin-ar-d4d75",
+    "storage_bucket": "twin-ar-d4d75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855430135303:android:72d2c7795ac4e0f9d1b4a2",
+        "android_client_info": {
+          "package_name": "com.tahafayyaz.twin_ar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBakNok_55_-rny41Ije48vqflR667QRcw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

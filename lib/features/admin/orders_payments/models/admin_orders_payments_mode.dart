@@ -1,0 +1,1 @@
+enum AdminOrdersPaymentsMode { orders, payments }

@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-upload-sofa-gallery",
+  "private": true,
+  "description": "Developer-only Phase 9.2 R14 Stage A tool: uploads the six approved Luna Right-Chaise Sectional Sofa studio renders to their deterministic products/luna-3-seater-sofa/images/ Storage paths. Never writes Firestore, never deletes, never runs a seed.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

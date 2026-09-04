@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-migrate-product-images",
+  "private": true,
+  "description": "Developer-only Phase 8.7.1 tool: migrates ProductImageRef(source: asset) catalogue images to Firebase Storage. Not Flutter app code, not a Cloud Function, not reachable from the mobile app.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

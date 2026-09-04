@@ -1,0 +1,33 @@
+import '../../../../core/data/commerce_database.dart';
+import '../../../../core/models/product/product_mappers.dart';
+import '../../../../core/models/product/product_publication_status.dart';
+import '../../explore/models/catalog_product_model.dart';
+import 'explore_repository.dart';
+
+class MockExploreRepository implements ExploreRepository {
+  final CommerceDatabase _db;
+
+  MockExploreRepository(this._db);
+
+  @override
+  Future<List<CatalogProductModel>> getCatalog() async {
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    // Return the specific products for explore (from our seed DB)
+    return _db.products
+        .where(
+          (p) =>
+              p.isActive &&
+              p.showInCatalog &&
+              p.publicationStatus == ProductPublicationStatus.published,
+        )
+        .map((p) => p.toCatalogModel())
+        .toList();
+  }
+
+  @override
+  Future<void> refresh() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+}

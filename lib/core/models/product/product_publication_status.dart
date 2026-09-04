@@ -1,0 +1,1 @@
+enum ProductPublicationStatus { draft, published }

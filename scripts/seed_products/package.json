@@ -1,0 +1,9 @@
+{
+  "name": "twin-ar-seed-products",
+  "private": true,
+  "description": "Developer-only product catalog seed script for TWin AR (Phase 8.5). Not Flutter app code, not a Cloud Function, not reachable from the mobile app.",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

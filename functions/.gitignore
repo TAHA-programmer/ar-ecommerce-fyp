@@ -1,0 +1,17 @@
+# Build output
+lib/
+
+# Dependencies
+node_modules/
+
+# Secret material - NEVER commit. Stripe keys are provided only through
+# Firebase Secret Manager (server) and secure local build config (Flutter
+# publishable key). No key belongs in a committed file.
+.env
+.env.*
+.runtimeconfig.json
+*.local
+
+# Firebase tooling
+.firebase/
+*-debug.log

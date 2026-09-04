@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-migrate-ar-catalogue",
+  "private": true,
+  "description": "Developer-only Phase 9.2 R13/R14 tool: recasts the four physically-approved Room-AR products' catalogue text (title/description/material+dimension specs) and writes their production ar* metadata. Narrow per-field .update() only — never .set(), never a reseed, never a delete. Not Flutter app code, not a Cloud Function.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

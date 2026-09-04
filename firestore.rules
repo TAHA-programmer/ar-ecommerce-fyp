@@ -1,0 +1,609 @@
+rules_version = '2';
+
+// TWin AR - Firestore Security Rules, Phase 8.4 + Phase 8.5 + Phase 8.6 +
+// Phase 8.7 + Phase 8.8 + Phase 8.9 + Phase 8.10 + Phase 8.12 +
+// Phase 8.13.1 (checkoutSessions - owner-read, server-written) +
+// Phase 8.13.3 (stripeEvents - fully server-only, no client access).
+// (Phase 8.11 / 8.11a - Inventory Concurrency Hardening + Pre-Checkout Stock
+// Gating - deliberately made NO change to this file: no customer
+// product-stock write permission was added, and `lastStockUpdatedAt` is
+// only ever written by an `isAdmin()` caller through the existing
+// `products/{id}` write rule.)
+//
+// `users/{uid}` (Phase 8.4, extended in Phase 8.7 for `avatarStoragePath`,
+// and in Phase 8.12 with `displayName` shape validation + a strict
+// Pakistani-mobile `phone` format - see `isValidDisplayName` /
+// `isValidPakistaniMobile`), `products/{id}` (Phase 8.5 reads, Phase
+// 8.6 writes - Admin-only, deliberately NO large field-shape rule: only an
+// `isAdmin()` caller can ever reach that branch, the read mapper is fully
+// defensive, and Phase 8.13 re-prices server-side), `categories/{categoryId}`
+// (Phase 8.8), `orders/{orderId}` + `payments/{paymentId}` (Phase 8.9
+// client create - SUPERSEDED by Phase 8.13.6: `create` is now `if false`
+// for every client; the `stripeWebhook` / `releaseExpiredReservations`
+// Cloud Functions are the only writers, via the Admin SDK. Client keeps
+// read of its own; admin keeps read + the `orderStatus` transition),
+// and `users/{uid}/addresses`,
+// `users/{uid}/addressDefault/pointer`, `users/{uid}/favorites`,
+// `users/{uid}/cart` (Phase 8.10) are implemented.
+//
+// `checkoutSessions/{sessionId}` (Phase 8.13.1) is the server-driven Stripe
+// checkout session: the owner (or an admin) may READ it so the app can watch
+// its `status` transition while PaymentSheet is open; NO client may write it
+// (`allow write: if false`) - it is created and mutated exclusively by the
+// trusted checkout Cloud Function via the Admin SDK, which bypasses these
+// rules. See that block near the bottom of this file.
+//
+// Every other collection is deliberately closed by the catch-all at the
+// bottom. `checkoutSessions` had been a catch-all stand-in through Phase 8.12;
+// Phase 8.13.1 gave it its real block (read-only for the owner), and Phase
+// 8.13.6 tightened `orders`/`payments` `create` to `if false` (Cloud
+// Function / Admin SDK only) as the final security cutover.
+// Storage (product images, avatars, category images) is governed by the
+// separate `storage.rules` file, not this one - Phase 8.12 made NO change
+// to `storage.rules` (product/category images stay public-read because
+// `Image.network` rendering has no auth token to attach).
+//
+// Phase 8.12 (Security Rules Hardening): audited every block above against
+// the actual Phase 8.1-8.11a code. The one hardening applied is
+// `users/{uid}` field validation (below): `displayName` is shape-checked
+// (1-100 chars, non-whitespace-only) and `phone` must be a strict
+// Pakistani local mobile number (`^03[0-9]{9}$`) - enforced on create, and
+// on update only when the phone value actually changes, so a pre-8.12
+// profile is never broken by an avatar-only or name-only update. Every
+// other block was verified already correct.
+//
+// Phase 8.9 note: `orders`/`payments` are the FIRST collections in this app
+// where a non-admin client writes with real trust stakes at CREATE time
+// (unlike `products`/`categories`, both admin-only writes with no
+// field-shape rule needed) - their `create` rules are modeled on
+// `users/{uid}`'s rigor (exact `hasAll`/`hasOnly` field set, typed/bounded
+// values, fixed-literal starting state), not on `products`/`categories`'
+// lighter admin-only rules. `getAfter()` (not `get()`) is used to
+// cross-validate an order against its payment and vice versa, because both
+// documents are created together in the SAME transaction - `get()` cannot
+// see a document that only exists as part of the very write being
+// evaluated; `getAfter()` resolves against the transaction's proposed
+// final state, which is exactly what's needed here. Per-line-item field
+// shape inside `items`/inside `payments` amounts is NOT validated here -
+// Firestore rules cannot iterate array elements - so item prices/totals
+// remain client-authored this interim phase; real server-side re-pricing
+// is Phase 8.13's responsibility, not solved here. This is an accepted,
+// documented limitation, not an oversight.
+//
+// Phase 8.8 note: `categories/{categoryId}` is an ADDITIVE foundation only -
+// `products/{id}`'s own rule below is completely untouched, and
+// `ProductModel.category` stays the legacy closed enum this whole phase.
+// Nothing here grants a product any new read/write capability. `kind` is
+// permanently immutable after creation (never editable, not even by an
+// Admin) - this is intentional, not an oversight: Phase 8.8b denormalizes a
+// `categoryKind` field onto each product at save time, and an editable
+// `kind` here would let an already-denormalized product silently drift out
+// of sync with its category's taxonomy with no trigger to reconcile it.
+//
+// Authorization boundary: `isAdmin()` reads ONLY the Firebase ID token's
+// `role` custom claim (`request.auth.token.role`). The `role` field stored
+// on `users/{uid}` itself is a UI-convenience mirror and is NEVER read here
+// - see `lib/core/models/auth/user_profile_model.dart`.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'superAdmin';
+    }
+
+    // Phase 8.12: `users/{uid}` is the one collection where a non-admin
+    // client writes personal free-text fields, so - like `addresses`/`cart`
+    // (Phase 8.10) - its strings are shape-validated, not just
+    // key-shape-checked.
+    //
+    // `displayName`: a non-empty, non-whitespace-only string of 1-100
+    // characters (`^\S(.*\S)?$`, the same idiom as `isValidCategoryName`,
+    // rejects leading/trailing/only-whitespace). Validated on BOTH create
+    // and update - on update `request.resource.data` is the full merged
+    // document, so an avatar-only `.update()` leaves the (already-valid)
+    // displayName in place and a genuine name edit is validated directly.
+    function isValidDisplayName(name) {
+      return name is string
+          && name.size() > 0
+          && name.size() <= 100
+          && name.matches('^\\S(.*\\S)?$');
+    }
+
+    // `phone`: a standard Pakistani local mobile number - exactly 11
+    // digits, digits only, starting with `03` (e.g. `03001234567`).
+    // Spaces, `+92`, hyphens, brackets and letters are all rejected by the
+    // strict `^03[0-9]{9}$` anchor. Enforced STRICTLY on create; on update
+    // it is enforced only when the phone value actually CHANGES (see the
+    // update rule) - so a pre-8.12 profile whose stored phone predates this
+    // format is never broken by an unrelated avatar-only update or a
+    // name-only edit that rewrites the same stored phone value.
+    function isValidPakistaniMobile(phone) {
+      return phone is string && phone.matches('^03[0-9]{9}$');
+    }
+
+    // Phase 8.7: avatarStoragePath must be absent/null (no avatar yet) or a
+    // Storage object path scoped to the caller's own uid - never another
+    // user's path and never a raw download URL. `request.resource.data` may
+    // legitimately not contain the key at all (untouched by this write), so
+    // this only constrains the field when it IS present in the write.
+    //
+    // The path must be EXACTLY ONE filename segment under
+    // `users/{uid}/profile/` - `[^/]+$` (no slash allowed in the matched
+    // remainder), not `.+$`. This closes a real hardening gap the original
+    // `.+` pattern left open: it would have accepted
+    // `users/{uid}/profile/nested/path.jpg` or even
+    // `users/{uid}/profile/../other-uid/avatar.jpg`-shaped strings, which
+    // `storage.rules`' own `users/{uid}/profile/{imageId}` match (a single
+    // path segment) was never designed to serve anyway - this rule now
+    // rejects such a value at write time instead of relying solely on the
+    // Storage side to reject reading/writing whatever it produced.
+    function isValidAvatarPath(uid) {
+      return !('avatarStoragePath' in request.resource.data)
+          || request.resource.data.avatarStoragePath == null
+          || request.resource.data.avatarStoragePath
+               .matches('^users/' + uid + '/profile/[^/]+$');
+    }
+
+    // Phase 8.10 - Addresses, Favorites & Cart.
+    //
+    // `isDefault` is deliberately NOT a field on `addresses/{addressId}` at
+    // all - see `address_firestore_mapper.dart`'s header comment for why a
+    // per-document boolean can't safely represent "the" default under
+    // concurrent multi-device writes. The single authoritative
+    // `addressDefault/pointer` document below is the only place default-ness
+    // is ever recorded; `isDefault` is always derived client-side by
+    // comparing an address's own document ID against
+    // `pointer.defaultAddressId`.
+    function isValidAddressFields(data) {
+      return (data.label == null || (data.label is string && data.label.size() <= 60))
+          && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 100
+          && data.phoneNumber is string && data.phoneNumber.size() > 0 && data.phoneNumber.size() <= 20
+          && data.addressLine1 is string && data.addressLine1.size() > 0 && data.addressLine1.size() <= 200
+          && (data.addressLine2 == null || (data.addressLine2 is string && data.addressLine2.size() <= 200))
+          && data.city is string && data.city.size() > 0 && data.city.size() <= 100
+          && data.provinceOrState is string && data.provinceOrState.size() > 0 && data.provinceOrState.size() <= 100
+          && data.postalCode is string && data.postalCode.size() > 0 && data.postalCode.size() <= 20;
+    }
+
+    function isValidAddressCreate(data) {
+      return data.keys().hasAll(['label','fullName','phoneNumber','addressLine1','addressLine2','city','provinceOrState','postalCode','createdAt'])
+          && data.keys().hasOnly(['label','fullName','phoneNumber','addressLine1','addressLine2','city','provinceOrState','postalCode','createdAt'])
+          && isValidAddressFields(data)
+          && data.createdAt == request.time;
+    }
+
+    // createdAt is immutable after creation - the whole point of Phase
+    // 8.10's deterministic createdAt-ordering guarantee (see
+    // AddressModel's doc comment) breaks if a client could silently
+    // backdate/forwards-date it on an edit.
+    function isValidAddressUpdate(data) {
+      return data.keys().hasAll(['label','fullName','phoneNumber','addressLine1','addressLine2','city','provinceOrState','postalCode','createdAt'])
+          && data.keys().hasOnly(['label','fullName','phoneNumber','addressLine1','addressLine2','city','provinceOrState','postalCode','createdAt'])
+          && isValidAddressFields(data)
+          && data.createdAt == resource.data.createdAt;
+    }
+
+    // The single authoritative default-address pointer - see
+    // FirestoreAddressRepository's doc comment. `defaultAddressId` is not
+    // cross-validated against a real address document existing (Firestore
+    // rules cannot cheaply do that here) - a dangling pointer just
+    // harmlessly resolves to "no default currently shown" client-side,
+    // never a security concern since it's owner-scoped like everything
+    // else under `users/{uid}`.
+    function isValidAddressDefaultPointer(data) {
+      return data.keys().hasAll(['defaultAddressId', 'updatedAt'])
+          && data.keys().hasOnly(['defaultAddressId', 'updatedAt'])
+          && (data.defaultAddressId == null
+              || (data.defaultAddressId is string
+                  && data.defaultAddressId.size() > 0
+                  && data.defaultAddressId.size() <= 200))
+          && data.updatedAt == request.time;
+    }
+
+    // Favorites: document ID IS the productId (dedupes for free) - the only
+    // real field is `addedAt`. Never updated in place, only created/deleted.
+    function isValidFavoriteCreate(data) {
+      return data.keys().hasAll(['addedAt'])
+          && data.keys().hasOnly(['addedAt'])
+          && data.addedAt == request.time;
+    }
+
+    // Cart: document ID is the deterministic hashed
+    // `(productId, selectedColor, selectedSize)` key (see
+    // `cart_item_key.dart`) - not validated as a field shape here, since
+    // Firestore rules have no way to recompute a SHA-256 hash to cross-check
+    // it, and doing so isn't a security boundary (ownership is already
+    // enforced by `isOwner(uid)`; an internally-inconsistent document ID
+    // would only ever hurt the writer's own cart). `priceAmountSnapshot` is
+    // bounded the same as every other monetary field in this app
+    // (`orders`/`payments`' 10,000,000 PKR ceiling) - it is DISPLAY-ONLY,
+    // never trusted for charging (Checkout always re-resolves live product
+    // prices - see CheckoutViewModel).
+    function isValidCartItemFields(data) {
+      return data.productId is string && data.productId.size() > 0 && data.productId.size() <= 200
+          && data.quantity is int && data.quantity >= 1 && data.quantity <= 99
+          && (data.selectedColor == null || (data.selectedColor is string && data.selectedColor.size() <= 30))
+          && (data.selectedSize == null || (data.selectedSize is string && data.selectedSize.size() <= 30))
+          && data.priceAmountSnapshot is number && data.priceAmountSnapshot >= 0 && data.priceAmountSnapshot <= 10000000;
+    }
+
+    function isValidCartItemCreate(data) {
+      return data.keys().hasAll(['productId','quantity','selectedColor','selectedSize','priceAmountSnapshot','addedAt','updatedAt'])
+          && data.keys().hasOnly(['productId','quantity','selectedColor','selectedSize','priceAmountSnapshot','addedAt','updatedAt'])
+          && isValidCartItemFields(data)
+          && data.addedAt == request.time
+          && data.updatedAt == request.time;
+    }
+
+    // addedAt/productId/selectedColor/selectedSize are immutable after
+    // creation - only quantity/priceAmountSnapshot/updatedAt ever change
+    // (see FirestoreCartRepository.addItem's atomic-merge transaction and
+    // setQuantity, both of which only ever `.update()` these three fields;
+    // a genuine variant change is a new document via the deterministic key,
+    // never an in-place mutation of an existing one).
+    function isValidCartItemUpdate(data) {
+      return data.keys().hasAll(['productId','quantity','selectedColor','selectedSize','priceAmountSnapshot','addedAt','updatedAt'])
+          && data.keys().hasOnly(['productId','quantity','selectedColor','selectedSize','priceAmountSnapshot','addedAt','updatedAt'])
+          && isValidCartItemFields(data)
+          && data.productId == resource.data.productId
+          && data.selectedColor == resource.data.selectedColor
+          && data.selectedSize == resource.data.selectedSize
+          && data.addedAt == resource.data.addedAt
+          && data.updatedAt == request.time;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      // A signed-in user may create only their OWN document, and it must
+      // be self-registered as 'customer' - there is no client path to
+      // create a document with role == 'superAdmin'. uid/email/createdAt
+      // on the created document must also match the caller's own identity
+      // and a real server timestamp. The document's field set is also
+      // pinned exactly to the six known profile fields - no client can
+      // smuggle in an extra, unreviewed field at creation time. Phase 8.12:
+      // displayName is shape-validated and phone must be a strict Pakistani
+      // local mobile number (`^03[0-9]{9}$`).
+      allow create: if isOwner(uid)
+                    && request.resource.data.uid == uid
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.role == 'customer'
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.keys().hasOnly(
+                         ['uid', 'email', 'displayName', 'phone', 'role', 'createdAt']
+                       )
+                    && isValidDisplayName(request.resource.data.displayName)
+                    && isValidPakistaniMobile(request.resource.data.phone);
+
+      // The owner may update their own document, but never role, uid,
+      // email, or createdAt - only displayName/phone/avatarStoragePath (and
+      // any future purely-personal field explicitly added to this
+      // allow-list) may change. Super Admin promotion/demotion happens
+      // exclusively through the offline bootstrap script (Admin SDK,
+      // bypasses these rules entirely), never through a client write. The
+      // diff().affectedKeys() check is the primary guard - it blocks any
+      // changed OR newly-added field outside the allow-list, not just the
+      // four protected ones - and the explicit equality checks below are
+      // kept as a belt-and-suspenders guard on the specific protected
+      // fields.
+      //
+      // Phase 8.7: avatarStoragePath is a Storage OBJECT PATH, never a
+      // download-token URL (see storage.rules' doc comment on why avatar
+      // reads are owner+admin-only, not public). The isValidAvatarPath()
+      // check below enforces that a user can only ever point their own
+      // profile at a path under their own `users/{uid}/profile/` Storage
+      // prefix - never another user's avatar path or an arbitrary string -
+      // independently of (and in addition to) storage.rules' own
+      // isOwner(uid) boundary on the Storage object itself.
+      // Phase 8.12: displayName is validated on every update (an avatar-only
+      // `.update()` simply re-passes the already-valid value). phone is
+      // validated STRICTLY only when it actually changes - if
+      // `request.resource.data.phone == resource.data.phone` the write
+      // carries the stored value unchanged (an avatar-only update, or a
+      // name-only edit that re-writes the same phone), and a pre-8.12
+      // profile whose stored phone predates the Pakistani-mobile format is
+      // never locked out of legitimate profile operations. Any real change
+      // to phone must match `^03[0-9]{9}$`.
+      allow update: if isOwner(uid)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['displayName', 'phone', 'avatarStoragePath'])
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.uid == resource.data.uid
+                    && request.resource.data.email == resource.data.email
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && isValidAvatarPath(uid)
+                    && isValidDisplayName(request.resource.data.displayName)
+                    && (request.resource.data.phone == resource.data.phone
+                        || isValidPakistaniMobile(request.resource.data.phone));
+
+      allow delete: if false;
+
+      // Phase 8.10 - owner-only, no admin read/write path (an Admin has no
+      // legitimate reason to see or touch a customer's addresses/favorites/
+      // cart, unlike orders/payments which Admin manages operationally).
+      match /addresses/{addressId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidAddressCreate(request.resource.data);
+        allow update: if isOwner(uid) && isValidAddressUpdate(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
+      // Pre-deployment hardening: the exact literal document ID `pointer`
+      // (not a `{pointerId}` wildcard capture) - there is exactly one valid
+      // default-pointer document per uid, and a wildcard here would have
+      // let a client write/read arbitrary other document IDs under this
+      // subcollection with the same permissive shape check, which was never
+      // intended (a document at any other ID under `addressDefault` is
+      // denied outright by the top-level catch-all instead).
+      match /addressDefault/pointer {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) && isValidAddressDefaultPointer(request.resource.data);
+        allow delete: if false;
+      }
+
+      match /favorites/{productId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidFavoriteCreate(request.resource.data);
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+
+      match /cart/{cartItemId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidCartItemCreate(request.resource.data);
+        allow update: if isOwner(uid) && isValidCartItemUpdate(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // Phase 8.5 (reads) + Phase 8.6 (writes). `showInCatalog` is
+    // deliberately NOT part of the read rule - it's a display/query filter
+    // Explore applies client-side (see FirestoreExploreRepository), never a
+    // security condition, so Home's legitimately-curated
+    // `showInCatalog:false` products stay readable (Correction 5,
+    // 09_BACKEND_INTEGRATION_PLAN.md). Writes are gated by `isAdmin()` only
+    // - the ID-token custom claim, never `users/{uid}.role` - matching the
+    // authorization boundary already established for every other rule in
+    // this file. No field-shape restriction is needed the way `users/{uid}`
+    // has one: only an admin-claim caller can ever reach this branch at
+    // all, so there is no untrusted-client shape to constrain. The
+    // developer-only seed script uses the Admin SDK, which bypasses these
+    // rules entirely regardless.
+    match /products/{id} {
+      allow read: if isAdmin()
+                  || (isSignedIn()
+                      && resource.data.publicationStatus == 'published'
+                      && resource.data.isActive == true);
+      allow write: if isAdmin();
+    }
+
+    // Phase 8.8 - Dynamic Categories Foundation.
+    //
+    // categoryId == the document's own `key` field by construction (see
+    // FirestoreCategoryRepository.addCategory's doc comment) - isValidKey()
+    // enforces that identity server-side too, not just as a client
+    // convention. `kind` is restricted to the five real taxonomy values -
+    // never the `all` UI-only filter sentinel, which must never be stored on
+    // a document. The five seeded category IDs can never be deleted by
+    // anyone, including a superAdmin - this is a permanent structural
+    // protection, not a client-side-only convenience (Phase 8.8's product
+    // legacy bridge and Phase 8.8b's planned migration both depend on all
+    // five always existing).
+    // Canonical slug shape only: lowercase alphanumeric segments separated
+    // by exactly one hyphen each, no leading/trailing/repeated hyphens -
+    // the SAME shape `slugifyCategoryName()` (Dart) and
+    // `scripts/seed_categories/`'s independent JS mirror always produce.
+    // `^[a-z0-9-]+$` (the original, looser pattern) would have accepted
+    // "---", "-decor", "decor-", or "home--decor" - none of which
+    // `slugifyCategoryName()` can ever actually produce, so accepting them
+    // server-side would only ever validate a hand-crafted, non-client
+    // value.
+    function isValidCategoryKey(categoryId, key) {
+      return key is string
+          && key == categoryId
+          && key.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+          && key.size() > 0
+          && key.size() <= 60;
+    }
+
+    function isValidCategoryKind(kind) {
+      return kind in ['furniture', 'clothing', 'rugs', 'decor', 'lighting'];
+    }
+
+    // Non-empty after trimming AND rejects leading/trailing whitespace
+    // outright (`^\S(.*\S)?$`: must start and - if more than one character -
+    // end with a non-whitespace character; a single non-whitespace
+    // character alone also matches via the optional group). A
+    // whitespace-only value (e.g. "   ") fails at the very first character
+    // check. Internal whitespace ("Outdoor Furniture") remains valid.
+    function isValidCategoryName(name) {
+      return name is string
+          && name.size() > 0
+          && name.size() <= 60
+          && name.matches('^\\S(.*\\S)?$');
+    }
+
+    function isValidCategoryImageUrl(imageUrl) {
+      return imageUrl is string
+          && imageUrl.size() <= 2048
+          && (imageUrl == '' || imageUrl.matches('^https://.*'));
+    }
+
+    function isSeededCategoryId(categoryId) {
+      return categoryId in ['furniture', 'clothing', 'rugs', 'decor', 'lighting'];
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
+
+      allow create: if isAdmin()
+                    && request.resource.data.keys().hasOnly(
+                         ['name', 'key', 'kind', 'imageUrl', 'isActive', 'sortOrder']
+                       )
+                    && isValidCategoryName(request.resource.data.name)
+                    && isValidCategoryKey(categoryId, request.resource.data.key)
+                    && isValidCategoryKind(request.resource.data.kind)
+                    && isValidCategoryImageUrl(request.resource.data.imageUrl)
+                    && request.resource.data.isActive is bool
+                    && request.resource.data.sortOrder is int
+                    && request.resource.data.sortOrder >= 0
+                    && request.resource.data.sortOrder <= 100000;
+
+      // key/kind are permanently immutable after creation - see this file's
+      // Phase 8.8 header comment for why kind specifically must never be
+      // editable, even by an Admin.
+      allow update: if isAdmin()
+                    && request.resource.data.keys().hasOnly(
+                         ['name', 'key', 'kind', 'imageUrl', 'isActive', 'sortOrder']
+                       )
+                    && request.resource.data.key == resource.data.key
+                    && request.resource.data.kind == resource.data.kind
+                    && isValidCategoryName(request.resource.data.name)
+                    && isValidCategoryImageUrl(request.resource.data.imageUrl)
+                    && request.resource.data.isActive is bool
+                    && request.resource.data.sortOrder is int
+                    && request.resource.data.sortOrder >= 0
+                    && request.resource.data.sortOrder <= 100000;
+
+      allow delete: if isAdmin() && !isSeededCategoryId(categoryId);
+    }
+
+    // Orders & Payments - Phase 8.9 (interim client create) SUPERSEDED by
+    // Phase 8.13.6 (Final Security Cutover).
+    //
+    // Orders and payments are now created EXCLUSIVELY by the `stripeWebhook`
+    // Cloud Function (and, as a backstop, the `releaseExpiredReservations`
+    // scheduled function) via the Firebase Admin SDK, which bypasses these
+    // rules entirely. There is NO client create path any more - `allow
+    // create: if false` for everyone, including the owner and a superAdmin.
+    // The Phase 8.9 client-side `submitOrderWithPayment` transaction, its
+    // `OrderIdGenerator`, and the `getAfter()`-based
+    // `orderMatchesPayment`/`paymentMatchesOrder`/`isValidOrderCreate`/
+    // `isValidPaymentCreate` field-shape functions that guarded it have all
+    // been removed - the server now owns the document shape (see
+    // `functions/src/lib/orderFromSession.ts`), and the deterministic
+    // `ord_<hex>` / `pay_<hex>` ids the webhook derives from the Stripe
+    // PaymentIntent make a duplicate order/payment structurally impossible.
+    //
+    // The client keeps READ access to its own orders/payments (My Orders,
+    // Order Details, Order Result) and an admin keeps read + the single
+    // `orderStatus` lifecycle transition (Admin Orders). Nothing else.
+    //
+    // The `resource == null` read branch that Phase 8.9 needed (so the
+    // client's pre-write `transaction.get()` on a not-yet-existing doc did
+    // not become a permission-denied) is GONE with that transaction - a
+    // signed-in caller reading a nonexistent order/payment id is now simply
+    // denied, matching `checkoutSessions`.
+
+    // Locked lifecycle graph, mirrored from `AdminOrderDetailViewModel`'s
+    // client-side copy (kept for fast UI chip-disabling) - this is the
+    // actual server-side security boundary: pending -> confirmed|cancelled,
+    // confirmed -> shipped|cancelled, shipped -> delivered|cancelled,
+    // delivered/cancelled terminal (no entry below, so always false).
+    function isValidOrderStatusTransition(from, to) {
+      return (from == 'pending'   && (to == 'confirmed' || to == 'cancelled'))
+          || (from == 'confirmed' && (to == 'shipped'   || to == 'cancelled'))
+          || (from == 'shipped'   && (to == 'delivered' || to == 'cancelled'));
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+
+      // Created only by the trusted Cloud Functions via the Admin SDK.
+      allow create: if false;
+
+      // Admin-only, and only orderStatus may ever change - every other
+      // field (including userId/paymentId/items/totals/address) is
+      // permanently immutable after creation.
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
+                    && isValidOrderStatusTransition(resource.data.orderStatus, request.resource.data.orderStatus);
+
+      allow delete: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+
+      // Created only by the trusted Cloud Functions via the Admin SDK. A
+      // payment record is immutable once written - any real status change
+      // (refund of a reservation-lost payment) is another Admin-SDK write
+      // from the webhook / sweep, never a client write.
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Phase 8.13.1 - Stripe checkout session (server-driven stock reservation).
+    //
+    // Written EXCLUSIVELY by the trusted checkout Cloud Function via the Admin
+    // SDK (which bypasses these rules entirely). There is no client write path
+    // now or later, so `write` is hard-denied for everyone - including a
+    // superAdmin - and no client field-shape rule is needed here: the document
+    // shape is validated in the Cloud Function's TypeScript before every
+    // Admin-SDK write (see `functions/src/lib/checkoutSession.ts`).
+    //
+    // READ: the owning customer may read their own session - both the
+    // single-doc `checkoutSessions/{id}` listener the checkout screen uses to
+    // watch `status` move reserved -> succeeded / failed / expired while
+    // PaymentSheet is open (Phase 8.13.5), and the
+    // `where('userId', '==', uid)` list query the Phase 8.13.6
+    // `CheckoutCartReconciler` runs to find recently-succeeded sessions and
+    // clear their purchased lines from the cart after a late webhook. Both are
+    // provably rule-safe (every returned doc has `userId == request.auth.uid`).
+    // An admin may read any session for support/debugging, mirroring
+    // `orders`/`payments`.
+    //
+    // Deliberately NO `resource == null` branch (unlike `orders`/`payments`):
+    // the Cloud Function creates this document and only THEN returns its id to
+    // the client, so by the time the app subscribes the document already
+    // exists. There is no client-side pre-write `transaction.get()` on a
+    // nonexistent doc here - the exact shape that forced the Phase 8.9
+    // `orders`/`payments` `resource == null` fix. `isAdmin()` is evaluated
+    // first, so an admin reading a not-yet-existing id still succeeds (the
+    // `||` short-circuits before `resource.data`); a non-admin reading a
+    // nonexistent id is denied, which is correct. If a listener-attach race is
+    // ever observed in Phase 8.13.5 testing, add `resource == null ||` here
+    // then, with evidence - not preemptively.
+    //
+    // Document shape (validated server-side; documented here for reference):
+    //   userId: string                       // == the owner
+    //   items: list<map{ productId: string, quantity: int,
+    //                    selectedColor: string|null, selectedSize: string|null }>
+    //   subtotal, deliveryFee, discount, total: number   // rupees, server-computed
+    //   deliveryAddressSnapshot: map
+    //   stripePaymentIntentId: string | null
+    //   status: 'reserved' | 'succeeded' | 'failed' | 'expired'
+    //   expiresAt: timestamp
+    //   createdAt: timestamp
+    //   orderId: string | null               // set when status == 'succeeded'
+    match /checkoutSessions/{sessionId} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    // Phase 8.13.3 - Stripe webhook event ledger (`stripeEvents/{eventId}`).
+    //
+    // Written EXCLUSIVELY by the `stripeWebhook` Cloud Function via the Admin
+    // SDK, as the idempotency record that makes duplicate / retried / late
+    // Stripe deliveries safe (one Stripe `event.id` is processed at most
+    // once). It is pure server-internal bookkeeping - NO client, not even a
+    // superAdmin, may read or write it. The top-level catch-all below would
+    // already deny this, but the collection is called out explicitly so the
+    // intent is greppable and covered by dedicated rule tests.
+    match /stripeEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
