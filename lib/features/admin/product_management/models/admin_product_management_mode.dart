@@ -1,0 +1,1 @@
+enum AdminProductManagementMode { products, categories }

@@ -1,0 +1,96 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Phase 8.7.1 product-image migration tool: local-only pre-write backups
+# (product id + original mainImage/galleryMedia values), never committed.
+scripts/migrate_product_images/backups/
+
+# Phase 8.13 Cloud Functions (functions/)
+functions/node_modules/
+functions/lib/
+# Never commit secret material. Stripe keys are set only via Firebase Secret
+# Manager / secure local build config - never in a committed env file.
+functions/.env
+functions/.env.*
+functions/.runtimeconfig.json
+functions/*.local
+
+# Firebase emulator / tooling artefacts
+.firebase/
+firebase-debug*.log
+firestore-debug*.log
+database-debug*.log
+pubsub-debug*.log
+ui-debug*.log
+
+# Phase 8.13.5 - local Stripe build configuration. The publishable key is
+# passed at build time via --dart-define / --dart-define-from-file and must
+# NEVER be committed.
+dart_defines*.json
+stripe*.json
+.dart-define*
+*.env.stripe
+# ...but the placeholder example file IS committed so a cloner knows the shape.
+!dart_defines.example.json
+
+# ── Repo publish hygiene (added for the public FYP repo) ──────────────────
+# node_modules anywhere (Cloud Functions, the emulator rule-test suites, and
+# every Node helper script under scripts/).
+**/node_modules/
+# Local run artefacts of the seed / migration / upload helper scripts.
+scripts/*/results/
+scripts/*/backups/
+# Internal planning / thesis / design reference material - not part of the
+# codebase and contains the FYP document + dev-only mock credentials.
+twin_ar_antigravity_reference_pack/
+# Local Claude Code working files.
+Claude outputs/
+.claude/
+# Android signing material - never commit a keystore or its passwords.
+*.jks
+*.keystore
+android/key.properties
+android/app/upload-keystore.jks

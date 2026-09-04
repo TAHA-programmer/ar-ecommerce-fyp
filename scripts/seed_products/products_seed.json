@@ -1,0 +1,3482 @@
+[
+  {
+    "id": "luna-3-seater-sofa",
+    "sku": "TWA-FUR-001",
+    "title": "Luna Right-Chaise Sectional Sofa",
+    "description": "A right-hand chaise sectional in a warm-ivory woven linen, with low track arms and generously filled seat and back cushions. The extended chaise gives you room to stretch out — it comfortably seats four.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Sofas",
+    "priceAmount": 20000,
+    "originalPriceAmount": 25000,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Warm-ivory woven linen"
+      },
+      {
+        "label": "Dimensions",
+        "value": "W 265 cm • D 165 cm • H 82 cm"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 10,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.457302",
+    "rating": 4.8,
+    "reviewCount": 124,
+    "arModelAssetPath": null,
+    "arScale": 1.0,
+    "arModelStoragePath": "products/luna-3-seater-sofa/ar/model-v1.glb",
+    "arModelFormat": "glb",
+    "arModelVersion": "1",
+    "arModelSha256": "efd400046b265fd49d8d2b0382d378d230d625cb879740a3ef0697ca86c0d187",
+    "arWidthM": 2.65,
+    "arDepthM": 1.65,
+    "arHeightM": 0.82,
+    "arScaleContract": "twin-ar/scale-contract-9.2.2",
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "boho-woven-rug",
+    "sku": "TWA-RUG-002",
+    "title": "Boho Woven Rug",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "Area Rugs",
+    "priceAmount": 8500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Cotton/Jute Blend"
+      },
+      {
+        "label": "Dimensions",
+        "value": "150 cm x 200 cm"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.6,
+    "reviewCount": 89,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "classic-blue-shirt",
+    "sku": "TWA-CLO-003",
+    "title": "Classic Blue Shirt",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Shirts",
+    "priceAmount": 4200,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_blue_shirt.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_blue_shirt.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_blue_shirt.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_blue_shirt.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_blue_shirt.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "male",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [
+      {
+        "label": "Fabric",
+        "value": "100% Cotton"
+      },
+      {
+        "label": "Fit",
+        "value": "Regular Fit"
+      },
+      {
+        "label": "Care",
+        "value": "Machine wash cold"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 5.0,
+    "reviewCount": 210,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "womens-blazer",
+    "sku": "TWA-CLO-004",
+    "title": "Women's Blazer",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Blazers",
+    "priceAmount": 12500,
+    "originalPriceAmount": 15000,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [
+      {
+        "label": "Fabric",
+        "value": "Wool Blend"
+      },
+      {
+        "label": "Fit",
+        "value": "Tailored Fit"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 10,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.7,
+    "reviewCount": 95,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "modern-table-lamp",
+    "sku": "TWA-LIG-005",
+    "title": "Modern Table Lamp",
+    "description": "A modern table lamp with a pierced ceramic base and a warm ivory linen drum shade, finished with a satin brass fitting.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "Table Lamps",
+    "priceAmount": 5500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Speckled ceramic, ivory linen shade, satin brass fitting"
+      },
+      {
+        "label": "Dimensions",
+        "value": "H 45 cm • W 20 cm • D 20 cm"
+      },
+      {
+        "label": "Bulb Type",
+        "value": "E27 LED"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 20,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": 1.0,
+    "arModelStoragePath": "products/modern-table-lamp/ar/model-v1.glb",
+    "arModelFormat": "glb",
+    "arModelVersion": "1",
+    "arModelSha256": "ee417ead58e72de9518358288f089bad272779c190125e01ac372fcfc16bb565",
+    "arWidthM": 0.2,
+    "arDepthM": 0.2,
+    "arHeightM": 0.45,
+    "arScaleContract": "twin-ar/scale-contract-9.2.2",
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "velvet-armchair",
+    "sku": "TWA-FUR-006",
+    "title": "Velvet Armchair",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Accent Chairs",
+    "priceAmount": 18000,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_armchair.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 20,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.6,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "leather-jacket",
+    "sku": "TWA-CLO-007",
+    "title": "Leather Jacket",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Jackets",
+    "priceAmount": 15000,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_jacket.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_jacket.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_jacket.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_jacket.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_jacket.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "male",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [
+      {
+        "label": "Fabric",
+        "value": "Genuine Leather"
+      },
+      {
+        "label": "Fit",
+        "value": "Slim Fit"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 20,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "ceramic-vases-set",
+    "sku": "TWA-DEC-008",
+    "title": "Ceramic Vases Set",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "Vases",
+    "priceAmount": 4500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_vases.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Ceramic"
+      },
+      {
+        "label": "Dimensions",
+        "value": "Set of 3 (H 15-25cm)"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 20,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "minimalist-bedroom-set",
+    "sku": "TWA-FUR-009",
+    "title": "Minimalist Bedroom Set",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Bedroom Sets",
+    "priceAmount": 45000,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_bedroom.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "wooden-console",
+    "sku": "TWA-FUR-010",
+    "title": "Wooden Console",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Console Tables",
+    "priceAmount": 12000,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_console.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "glass-coffee-table",
+    "sku": "TWA-FUR-011",
+    "title": "Round Wood Coffee Table",
+    "description": "A round coffee table with a warm oak-finish top on a sculptural pedestal base — a grounded centrepiece for the living room.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Coffee Tables",
+    "priceAmount": 16500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/ar_enabled/ar_enabled_coffee_table.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Solid oak and oak veneer"
+      },
+      {
+        "label": "Dimensions",
+        "value": "Ø 90 cm • H 42 cm"
+      }
+    ],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": 1.0,
+    "arModelStoragePath": "products/glass-coffee-table/ar/model-v1.glb",
+    "arModelFormat": "glb",
+    "arModelVersion": "1",
+    "arModelSha256": "d10f32a7373d84031d3e51b8e9770610f514f62fa56110608852f1640ab7a727",
+    "arWidthM": 0.9,
+    "arDepthM": 0.9,
+    "arHeightM": 0.42,
+    "arScaleContract": "twin-ar/scale-contract-9.2.2",
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "floral-summer-dress",
+    "sku": "TWA-CLO-012",
+    "title": "Floral Summer Dress",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Dresses",
+    "priceAmount": 6500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/virtual_try_on/vto_womens_dress.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_dress.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_dress.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_dress.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_dress.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "casual-hoodie",
+    "sku": "TWA-CLO-013",
+    "title": "Casual Hoodie",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Hoodies",
+    "priceAmount": 4800,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/virtual_try_on/vto_mens_hoodie.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/virtual_try_on/vto_mens_hoodie.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_mens_hoodie.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_mens_hoodie.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_mens_hoodie.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "male",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.7,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "autumn-outfit",
+    "sku": "TWA-CLO-014",
+    "title": "Autumn Outfit",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 14000,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/virtual_try_on/vto_womens_outfit.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_outfit.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_outfit.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_outfit.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/virtual_try_on/vto_womens_outfit.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 50,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "marble-side-table",
+    "sku": "TWA-FUR-015",
+    "title": "Marble Side Table",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Side Tables",
+    "priceAmount": 9500,
+    "originalPriceAmount": null,
+    "stockQuantity": 20,
+    "isActive": true,
+    "showInCatalog": false,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_side_table.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_side_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_side_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_side_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_side_table.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_side_table.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [],
+    "defaultColor": "black",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 50,
+    "popularityScore": 100,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 100,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "luna-accent-chair",
+    "sku": "TWA-FUR-016",
+    "title": "Luna Accent Chair",
+    "description": "The Luna Accent Chair brings a touch of mid-century modern elegance to your living space. With its sculptural silhouette, plush velvet upholstery, and tapered brass legs, it's designed for both comfort and statement-making style.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "Accent Chairs",
+    "priceAmount": 12000,
+    "originalPriceAmount": 16000,
+    "stockQuantity": 10,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/product_details/luna_accent_chair/luna_chair_main.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/product_details/luna_accent_chair/luna_chair_main.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/luna_accent_chair/luna_chair_view_2.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/luna_accent_chair/luna_chair_view_3.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/luna_accent_chair/luna_chair_view_4.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/luna_accent_chair/luna_chair_view_5.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [
+      {
+        "label": "Material",
+        "value": "Premium Fabric, Solid Wood"
+      },
+      {
+        "label": "Dimensions",
+        "value": "W 70 cm • D 72 cm • H 82 cm"
+      }
+    ],
+    "deliveryEstimate": "20 - 24 May, 2025",
+    "warranty": null,
+    "recommendationRank": 1,
+    "popularityScore": 100,
+    "addedDate": "2026-08-31T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 124,
+    "arModelAssetPath": null,
+    "arScale": 1.0,
+    "arModelStoragePath": "products/luna-accent-chair/ar/model-v1.glb",
+    "arModelFormat": "glb",
+    "arModelVersion": "1",
+    "arModelSha256": "d67c68f823d06881ec1aabf7f8ca6f0128f1016483ea0307f5c2ecef66b3cf94",
+    "arWidthM": 0.7,
+    "arDepthM": 0.72,
+    "arHeightM": 0.82,
+    "arScaleContract": "twin-ar/scale-contract-9.2.2",
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "mens-oxford-shirt",
+    "sku": "TWA-CLO-017",
+    "title": "Men's Oxford Shirt",
+    "description": "A timeless Oxford shirt crafted for comfort and style. Perfect for work, weekend or everything in between.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Shirts",
+    "priceAmount": 2200,
+    "originalPriceAmount": 3200,
+    "stockQuantity": 50,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/product_details/mens_oxford_shirt/oxford_shirt_front.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/product_details/mens_oxford_shirt/oxford_shirt_front.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/mens_oxford_shirt/oxford_shirt_back.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/mens_oxford_shirt/oxford_shirt_fabric.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/product_details/mens_oxford_shirt/oxford_shirt_collar.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "virtualTryOn",
+    "vtoModelType": "male",
+    "availableColors": [
+      "blue",
+      "gray",
+      "black",
+      "beige"
+    ],
+    "availableSizes": [
+      "s",
+      "m",
+      "l",
+      "xl",
+      "xxl"
+    ],
+    "defaultColor": "blue",
+    "defaultSize": "m",
+    "specifications": [
+      {
+        "label": "Fabric",
+        "value": "100% Premium Cotton (Oxford Weave)"
+      },
+      {
+        "label": "Fit",
+        "value": "Regular Fit"
+      },
+      {
+        "label": "Care",
+        "value": "Machine wash cold with like colors.\nTumble dry low.\nWarm iron if needed."
+      }
+    ],
+    "deliveryEstimate": "2-4 Business Days",
+    "warranty": null,
+    "recommendationRank": 51,
+    "popularityScore": 200,
+    "addedDate": "2026-08-31T21:14:24.472939",
+    "rating": 4.6,
+    "reviewCount": 128,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-2",
+    "sku": "TWA-FUR-018",
+    "title": "Beige AR Sofa 2",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 12000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 2,
+    "popularityScore": 98,
+    "addedDate": "2026-08-29T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 122,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-3",
+    "sku": "TWA-DEC-019",
+    "title": "Beige AR Vase 3",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 13000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 3,
+    "popularityScore": 97,
+    "addedDate": "2026-08-28T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 123,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-4",
+    "sku": "TWA-FUR-020",
+    "title": "Beige AR Sofa 4",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 14000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 4,
+    "popularityScore": 96,
+    "addedDate": "2026-08-27T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 124,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-5",
+    "sku": "TWA-RUG-021",
+    "title": "Beige AR Rug 5",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 15000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 5,
+    "popularityScore": 95,
+    "addedDate": "2026-08-26T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 125,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-6",
+    "sku": "TWA-DEC-022",
+    "title": "Beige AR Vase 6",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 16000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 6,
+    "popularityScore": 94,
+    "addedDate": "2026-08-25T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 126,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-7",
+    "sku": "TWA-RUG-023",
+    "title": "Beige AR Rug 7",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 17000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 7,
+    "popularityScore": 93,
+    "addedDate": "2026-08-24T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 127,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-8",
+    "sku": "TWA-FUR-024",
+    "title": "Beige AR Sofa 8",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 18000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 8,
+    "popularityScore": 92,
+    "addedDate": "2026-08-23T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 128,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-9",
+    "sku": "TWA-DEC-025",
+    "title": "Beige AR Vase 9",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 19000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 9,
+    "popularityScore": 91,
+    "addedDate": "2026-08-22T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 129,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-10",
+    "sku": "TWA-FUR-026",
+    "title": "Beige AR Sofa 10",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 20000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 10,
+    "popularityScore": 90,
+    "addedDate": "2026-08-21T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 130,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-11",
+    "sku": "TWA-RUG-027",
+    "title": "Beige AR Rug 11",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 21000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 11,
+    "popularityScore": 89,
+    "addedDate": "2026-08-20T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 131,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-12",
+    "sku": "TWA-DEC-028",
+    "title": "Beige AR Vase 12",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 22000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 12,
+    "popularityScore": 88,
+    "addedDate": "2026-08-19T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 132,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-13",
+    "sku": "TWA-RUG-029",
+    "title": "Beige AR Rug 13",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 23000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 13,
+    "popularityScore": 87,
+    "addedDate": "2026-08-18T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 133,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-14",
+    "sku": "TWA-FUR-030",
+    "title": "Beige AR Sofa 14",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 24000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 14,
+    "popularityScore": 86,
+    "addedDate": "2026-08-17T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 134,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-15",
+    "sku": "TWA-DEC-031",
+    "title": "Beige AR Vase 15",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 25000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 15,
+    "popularityScore": 85,
+    "addedDate": "2026-08-16T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 135,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-16",
+    "sku": "TWA-FUR-032",
+    "title": "Beige AR Sofa 16",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 26000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 16,
+    "popularityScore": 84,
+    "addedDate": "2026-08-15T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 136,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-17",
+    "sku": "TWA-RUG-033",
+    "title": "Beige AR Rug 17",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 27000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 17,
+    "popularityScore": 83,
+    "addedDate": "2026-08-14T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 137,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-18",
+    "sku": "TWA-DEC-034",
+    "title": "Beige AR Vase 18",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 28000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 18,
+    "popularityScore": 82,
+    "addedDate": "2026-08-13T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 138,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-19",
+    "sku": "TWA-RUG-035",
+    "title": "Beige AR Rug 19",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 29000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 19,
+    "popularityScore": 81,
+    "addedDate": "2026-08-12T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 139,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-20",
+    "sku": "TWA-FUR-036",
+    "title": "Beige AR Sofa 20",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 30000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 20,
+    "popularityScore": 80,
+    "addedDate": "2026-08-11T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 140,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-21",
+    "sku": "TWA-DEC-037",
+    "title": "Beige AR Vase 21",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 31000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 21,
+    "popularityScore": 79,
+    "addedDate": "2026-08-10T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 141,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-22",
+    "sku": "TWA-FUR-038",
+    "title": "Beige AR Sofa 22",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "furniture",
+    "categoryKind": "furniture",
+    "subcategory": "",
+    "priceAmount": 32000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_sofa.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_sofa.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 22,
+    "popularityScore": 78,
+    "addedDate": "2026-08-09T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 142,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-23",
+    "sku": "TWA-RUG-039",
+    "title": "Beige AR Rug 23",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "rugs",
+    "categoryKind": "rugs",
+    "subcategory": "",
+    "priceAmount": 33000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/best_sellers/best_seller_rug.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/best_sellers/best_seller_rug.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 23,
+    "popularityScore": 77,
+    "addedDate": "2026-08-08T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 143,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "beige-ar-in-stock-24",
+    "sku": "TWA-DEC-040",
+    "title": "Beige AR Vase 24",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "decor",
+    "categoryKind": "decor",
+    "subcategory": "",
+    "priceAmount": 34000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/popular/popular_vase.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/popular/popular_vase.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "beige"
+    ],
+    "availableSizes": [],
+    "defaultColor": "beige",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 24,
+    "popularityScore": 76,
+    "addedDate": "2026-08-07T21:14:24.472939",
+    "rating": 4.5,
+    "reviewCount": 144,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-2",
+    "sku": "TWA-CLO-041",
+    "title": "Trendy Outfit 2",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 6000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 52,
+    "popularityScore": 198,
+    "addedDate": "2026-07-30T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 202,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-3",
+    "sku": "TWA-LIG-042",
+    "title": "Modern Lamp 3",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "",
+    "priceAmount": 6500,
+    "originalPriceAmount": null,
+    "stockQuantity": 0,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "blue"
+    ],
+    "availableSizes": [],
+    "defaultColor": "blue",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 53,
+    "popularityScore": 197,
+    "addedDate": "2026-07-29T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 203,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-4",
+    "sku": "TWA-CLO-043",
+    "title": "Trendy Outfit 4",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 7000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 54,
+    "popularityScore": 196,
+    "addedDate": "2026-07-28T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 204,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-5",
+    "sku": "TWA-LIG-044",
+    "title": "Modern Lamp 5",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "",
+    "priceAmount": 7500,
+    "originalPriceAmount": null,
+    "stockQuantity": 0,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": null,
+    "availableColors": [
+      "blue"
+    ],
+    "availableSizes": [],
+    "defaultColor": "blue",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 55,
+    "popularityScore": 195,
+    "addedDate": "2026-07-27T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 205,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-6",
+    "sku": "TWA-CLO-045",
+    "title": "Trendy Outfit 6",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 8000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 56,
+    "popularityScore": 194,
+    "addedDate": "2026-07-26T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 206,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-7",
+    "sku": "TWA-LIG-046",
+    "title": "Modern Lamp 7",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "",
+    "priceAmount": 8500,
+    "originalPriceAmount": null,
+    "stockQuantity": 0,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": null,
+    "availableColors": [
+      "blue"
+    ],
+    "availableSizes": [],
+    "defaultColor": "blue",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 57,
+    "popularityScore": 193,
+    "addedDate": "2026-07-25T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 207,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-8",
+    "sku": "TWA-CLO-047",
+    "title": "Trendy Outfit 8",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 9000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 58,
+    "popularityScore": 192,
+    "addedDate": "2026-07-24T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 208,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-9",
+    "sku": "TWA-LIG-048",
+    "title": "Modern Lamp 9",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "",
+    "priceAmount": 9500,
+    "originalPriceAmount": null,
+    "stockQuantity": 0,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "roomAr",
+    "vtoModelType": null,
+    "availableColors": [
+      "blue"
+    ],
+    "availableSizes": [],
+    "defaultColor": "blue",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 59,
+    "popularityScore": 191,
+    "addedDate": "2026-07-23T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 209,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-10",
+    "sku": "TWA-CLO-049",
+    "title": "Trendy Outfit 10",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 10000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 60,
+    "popularityScore": 190,
+    "addedDate": "2026-07-22T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 210,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-11",
+    "sku": "TWA-LIG-050",
+    "title": "Modern Lamp 11",
+    "description": "Elevate your space with this beautiful and functional piece. Crafted with attention to detail and high-quality materials.",
+    "categoryId": "lighting",
+    "categoryKind": "lighting",
+    "subcategory": "",
+    "priceAmount": 10500,
+    "originalPriceAmount": null,
+    "stockQuantity": 0,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": null,
+    "availableColors": [
+      "blue"
+    ],
+    "availableSizes": [],
+    "defaultColor": "blue",
+    "defaultSize": null,
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 61,
+    "popularityScore": 189,
+    "addedDate": "2026-07-21T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 211,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  },
+  {
+    "id": "other-product-12",
+    "sku": "TWA-CLO-051",
+    "title": "Trendy Outfit 12",
+    "description": "A stylish and comfortable piece perfect for any occasion. Designed with premium materials for a great fit.",
+    "categoryId": "clothing",
+    "categoryKind": "clothing",
+    "subcategory": "Outfits",
+    "priceAmount": 11000,
+    "originalPriceAmount": null,
+    "stockQuantity": 15,
+    "isActive": true,
+    "showInCatalog": true,
+    "publicationStatus": "published",
+    "mainImage": {
+      "path": "assets/images/home/featured/featured_womens_blazer.png",
+      "source": "asset",
+      "altText": ""
+    },
+    "galleryMedia": [
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      },
+      {
+        "path": "assets/images/home/featured/featured_womens_blazer.png",
+        "source": "asset",
+        "altText": ""
+      }
+    ],
+    "experienceType": "none",
+    "vtoModelType": "female",
+    "availableColors": [
+      "black"
+    ],
+    "availableSizes": [
+      "m",
+      "l"
+    ],
+    "defaultColor": "black",
+    "defaultSize": "m",
+    "specifications": [],
+    "deliveryEstimate": "3 - 5 Days",
+    "warranty": null,
+    "recommendationRank": 62,
+    "popularityScore": 188,
+    "addedDate": "2026-07-20T21:14:24.472939",
+    "rating": 4.8,
+    "reviewCount": 212,
+    "arModelAssetPath": null,
+    "arScale": null,
+    "vtoGarmentAssetPath": null
+  }
+]

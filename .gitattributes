@@ -1,0 +1,22 @@
+# Normalise line endings: store LF in the repo, convert on checkout per-platform.
+* text=auto eol=lf
+
+# Binary assets — never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.glb binary
+*.gltf binary
+*.pdf binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.ttf binary
+*.otf binary
+
+# Windows batch/PowerShell keep CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf

@@ -1,0 +1,9 @@
+{
+  "name": "twin-ar-super-admin-bootstrap",
+  "private": true,
+  "description": "One-time, developer-only Super Admin promotion script for TWin AR. Not Flutter app code, not a Cloud Function, not reachable from the mobile app.",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

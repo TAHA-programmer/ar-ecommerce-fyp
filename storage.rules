@@ -1,0 +1,187 @@
+rules_version = '2';
+
+// TWin AR - Firebase Storage Security Rules, Phase 8.7 + Phase 8.8 + Phase 9.2 R10.
+//
+// Four isolated trees:
+//  - `products/{productId}/images/{imageId}` - product photography. Public
+//    read (matches `products/{id}`'s Firestore read rule - any signed-in
+//    customer, and unauthenticated browsing of a shared product link, can
+//    already see published+active product data); write restricted to the
+//    `superAdmin` custom claim, mirroring `firestore.rules`' `isAdmin()`.
+//  - `users/{uid}/profile/{imageId}` - a customer's own avatar. Deliberately
+//    NOT public: only the owning uid or a superAdmin may read it (see
+//    `09_BACKEND_INTEGRATION_PLAN.md`, Phase 8.7 - "Read-access decision:
+//    owner + admin only"). The app never reads this via a public download
+//    URL; it always fetches bytes through an authenticated
+//    `FirebaseStorage.ref(path).getData()` call, which rules like these
+//    correctly gate.
+//  - `categories/{categoryId}/images/{imageId}` (Phase 8.8) - category
+//    thumbnails. Public read, mirroring product images; write restricted to
+//    the `superAdmin` custom claim, same as products.
+//  - `products/{productId}/ar/model-v{version}.glb` (Phase 9.2 R10) - the
+//    versioned Room-AR 3D model for a product. Deliberately NOT public
+//    (unlike product images): only a *signed-in* customer may read it, and
+//    only for one of the four currently-approved products. Writes are
+//    `superAdmin`-only, `.glb`-shaped, size-capped, and content-type gated -
+//    exactly matching what `scripts/upload_ar_models/` sends and what
+//    `RoomArModelService` will accept on the client. No listing, no wildcard.
+//
+// Both trees additionally restrict content-type (JPEG/PNG/WebP only) and
+// size (10 MB product images, 2 MB avatars) on every create/update, and gate
+// delete as its own rule, separate from create/update, so a client that can
+// write a new image cannot be assumed to also be allowed to delete one (in
+// practice the same `isAdmin()`/`isOwner(uid)` boundary applies to both
+// here, but keeping them as distinct `allow` blocks matches the project's
+// existing `firestore.rules` convention of not conflating operations).
+//
+// Rules are scoped to exact, known path shapes (`.../images/{imageId}`,
+// `.../profile/{imageId}` - a single final path segment, not a `{**}`
+// wildcard) so nothing under an unexpected sub-path is ever implicitly
+// readable/writable. Everything else in the bucket is denied by the
+// catch-all at the bottom, matching `firestore.rules`' pattern of leaving
+// nothing open "for later".
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'superAdmin';
+    }
+
+    function isValidImageType() {
+      return request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png'
+          || request.resource.contentType == 'image/webp';
+    }
+
+    // Phase 9.2 R10. The Admin SDK upload tool sets `model/gltf-binary`
+    // explicitly; `application/octet-stream` is accepted as the generic
+    // fallback Firebase reports for an unknown binary. Nothing else.
+    function isValidArModelType() {
+      return request.resource.contentType == 'model/gltf-binary'
+          || request.resource.contentType == 'application/octet-stream';
+    }
+
+    // Phase 9.2 R16 — integrity provenance. Every AR-model write (Admin app
+    // OR the `scripts/upload_ar_models/` Admin-SDK tool) MUST carry the
+    // `twinArAr*` custom metadata: at minimum a 64-hex SHA-256 and a numeric
+    // version. This makes "which bytes are these / what version" verifiable
+    // from the object alone and blocks a bare/anonymous binary from ever
+    // landing under `products/{id}/ar/`. Rules cannot hash the payload, so
+    // this asserts the *shape* of the declared provenance, not that the hash
+    // matches the bytes (RoomArModelService + the Admin re-download do that).
+    function hasArModelProvenance() {
+      return request.resource.metadata != null
+          && request.resource.metadata.twinArArModelSha256 is string
+          && request.resource.metadata.twinArArModelSha256.matches('[0-9a-f]{64}')
+          && request.resource.metadata.twinArArModelVersion is string
+          && request.resource.metadata.twinArArModelVersion.matches('[0-9]+');
+    }
+
+    // The four products with a validated, physically-approved GLB
+    // (tracker §2.4-2.8 / §4). R15 widens this as more products get an
+    // approved model; until then no other productId has a readable AR object.
+    function isApprovedArProduct(productId) {
+      return productId == 'luna-accent-chair'
+          || productId == 'glass-coffee-table'
+          || productId == 'modern-table-lamp'
+          || productId == 'luna-3-seater-sofa';
+    }
+
+    match /products/{productId}/images/{imageId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+                             && isValidImageType()
+                             && request.resource.size <= 10 * 1024 * 1024;
+      // Delete is intentionally unused by the app this phase - previously
+      // committed product-image objects are never deleted (historical
+      // OrderItemModel snapshots may still reference them) - but the rule
+      // exists so a future cleanup tool has a correct, narrow boundary to
+      // rely on rather than an open one.
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid}/profile/{imageId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isOwner(uid)
+                             && isValidImageType()
+                             && request.resource.size <= 2 * 1024 * 1024;
+      // Used for best-effort cleanup when a user replaces their avatar with
+      // a new upload, and for rollback of a just-uploaded-this-session file
+      // if the following Firestore write fails.
+      allow delete: if isOwner(uid);
+    }
+
+    // Phase 8.8 - Dynamic Categories Foundation. Mirrors the
+    // products/{productId}/images/{imageId} block exactly (public read,
+    // superAdmin-only write, same JPEG/PNG/WebP gate), except for a smaller
+    // 5 MB size ceiling - a category image is a single thumbnail, never a
+    // multi-image gallery, so the product ceiling would be unnecessarily
+    // generous. Does not change products/{productId}/images/{imageId} or
+    // users/{uid}/profile/{imageId} in any way - both blocks above are
+    // untouched.
+    match /categories/{categoryId}/images/{imageId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+                             && isValidImageType()
+                             && request.resource.size <= 5 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+
+    // Phase 9.2 R10 / R16 - versioned Room-AR GLB delivery.
+    // `model-v{n}.glb` only - a single, exact final path segment, so
+    // nothing under `products/{id}/ar/**` other than the model file itself
+    // is ever readable or writable.
+    //
+    // Read:
+    //  - a customer (signed-in) may read only an APPROVED product's model
+    //    (the four physically-approved products); every other product's AR
+    //    object stays unreadable to customers until it is approved.
+    //  - an admin (superAdmin claim) may read ANY product's model - they can
+    //    already write it (below), and R16's Admin AR & Media "preview /
+    //    re-verify committed model" needs the exact bytes back. This is
+    //    strictly a superset of the write privilege they already hold, so it
+    //    adds no new exposure surface.
+    // Write (`create`/`update`): superAdmin only, and ALL of —
+    //   * `model-v{n}.glb` exact name shape (no listing, no wildcard, nothing
+    //     else under `ar/` is writable);
+    //   * `isValidArModelType()` — `model/gltf-binary` (Admin app + R10 tool)
+    //     or `application/octet-stream` (SDK generic fallback), nothing else;
+    //   * `hasArModelProvenance()` — a 64-hex `twinArArModelSha256` + numeric
+    //     `twinArArModelVersion` in custom metadata (R16 integrity clarify —
+    //     no anonymous binary can land here);
+    //   * `size <= 12 MB` — the TRANSPORT ceiling. The Admin app caps its own
+    //     uploads at the stricter SCALE_CONTRACT.md 8 MB authoring budget
+    //     (`kArModelMaxUploadBytes`); 12 MB here is the safety margin that
+    //     also matches `RoomArModelService.defaultMaxDownloadBytes`.
+    // Delete: superAdmin + `.glb` name shape — deliberately nothing more.
+    // There is no request payload to validate on a delete, and rules must not
+    // try to encode app workflow (the R16 "disable the customer entry point
+    // before you may delete" ordering is enforced in the ViewModel, not here;
+    // a superAdmin with console access can always delete regardless). The R10
+    // tool never deletes; the R16 "permanently delete model" flow and any
+    // future cleanup tool rely on exactly this boundary.
+    match /products/{productId}/ar/{modelFile} {
+      allow read: if modelFile.matches('model-v[0-9]+[.]glb')
+                   && (isAdmin()
+                       || (isSignedIn() && isApprovedArProduct(productId)));
+      allow create, update: if isAdmin()
+                             && modelFile.matches('model-v[0-9]+[.]glb')
+                             && isValidArModelType()
+                             && hasArModelProvenance()
+                             && request.resource.size <= 12 * 1024 * 1024;
+      allow delete: if isAdmin()
+                     && modelFile.matches('model-v[0-9]+[.]glb');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

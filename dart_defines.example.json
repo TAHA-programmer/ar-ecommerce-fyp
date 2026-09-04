@@ -1,0 +1,4 @@
+{
+  "_comment": "Copy this file to dart_defines.json (git-ignored) and fill in your own Stripe TEST-mode publishable key. Build with: flutter run --dart-define-from-file=dart_defines.json",
+  "STRIPE_PUBLISHABLE_KEY": "pk_test_your_stripe_test_mode_publishable_key_here"
+}

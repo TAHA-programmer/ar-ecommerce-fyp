@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-upload-ar-models",
+  "private": true,
+  "description": "Developer-only Phase 9.2 R10 tool: uploads the four physically-approved Room-AR GLBs to their versioned Firebase Storage object paths. Not Flutter app code, not a Cloud Function, not reachable from the mobile app. Never writes Firestore, never deletes, never runs the seed script.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

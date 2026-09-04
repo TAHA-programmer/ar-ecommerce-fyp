@@ -1,0 +1,60 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        ".gitignore",
+        "*.local",
+        "README.md",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**",
+        "test/**",
+        "vitest.config.ts",
+        "vitest.emulator.config.ts"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "emulators": {
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    }
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "twin-ar-d4d75",
+          "appId": "1:855430135303:android:72d2c7795ac4e0f9d1b4a2",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "twin-ar-d4d75",
+          "configurations": {
+            "android": "1:855430135303:android:72d2c7795ac4e0f9d1b4a2"
+          }
+        }
+      }
+    }
+  }
+}

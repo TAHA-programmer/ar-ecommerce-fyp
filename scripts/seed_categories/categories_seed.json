@@ -1,0 +1,37 @@
+[
+  {
+    "key": "furniture",
+    "name": "Furniture",
+    "kind": "furniture",
+    "sortOrder": 10,
+    "sourceImageAssetPath": "assets/images/home/categories/category_furniture.png"
+  },
+  {
+    "key": "clothing",
+    "name": "Clothing",
+    "kind": "clothing",
+    "sortOrder": 20,
+    "sourceImageAssetPath": "assets/images/home/categories/category_clothing.png"
+  },
+  {
+    "key": "rugs",
+    "name": "Rugs",
+    "kind": "rugs",
+    "sortOrder": 30,
+    "sourceImageAssetPath": "assets/images/home/categories/category_rugs.png"
+  },
+  {
+    "key": "decor",
+    "name": "Decor",
+    "kind": "decor",
+    "sortOrder": 40,
+    "sourceImageAssetPath": "assets/images/home/categories/category_decor.png"
+  },
+  {
+    "key": "lighting",
+    "name": "Lighting",
+    "kind": "lighting",
+    "sortOrder": 50,
+    "sourceImageAssetPath": "assets/images/home/new_arrivals/new_arrival_lamp_decor.png"
+  }
+]

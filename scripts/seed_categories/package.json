@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-seed-categories",
+  "private": true,
+  "description": "Developer-only Phase 8.8 category seed script for TWin AR. Not Flutter app code, not a Cloud Function, not reachable from the mobile app.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "twin-ar-firestore-rules-tests",
+  "private": true,
+  "description": "Firestore Security Rules verification for TWin AR, run against the Firebase Local Emulator Suite. Separate Node toolchain from `flutter test` per 13_TESTING_AND_QA_RULES.md's Lean Testing Policy - not part of the Flutter build or app runtime.",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore \"node run_rules_tests.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^12.17.1"
+  }
+}
