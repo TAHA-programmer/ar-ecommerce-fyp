@@ -1,11 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Phase 9.2 R5 — Tier-2 Marker-AR uses the rear camera for pure-vision
-         (OpenCV ArUco) tracking. No ARCore, no audio, nothing recorded/uploaded.
+         (OpenCV ArUco) tracking. No audio, nothing recorded/uploaded.
          camera is not required so non-camera devices still install (they get
-         the Tier-3 3D preview later). -->
+         the Tier-3 3D preview later). Phase 9.2 R6 — Tier-1 markerless ARCore
+         shares this same CAMERA permission (requested once, Dart-side, by
+         `RoomArCapabilityService`/the prep screen — no separate permission
+         flow); `android.hardware.camera.ar` is also declared `required="false"`
+         so a device without full ARCore hardware support still installs and
+         simply never gets offered Tier 1. -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera.any" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false"/>
     <uses-feature android:glEsVersion="0x00030000" android:required="false"/>
 
     <application
@@ -39,6 +45,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Phase 9.2 R6 — "optional" (not "required"): the app must remain
+             installable on devices Google Play doesn't list as ARCore-capable,
+             or that don't have Google Play Services for AR installed at all —
+             those devices simply never get Tier 1 (`RoomArCapabilitiesPlugin`
+             reports `arCoreAvailable: false` for them; routing falls through
+             to Tier 2/3, exactly the existing R8 behaviour). -->
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="optional" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -52,13 +52,62 @@ void main() {
       expect(d.tier, RoomArTier.unsupported);
     });
 
-    test('Tier 1 is never selected while R6 is unimplemented, '
-        'even if ARCore reports available', () {
-      // kTier1Implemented is false for this build.
-      expect(kTier1Implemented, isFalse);
-      final d = decideRoomArTier(infinix.copyWith(arCoreAvailable: true));
+    test('Phase 9.2 R6 — Tier 1 is genuinely implemented in this build', () {
+      expect(kTier1Implemented, isTrue);
+    });
+
+    test(
+      'ARCore-capable device (camera + GLES3 + ARCore available) → Tier 1',
+      () {
+        final d = decideRoomArTier(infinix.copyWith(arCoreAvailable: true));
+        expect(d.tier, RoomArTier.tier1Arcore);
+        expect(d.reason, 'arcore-available');
+      },
+    );
+
+    test('ARCore available but camera permanently denied → falls through to '
+        'Tier 3, never Tier 1 (ARCore owns the camera directly, same as '
+        'Tier 2)', () {
+      final d = decideRoomArTier(
+        infinix.copyWith(
+          arCoreAvailable: true,
+          cameraPermission: RoomArCameraPermission.permanentlyDenied,
+        ),
+      );
       expect(d.tier, isNot(RoomArTier.tier1Arcore));
-      expect(d.tier, RoomArTier.tier2Marker); // falls through to a real tier
+      expect(d.tier, RoomArTier.tier3Preview);
+    });
+
+    test('ARCore available but no OpenGL ES 3.0 → unsupported, never Tier 1 '
+        '(the Filament product overlay needs GLES3 too)', () {
+      final d = decideRoomArTier(
+        infinix.copyWith(
+          arCoreAvailable: true,
+          hasOpenGles3: false,
+          markerEngineReady: false,
+        ),
+      );
+      expect(d.tier, isNot(RoomArTier.tier1Arcore));
+      expect(d.tier, RoomArTier.unsupported);
+    });
+
+    test('ARCore available but no camera hardware at all → falls through, '
+        'never Tier 1', () {
+      final d = decideRoomArTier(
+        infinix.copyWith(arCoreAvailable: true, hasCamera: false),
+      );
+      expect(d.tier, isNot(RoomArTier.tier1Arcore));
+    });
+
+    test('ARCore unavailable on this device/session → Tier 2 (unchanged '
+        'pre-R6 behaviour)', () {
+      final d = decideRoomArTier(infinix.copyWith(arCoreAvailable: false));
+      expect(d.tier, RoomArTier.tier2Marker);
+    });
+
+    test('the unknown-device default never reports ARCore available, so it '
+        'still routes to Tier 2', () {
+      expect(RoomArDeviceCapabilities.unknown.arCoreAvailable, isFalse);
     });
 
     test('the unknown-device default routes to Tier 2 (its own handling '

@@ -29,10 +29,13 @@ import '../../features/room_ar/viewmodels/room_ar_preparation_viewmodel.dart';
 import '../../features/room_ar/views/room_ar_preparation_view.dart';
 import '../../features/room_ar/marker_ar/viewmodels/marker_ar_viewmodel.dart';
 import '../../features/room_ar/marker_ar/views/marker_ar_view.dart';
+import '../../features/room_ar/marker_ar/models/marker_ar_object.dart';
 import '../../features/room_ar/marker_ar/room_ar_session_args.dart';
 import '../../features/room_ar/preview/room_ar_preview_view.dart';
 import '../../features/room_ar/preview/room_ar_preview_viewmodel.dart';
 import '../../features/room_ar/model_delivery/room_ar_model_service_factory.dart';
+import '../../features/room_ar/tier1_arcore/viewmodels/room_arcore_viewmodel.dart';
+import '../../features/room_ar/tier1_arcore/views/room_arcore_view.dart';
 import '../../features/virtual_try_on/viewmodels/virtual_try_on_setup_viewmodel.dart';
 import '../../features/virtual_try_on/views/virtual_try_on_setup_view.dart';
 import '../../features/cart/viewmodels/cart_viewmodel.dart';
@@ -211,6 +214,28 @@ class AppRouter {
             child: RoomArPreparationView(productId: productId),
           ),
         );
+      case RouteNames.roomArCoreSession:
+        // Phase 9.2 R6 — the customer Tier-1 markerless-ARCore session for
+        // ONE approved product. Same eligibility guarantee as roomArSession:
+        // RoomArPreparationViewModel only builds a RoomArSessionArgs for a
+        // product with `hasRenderableArModel == true`.
+        final coreArgs = settings.arguments;
+        if (coreArgs is! RoomArSessionArgs) {
+          return _errorRoute('Room AR is not available for this product');
+        }
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) {
+              final vm = RoomArCoreViewModel(args: coreArgs)..start();
+              RoomArModelServiceFactory.open()
+                  .then(vm.attachModelService)
+                  .catchError((_) {});
+              return vm;
+            },
+            child: const RoomArCoreView(),
+          ),
+        );
       case RouteNames.roomArSession:
         // Phase 9.2 R15/R17 — the customer Room-AR session for ONE approved
         // product. RoomArPreparationViewModel only builds a RoomArSessionArgs
@@ -227,8 +252,15 @@ class AppRouter {
             create: (_) {
               final vm = MarkerArViewModel(
                 mode: MarkerArLaunchMode.customerProduct,
-                initialObject: sessionArgs.object,
+                // A placeholder when `sessionArgs.object` is null (any
+                // product but the four originally-bundled ones) — never
+                // reaches the native side as-is; see
+                // `customerFirestoreProductId` and `MarkerArViewModel`'s
+                // internal re-derivation of the real mapping.
+                initialObject: sessionArgs.object ?? MarkerArObject.chair,
                 customerMetadata: sessionArgs.metadata,
+                customerFirestoreProductId: sessionArgs.firestoreProductId,
+                customerProductTitle: sessionArgs.productTitle,
               )..start();
               // Production Storage GLB delivery (verified cache + integrity +
               // last-known-good + bundled fallback). If the cache dir can't be

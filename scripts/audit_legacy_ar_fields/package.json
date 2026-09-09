@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-audit-legacy-ar-fields",
+  "private": true,
+  "description": "Developer-only Phase 9.2 R20 tool: read-only audit of live Firestore products for non-null legacy top-level arModelAssetPath/arScale fields. Performs ZERO writes, ZERO deletes, ZERO Storage calls — Firestore reads only. Not Flutter app code, not a Cloud Function.",
+  "type": "module",
+  "scripts": {
+    "audit": "node audit_legacy_ar_fields.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

@@ -1244,6 +1244,21 @@ class AdminProductFormViewModel extends ChangeNotifier {
       // Room-AR GLB so deleting a product never orphans a Storage object. The
       // product doc (the only thing that referenced it) is already deleted —
       // a cleanup failure is not undone, but it is reported honestly.
+      //
+      // Deliberately does NOT also delete the product's own Storage-hosted
+      // images. A Phase 9.2 closeout audit briefly added that (reasoning it
+      // would close the same kind of orphaned-object gap) and reverted it
+      // the same pass: a historical `OrderItemModel` snapshot can still
+      // carry that exact download URL by design (see
+      // `StorageService.deleteProductImageByUrl`'s own interface doc
+      // comment — "never for deleting a previously committed product
+      // image... historical `OrderItemModel` snapshots may still reference
+      // it", a pre-existing rule) — auto-deleting it here would silently
+      // break that order's rendering forever. An AR model has no such risk
+      // (no order field ever references one), which is exactly why only
+      // this cleanup is safe to automate. A committed image is intentionally
+      // left in Storage on product delete — orphaned storage cost, not a
+      // correctness bug.
       final arModelPath = _originalProduct!.arMetadata?.storagePath;
       if (arModelPath != null) {
         final removed = await storageService.deleteArModelByPath(arModelPath);

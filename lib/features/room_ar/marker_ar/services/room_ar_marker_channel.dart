@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import '../models/marker_ar_config.dart';
 import '../models/marker_ar_frame.dart';
-import '../models/marker_ar_object.dart';
 
 /// Thin Dart ↔ platform boundary for the Tier-2 Marker-AR native engine
 /// (`RoomArMarkerPlugin.kt`). **No business logic** — it only marshals calls and
@@ -53,16 +52,20 @@ class RoomArMarkerChannel {
     return b ?? Uint8List(0);
   }
 
-  Future<void> setObject(MarkerArObject object) =>
-      _invoke('setArMode', {'mode': object.mode});
+  /// [mode] is the native renderer key: `chair`/`table`/`lamp`/`sofa` for the
+  /// four bundled products, or any other non-blank key (typically the live
+  /// Firestore product id) for a product with no bundled/native-specialized
+  /// treatment — see `RoomArSessionArgs.nativeMode`.
+  Future<void> setObject(String mode) => _invoke('setArMode', {'mode': mode});
 
   /// Phase 9.2 R10 — hand the native renderer a **verified** external GLB
-  /// ([absolutePath], from `RoomArModelService`) for [object], or pass null to
-  /// drop the override and fall back to the bundled asset. Only a path that has
-  /// already passed magic-byte / length / structure / SHA-256 / bounding-box
-  /// verification may be passed here.
-  Future<void> setExternalModel(MarkerArObject object, String? absolutePath) =>
-      _invoke('setExternalModel', {'mode': object.mode, 'path': absolutePath});
+  /// ([absolutePath], from `RoomArModelService`) for [mode], or pass null to
+  /// drop the override and fall back to the bundled asset (if one exists for
+  /// this key — see [setObject]). Only a path that has already passed
+  /// magic-byte / length / structure / SHA-256 / bounding-box verification
+  /// may be passed here.
+  Future<void> setExternalModel(String mode, String? absolutePath) =>
+      _invoke('setExternalModel', {'mode': mode, 'path': absolutePath});
 
   Future<void> setYaw(double yaw) => _invoke('setObjectYaw', {'yaw': yaw});
 

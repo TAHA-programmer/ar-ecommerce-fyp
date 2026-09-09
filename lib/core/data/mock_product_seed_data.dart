@@ -15,8 +15,14 @@ import '../models/product/product_vto_model_type.dart';
 /// `lib/features/room_ar/room_ar_product_manifest.dart`** (a test locks the
 /// two together). Storage paths point at `products/{id}/ar/model-v1.glb`,
 /// uploaded + physically approved on 2026-08-31 (tracker §2.11).
-const Map<String, ProductArMetadata> kRoomArProductMetadata = {
-  'luna-accent-chair': ProductArMetadata(
+///
+/// `final`, not `const` — the Phase 9.2 coverage-expansion groups below use
+/// `for` loops over shared-design id lists, which Dart disallows inside a
+/// const collection literal. Every individual [ProductArMetadata] value is
+/// still a `const` object. Kept in lockstep with the manifest by
+/// `room_ar_product_manifest_test.dart`'s byte-identical check.
+final Map<String, ProductArMetadata> kRoomArProductMetadata = {
+  'luna-accent-chair': const ProductArMetadata(
     storagePath: 'products/luna-accent-chair/ar/model-v1.glb',
     modelVersion: '1',
     sha256: 'd67c68f823d06881ec1aabf7f8ca6f0128f1016483ea0307f5c2ecef66b3cf94',
@@ -24,7 +30,7 @@ const Map<String, ProductArMetadata> kRoomArProductMetadata = {
     depthM: 0.72,
     heightM: 0.82,
   ),
-  'glass-coffee-table': ProductArMetadata(
+  'glass-coffee-table': const ProductArMetadata(
     storagePath: 'products/glass-coffee-table/ar/model-v1.glb',
     modelVersion: '1',
     sha256: 'd10f32a7373d84031d3e51b8e9770610f514f62fa56110608852f1640ab7a727',
@@ -32,7 +38,7 @@ const Map<String, ProductArMetadata> kRoomArProductMetadata = {
     depthM: 0.90,
     heightM: 0.42,
   ),
-  'modern-table-lamp': ProductArMetadata(
+  'modern-table-lamp': const ProductArMetadata(
     storagePath: 'products/modern-table-lamp/ar/model-v1.glb',
     modelVersion: '1',
     sha256: 'ee417ead58e72de9518358288f089bad272779c190125e01ac372fcfc16bb565',
@@ -40,7 +46,7 @@ const Map<String, ProductArMetadata> kRoomArProductMetadata = {
     depthM: 0.20,
     heightM: 0.45,
   ),
-  'luna-3-seater-sofa': ProductArMetadata(
+  'luna-3-seater-sofa': const ProductArMetadata(
     storagePath: 'products/luna-3-seater-sofa/ar/model-v1.glb',
     modelVersion: '1',
     sha256: 'efd400046b265fd49d8d2b0382d378d230d625cb879740a3ef0697ca86c0d187',
@@ -48,6 +54,91 @@ const Map<String, ProductArMetadata> kRoomArProductMetadata = {
     depthM: 1.65,
     heightM: 0.82,
   ),
+
+  // ── Phase 9.2 coverage-expansion (tracker §15, 2026-09-05) ───────────────
+  'velvet-armchair': const ProductArMetadata(
+    storagePath: 'products/velvet-armchair/ar/model-v1.glb',
+    modelVersion: '1',
+    sha256: '9909929fdc84adf526127887ab782805bee0ff6863c04e0dd1510a4264f8a09e',
+    widthM: 0.72,
+    depthM: 0.76,
+    heightM: 0.78,
+  ),
+  'wooden-console': const ProductArMetadata(
+    storagePath: 'products/wooden-console/ar/model-v1.glb',
+    modelVersion: '1',
+    sha256: 'b22ac85b25cac2b4924e04793701c95907c36474bb04df7c4aa9ddda51e03433',
+    widthM: 1.80,
+    depthM: 0.42,
+    heightM: 0.72,
+  ),
+  'marble-side-table': const ProductArMetadata(
+    storagePath: 'products/marble-side-table/ar/model-v1.glb',
+    modelVersion: '1',
+    sha256: '287b8bb97b3bff21de651b49dbb46024be0462fc2ea3e49c6a08964f79b9b7b3',
+    widthM: 0.46,
+    depthM: 0.46,
+    heightM: 0.53,
+  ),
+  // Beige AR Rug — one shared design, 7 listing ids.
+  for (final id in [
+    'beige-ar-in-stock-5',
+    'beige-ar-in-stock-7',
+    'beige-ar-in-stock-11',
+    'beige-ar-in-stock-13',
+    'beige-ar-in-stock-17',
+    'beige-ar-in-stock-19',
+    'beige-ar-in-stock-23',
+  ])
+    id: ProductArMetadata(
+      storagePath: 'products/$id/ar/model-v1.glb',
+      modelVersion: '1',
+      sha256:
+          'd21f1adaf04708ff96976282fa7543814c9718028a3297fe392b0847766837e5',
+      widthM: 2.00,
+      depthM: 1.35,
+      heightM: 0.012,
+    ),
+  // Beige AR Sofa — one shared design, 8 listing ids.
+  for (final id in [
+    'beige-ar-in-stock-2',
+    'beige-ar-in-stock-4',
+    'beige-ar-in-stock-8',
+    'beige-ar-in-stock-10',
+    'beige-ar-in-stock-14',
+    'beige-ar-in-stock-16',
+    'beige-ar-in-stock-20',
+    'beige-ar-in-stock-22',
+  ])
+    id: ProductArMetadata(
+      storagePath: 'products/$id/ar/model-v1.glb',
+      modelVersion: '1',
+      sha256:
+          '5dfc2a86ea7a9c66ca4190179a31e1d2f2b28c9829cbd9b2240b9284c7db2a84',
+      widthM: 2.50,
+      depthM: 1.60,
+      heightM: 0.70,
+    ),
+  // Beige AR Vase — one shared design, 8 listing ids.
+  for (final id in [
+    'beige-ar-in-stock-3',
+    'beige-ar-in-stock-6',
+    'beige-ar-in-stock-9',
+    'beige-ar-in-stock-12',
+    'beige-ar-in-stock-15',
+    'beige-ar-in-stock-18',
+    'beige-ar-in-stock-21',
+    'beige-ar-in-stock-24',
+  ])
+    id: ProductArMetadata(
+      storagePath: 'products/$id/ar/model-v1.glb',
+      modelVersion: '1',
+      sha256:
+          'cf8c32bab30e43ca138fd07b5aca50a792389d91228aaacb05cb09321989295d',
+      widthM: 0.15,
+      depthM: 0.15,
+      heightM: 0.20,
+    ),
 };
 
 /// The canonical mock product catalog (51 products total; ~36 of them are
@@ -158,6 +249,7 @@ List<ProductModel> buildMockProductSeedData() {
     required int recommendationRank,
     required DateTime addedDate,
     required int popularityScore,
+    ProductArMetadata? arMetadata,
   }) {
     return ProductModel(
       id: id,
@@ -194,6 +286,7 @@ List<ProductModel> buildMockProductSeedData() {
       reviewCount: reviewCount,
       recommendationRank: recommendationRank,
       popularityScore: popularityScore,
+      arMetadata: arMetadata,
     );
   }
 
@@ -332,6 +425,7 @@ List<ProductModel> buildMockProductSeedData() {
       price: 18000,
       rating: 4.6,
       subcategory: 'Accent Chairs',
+      arMetadata: kRoomArProductMetadata['velvet-armchair'],
       isNewArrival: true,
       isPopularFurniture: true,
       isRecentlyViewed: true,
@@ -379,17 +473,17 @@ List<ProductModel> buildMockProductSeedData() {
     ),
   );
 
-  products.add(
-    buildExplicit(
-      id: 'minimalist-bedroom-set',
-      title: 'Minimalist Bedroom Set',
-      asset: AppAssets.arEnabledBedroom,
-      category: ProductCategory.furniture,
-      exp: ProductExperienceType.roomAr,
-      price: 45000,
-      subcategory: 'Bedroom Sets',
-    ),
-  );
+  // `minimalist-bedroom-set` — permanently removed from the catalogue by
+  // developer decision (Phase 9.2 closeout, 2026-09-09): deleted via Admin
+  // (Firestore doc + app listing gone; its Storage objects were separately,
+  // manually cleaned up). This is the canonical seed source that
+  // `scripts/seed_products/products_seed.json` is exported from and a live
+  // reseed writes from — an entry here would recreate the product in
+  // Firestore on the next `dart run tool/export_product_seed.dart` +
+  // `node seed_products.mjs --confirm`. Intentionally absent, not
+  // model-blocked — see tracker §18/§33 and coverage matrix §3.2 for the
+  // full history (it was never modelled: no `arMetadata` was ever attached
+  // to this id, unlike `wooden-console` immediately below).
 
   products.add(
     buildExplicit(
@@ -400,6 +494,7 @@ List<ProductModel> buildMockProductSeedData() {
       exp: ProductExperienceType.roomAr,
       price: 12000,
       subcategory: 'Console Tables',
+      arMetadata: kRoomArProductMetadata['wooden-console'],
     ),
   );
 
@@ -478,6 +573,7 @@ List<ProductModel> buildMockProductSeedData() {
       exp: ProductExperienceType.roomAr,
       price: 9500,
       subcategory: 'Side Tables',
+      arMetadata: kRoomArProductMetadata['marble-side-table'],
       isPopularFurniture: true,
     ),
   );
@@ -621,6 +717,7 @@ List<ProductModel> buildMockProductSeedData() {
         recommendationRank: i,
         addedDate: DateTime.now().subtract(Duration(days: i)),
         popularityScore: 100 - i,
+        arMetadata: kRoomArProductMetadata['beige-ar-in-stock-$i'],
       ),
     );
   }

@@ -8,12 +8,12 @@ import '../../../../core/models/product/product_ar_metadata.dart';
 import '../../../../core/models/product/product_color_option.dart';
 import '../../../../core/models/product/product_experience_type.dart';
 import '../../../../core/models/product/product_model.dart';
+import '../../../../core/models/product/product_publication_status.dart';
 import '../../../../core/models/product/product_size.dart';
 import '../../../../core/models/product/product_vto_model_type.dart';
 import '../../../../core/services/firebase_storage_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../room_ar/model_delivery/glb_inspector.dart';
-import '../../../room_ar/room_ar_product_manifest.dart';
 import '../models/admin_ar_model_candidate.dart';
 import '../services/ar_model_file_picker.dart';
 import '../utils/admin_glb_validator.dart';
@@ -58,11 +58,12 @@ enum AdminRoomArModelStatus {
   broken,
 
   /// A committed, renderable model with the entry point ON — **but this
-  /// product is not on the approved customer Room-AR list** (not in
-  /// `RoomArProductManifest`, not in `storage.rules`' `isApprovedArProduct`).
-  /// The model + metadata are valid, yet customers still cannot launch it:
-  /// releasing a new product end-to-end (rules widen + manifest + a physical
-  /// pass) is a separate Phase 9.2 step (§18). Shown honestly, never as "Live".
+  /// product is not yet customer-visible** (unpublished and/or inactive;
+  /// see `productIsCustomerApproved`, Phase 9.2 §17-follow-up — no longer
+  /// tied to `RoomArProductManifest`/a static `storage.rules` allowlist,
+  /// both now metadata-driven). The model + metadata are valid, yet
+  /// customers still cannot launch it until the product itself is published
+  /// and active. Shown honestly, never as "Live".
   readyNotApproved,
 
   /// A validated replacement/new GLB is staged, awaiting Save.
@@ -232,13 +233,22 @@ class ArMediaManagementViewModel extends ChangeNotifier {
   String get vtoAssetFileSize =>
       _sizeFor(selectedProduct?.vtoGarmentAssetPath, vtoAssetOptions);
 
-  /// `true` when the selected product is on the approved customer Room-AR
-  /// list — `RoomArProductManifest` (kept in lockstep with `storage.rules`'
-  /// `isApprovedArProduct` and the customer runtime's four-product gate). A
-  /// valid model on a product that is *not* on this list is real, but no
-  /// customer can launch it yet (§18).
-  bool get productIsCustomerApproved =>
-      RoomArProductManifest.byProductId.containsKey(_selectedProductId);
+  /// `true` when the selected product actually meets every condition
+  /// `storage.rules`' now-dynamic, metadata-driven `isApprovedArProduct()`
+  /// checks against its own live document (Phase 9.2 §17-follow-up):
+  /// published, active, a renderable `ar*` contract, and enabled. **No
+  /// longer tied to `RoomArProductManifest`** — that was a static,
+  /// manually-maintained list; a brand-new Admin-created product is now
+  /// "Live" the moment its own document qualifies, with no manifest entry
+  /// at all. A valid model on a product that is unpublished/inactive is
+  /// real, but no customer can launch it yet regardless of the model.
+  bool get productIsCustomerApproved {
+    final product = _workingProduct;
+    return product != null &&
+        product.hasRenderableArModel &&
+        product.isActive &&
+        product.publicationStatus == ProductPublicationStatus.published;
+  }
 
   AdminRoomArModelStatus get roomArModelStatus {
     if (_candidate != null) return AdminRoomArModelStatus.stagedUpload;

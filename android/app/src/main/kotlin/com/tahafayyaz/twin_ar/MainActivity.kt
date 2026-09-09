@@ -1,6 +1,7 @@
 package com.tahafayyaz.twin_ar
 
 import com.tahafayyaz.twin_ar.roomar.RoomArCapabilitiesPlugin
+import com.tahafayyaz.twin_ar.roomar.RoomArCorePlugin
 import com.tahafayyaz.twin_ar.roomar.RoomArMarkerPlugin
 import com.tahafayyaz.twin_ar.roomar.RoomArPreviewPlugin
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -19,6 +20,9 @@ class MainActivity : FlutterFragmentActivity() {
         // Phase 9.2 R7 — Tier-3 Interactive 3D Preview (Filament orbit viewer,
         // no camera) over twin_ar/room_ar/preview/*.
         RoomArPreviewPlugin.register(flutterEngine)
+        // Phase 9.2 R6 — Tier-1 markerless ARCore (real ARCore session +
+        // Filament product overlay) over twin_ar/room_ar/arcore/*.
+        RoomArCorePlugin.register(flutterEngine)
         // Phase 9.2 R8 — device-capability probe for tier routing.
         RoomArCapabilitiesPlugin.register(flutterEngine, applicationContext)
     }

@@ -6,8 +6,10 @@
 
 /// The three Room-AR delivery tiers, plus an honest "nothing usable" outcome.
 enum RoomArTier {
-  /// ARCore markerless. **Not implemented in this build (R6).** Never selected
-  /// until [kTier1Implemented] is flipped on.
+  /// ARCore markerless (R6) — real horizontal-surface detection, hit-test and
+  /// anchoring via ARCore, rendered through the same Filament product overlay
+  /// Tier 2/3 use. Selected only when the native probe reports
+  /// [RoomArDeviceCapabilities.arCoreAvailable] and the camera is usable.
   tier1Arcore,
 
   /// OpenCV Marker AR — the physically-approved path (Infinix Hot 40).
@@ -21,10 +23,14 @@ enum RoomArTier {
   unsupported,
 }
 
-/// Compile-time gate for Tier 1. R6 is a later pass; until then routing must
-/// never pick a nonexistent experience, so this stays `false` and the Tier-1
-/// branch in [decideRoomArTier] is dead — flipping this is all R6 needs here.
-const bool kTier1Implemented = false;
+/// Phase 9.2 R6 — Tier 1 (markerless ARCore) is now a real, genuine
+/// implementation (`RoomArCorePlugin`/`RoomArCoreView.kt` + real
+/// `ArCoreApk.checkAvailability()` in `RoomArCapabilitiesPlugin`), so routing
+/// may now select it. It is still gated behind [RoomArDeviceCapabilities
+/// .arCoreAvailable] below — a device the native probe reports as ARCore-
+/// incapable (or where the probe itself is unavailable) never has Tier 1
+/// selected for it, exactly like a device with no camera never gets Tier 2.
+const bool kTier1Implemented = true;
 
 /// Runtime camera-permission state relevant to tier routing.
 enum RoomArCameraPermission {
@@ -117,7 +123,16 @@ class RoomArTierDecision {
 /// GLES3 + OpenCV + camera not blocked) → Tier 3 (GLES3) → unsupported.
 /// Never returns a tier that cannot actually run right now.
 RoomArTierDecision decideRoomArTier(RoomArDeviceCapabilities caps) {
-  if (kTier1Implemented && caps.arCoreAvailable) {
+  // Tier 1 needs the same real camera access Tier 2 does (ARCore owns the
+  // camera directly) plus OpenGL ES 3.0 for the Filament product overlay —
+  // checked explicitly here rather than assumed from `arCoreAvailable` alone,
+  // so a permanently-denied/restricted camera or a sub-GLES3 device falls
+  // straight through to Tier 2/3 instead of opening a screen that can only
+  // fail.
+  if (kTier1Implemented &&
+      caps.arCoreAvailable &&
+      caps.hasOpenGles3 &&
+      caps.cameraUsable) {
     return const RoomArTierDecision(RoomArTier.tier1Arcore, 'arcore-available');
   }
 

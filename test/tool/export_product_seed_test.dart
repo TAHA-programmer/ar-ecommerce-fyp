@@ -28,6 +28,16 @@ void main() {
     test('re-export against a stale prior changes ONLY the recast fields', () {
       // Simulate the pre-R13/R14 products_seed.json for the four AR products
       // (old title / specs / no ar*), everything else already current.
+      // Only these four carry the pre-R13/R14 stale shape in this simulated
+      // prior; every other product (including the Phase 9.2 coverage-
+      // expansion ids, which now also carry ar* fields) must be left exactly
+      // as `current` produced it.
+      const staleFour = {
+        'luna-accent-chair',
+        'glass-coffee-table',
+        'luna-3-seater-sofa',
+        'modern-table-lamp',
+      };
       final current = buildSeedExport(buildMockProductSeedData());
       final stalePrior = current.map((p) {
         final m = Map<String, dynamic>.from(p);
@@ -51,18 +61,24 @@ void main() {
             ];
             break;
         }
-        // strip the ar* keys from the stale prior for all four
-        for (final k in const [
-          'arModelStoragePath',
-          'arModelFormat',
-          'arModelVersion',
-          'arModelSha256',
-          'arWidthM',
-          'arDepthM',
-          'arHeightM',
-          'arScaleContract',
-        ]) {
-          m.remove(k);
+        // strip the ar* keys from the stale prior, but only for the three
+        // products actually simulating the pre-R13/R14 stale shape above —
+        // NOT every product (a bare `.map()`-wide strip was harmless while
+        // only these three carried ar* fields at all, but would now also
+        // wrongly strip the Phase 9.2 coverage-expansion products' fields).
+        if (staleFour.contains(m['id'])) {
+          for (final k in const [
+            'arModelStoragePath',
+            'arModelFormat',
+            'arModelVersion',
+            'arModelSha256',
+            'arWidthM',
+            'arDepthM',
+            'arHeightM',
+            'arScaleContract',
+          ]) {
+            m.remove(k);
+          }
         }
         return m;
       }).toList();

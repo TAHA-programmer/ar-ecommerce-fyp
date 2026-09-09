@@ -231,15 +231,27 @@ class RoomArPreviewRenderer(
 
     private fun bundledFor(which: String): FilamentAsset? {
         val exact = when (which) {
-            "table" -> tableAsset
-            "lamp" -> lampAsset
-            "sofa" -> sofaAsset
-            else -> chairAsset
+            "chair" -> chairAsset
+            "table" -> tableAsset ?: chairAsset   // bundled table failed to parse — fall back to the guaranteed chair
+            "lamp" -> lampAsset ?: chairAsset
+            "sofa" -> sofaAsset ?: chairAsset
+            // Admin preview (R16) always supplies a real path synchronously
+            // at construction (`initialPath`) — this is a safety net for a
+            // caller that is never a real customer scenario, so it keeps the
+            // pre-existing chair fallback.
+            "admin" -> chairAsset
+            // Phase 9.2 coverage-expansion — a customer product outside the
+            // four originally-bundled ones (keyed by its own Firestore
+            // product id) has no bundled counterpart at all. Returning null
+            // here means `select()` reports "failed" until a verified
+            // external asset arrives — an honest state, never a silently
+            // wrong substitute model.
+            else -> null
         }
-        if (exact == null && which != "chair") {
-            Log.e(TAG, "bundled '$which' asset unavailable — falling back to chair")
+        if (exact == null) {
+            Log.d(TAG, "no bundled asset for mode '$which' — an external model is required")
         }
-        return exact ?: chairAsset
+        return exact
     }
 
     fun select(which: String) {

@@ -120,9 +120,28 @@ class AdminProductManagementViewModel extends ChangeNotifier {
   /// is authoritative; a Storage-cleanup failure is surfaced as an honest
   /// warning (`arModelCleanupWarning` + a toast) and never turns a successful
   /// delete into a failure.
+  ///
+  /// Deliberately does **not** delete the product's own Storage-hosted
+  /// images (main/gallery) — a Phase 9.2 closeout audit briefly added that
+  /// (reasoning it would close the same orphaned-object gap the AR-GLB fix
+  /// closed) and then reverted it the same pass: a historical
+  /// `OrderItemModel` snapshot (an already-placed order's line item) can
+  /// still carry that exact download URL by design (see
+  /// `StorageService.deleteProductImageByUrl`'s own interface doc comment —
+  /// "never for deleting a previously committed product image... historical
+  /// `OrderItemModel` snapshots may still reference it" — a pre-existing
+  /// rule this class must not violate), and auto-deleting it here would
+  /// silently break that order's rendering forever with no way to detect or
+  /// undo it. An AR model has no such risk (no order field ever references
+  /// one), which is exactly why only the AR-GLB cleanup is safe to automate.
+  /// A product's committed images are therefore intentionally left in
+  /// Storage on delete — orphaned storage cost, not a correctness bug — same
+  /// as `minimalist-bedroom-set`'s images needing the developer's own manual
+  /// cleanup, which was the *correct* thing to do, not a workaround for a
+  /// defect.
   Future<bool> deleteProduct(BuildContext context, String productId) async {
     _arModelCleanupWarning = null;
-    // Capture the AR-model object path BEFORE the doc is gone.
+    // Capture the AR-model path BEFORE the doc is gone.
     String? arModelStoragePath;
     try {
       arModelStoragePath = _database

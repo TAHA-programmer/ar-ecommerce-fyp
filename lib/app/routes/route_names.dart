@@ -23,10 +23,15 @@ class RouteNames {
   /// (debug-only entry from Profile). Not a customer "View in Room" route.
   static const String roomArMarkerEngine = '/room-ar/marker-engine';
 
-  /// Phase 9.2 R15/R17 — the customer Room-AR session for ONE approved product,
-  /// reached from the Room-AR preparation screen's "Start AR" button. Expects a
-  /// `RoomArSessionArgs`.
+  /// Phase 9.2 R15/R17 — the customer Tier-2 Marker-AR session for ONE
+  /// approved product, reached from the Room-AR preparation screen's
+  /// "Start AR" button. Expects a `RoomArSessionArgs`.
   static const String roomArSession = '/room-ar/session';
+
+  /// Phase 9.2 R6 — the customer Tier-1 markerless-ARCore session for ONE
+  /// approved product, reached when capability routing (R8) picks Tier 1.
+  /// Expects a `RoomArSessionArgs`.
+  static const String roomArCoreSession = '/room-ar/arcore-session';
 
   /// Phase 9.2 R7 — Tier-3 Interactive 3D Preview for ONE approved product,
   /// reached when capability routing (R8) picks Tier 3, or as the honest

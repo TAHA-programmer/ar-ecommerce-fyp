@@ -67,6 +67,12 @@ class MockStorageService implements StorageService {
 
   @override
   Future<void> deleteProductImageByUrl(String downloadUrl) async {
+    // Best-effort only, matching the real `FirebaseStorageService`
+    // implementation exactly (it swallows every failure internally and
+    // never throws — this mock must not diverge from that, or a caller-side
+    // try/catch built against it would test behaviour the real service can
+    // never actually exhibit). See the interface method's own doc comment
+    // for why this is never used to delete a previously *committed* image.
     deletedProductImageUrls.add(downloadUrl);
   }
 

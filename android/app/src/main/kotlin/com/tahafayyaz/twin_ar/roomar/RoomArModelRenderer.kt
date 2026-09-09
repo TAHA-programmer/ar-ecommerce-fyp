@@ -270,10 +270,17 @@ class RoomArModelRenderer(context: Context) {
             else -> 0.42f
         }
         val bundled = when (which) {
+            "chair" -> chairAsset
             "table" -> tableAsset ?: chairAsset   // fall back to chair if the table failed to load
             "lamp" -> lampAsset ?: chairAsset
             "sofa" -> sofaAsset ?: chairAsset
-            else -> chairAsset
+            // Phase 9.2 coverage-expansion — a product outside the four
+            // originally-bundled ones (keyed by its own Firestore product id,
+            // not one of "chair"/"table"/"lamp"/"sofa") has no bundled
+            // counterpart at all. Showing the chair here would silently
+            // substitute the wrong model; showing nothing until a verified
+            // external asset arrives is the only safe choice.
+            else -> null
         }
         // A verified external (Storage-delivered) GLB, when present, replaces
         // the bundled asset for this product slot (Phase 9.2 R10).

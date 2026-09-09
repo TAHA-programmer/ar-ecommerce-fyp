@@ -186,4 +186,30 @@ void main() {
       expect(c.storagePath, a.storagePath);
     });
   });
+
+  group('ProductArMetadata.belongsToProduct — cross-product path defence', () {
+    test('accepts the exact expected path for the given product id', () {
+      final ar = ProductArMetadata.fromProductData(validMap())!;
+      expect(ar.belongsToProduct('luna-accent-chair'), isTrue);
+    });
+
+    test('rejects a different product id even if the path is well-formed', () {
+      final ar = ProductArMetadata.fromProductData(validMap())!;
+      expect(ar.belongsToProduct('velvet-armchair'), isFalse);
+      expect(ar.belongsToProduct('glass-coffee-table'), isFalse);
+    });
+
+    test('rejects when only the model version segment differs', () {
+      final ar = ProductArMetadata.fromProductData(
+        validMap(
+          overrides: {
+            'arModelStoragePath': 'products/luna-accent-chair/ar/model-v2.glb',
+          },
+        ),
+      )!;
+      // modelVersion is still "1" (unchanged override), so the expected path
+      // for v1 no longer matches the actual (v2) path on the object.
+      expect(ar.belongsToProduct('luna-accent-chair'), isFalse);
+    });
+  });
 }

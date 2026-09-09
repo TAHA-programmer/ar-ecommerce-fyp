@@ -86,6 +86,10 @@ scripts/*/backups/
 # Internal planning / thesis / design reference material - not part of the
 # codebase and contains the FYP document + dev-only mock credentials.
 twin_ar_antigravity_reference_pack/
+# Phase 9.2 Room-AR GLB candidates/originals - local-only preservation copies
+# ahead of a later, separately-authorized Storage upload. Never bundled,
+# never committed - source assets only (see _ar_assets/candidates/PROVENANCE.md).
+_ar_assets/
 # Local Claude Code working files.
 Claude outputs/
 .claude/

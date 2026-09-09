@@ -162,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pump();
-    expect(channel.lastObject, MarkerArObject.sofa);
+    expect(channel.lastObject, MarkerArObject.sofa.mode);
   });
 
   group('customer mode (R15/R17)', () {
@@ -172,6 +172,8 @@ void main() {
           channel: channel,
           mode: MarkerArLaunchMode.customerProduct,
           initialObject: object,
+          customerFirestoreProductId: object.firestoreProductId,
+          customerProductTitle: object.displayName,
           customerMetadata:
               RoomArProductManifest.byProductId[object.firestoreProductId],
         )..start(),
@@ -221,6 +223,8 @@ void main() {
                         channel: channel,
                         mode: MarkerArLaunchMode.customerProduct,
                         initialObject: MarkerArObject.lamp,
+                        customerFirestoreProductId: 'modern-table-lamp',
+                        customerProductTitle: 'Modern Table Lamp',
                         customerMetadata: RoomArProductManifest
                             .byProductId['modern-table-lamp'],
                       )..start(),
@@ -266,6 +270,8 @@ void main() {
               channel: badChannel,
               mode: MarkerArLaunchMode.customerProduct,
               initialObject: MarkerArObject.chair,
+              customerFirestoreProductId: 'luna-accent-chair',
+              customerProductTitle: 'Luna Accent Chair',
               customerMetadata:
                   RoomArProductManifest.byProductId['luna-accent-chair'],
             )..start(),
@@ -307,6 +313,8 @@ void main() {
               channel: channel,
               mode: MarkerArLaunchMode.customerProduct,
               initialObject: MarkerArObject.sofa,
+              customerFirestoreProductId: 'luna-3-seater-sofa',
+              customerProductTitle: 'Luna Right-Chaise Sectional Sofa',
               customerMetadata:
                   RoomArProductManifest.byProductId['luna-3-seater-sofa'],
             )..start(),

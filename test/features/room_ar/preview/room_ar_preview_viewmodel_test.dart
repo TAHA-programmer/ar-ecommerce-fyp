@@ -48,6 +48,7 @@ class _FakeChannel implements RoomArPreviewChannel {
 class _FakeModelService implements RoomArModelService {
   RoomArModelState outcome = const RoomArModelOffline();
   final List<String> resolved = [];
+  final List<ProductArMetadata> resolvedMetadata = [];
 
   @override
   Future<RoomArModelState> resolve({
@@ -56,6 +57,7 @@ class _FakeModelService implements RoomArModelService {
     void Function(RoomArModelState state)? onState,
   }) async {
     resolved.add(productId);
+    resolvedMetadata.add(metadata);
     onState?.call(const RoomArModelDownloading());
     onState?.call(outcome);
     return outcome;
@@ -75,9 +77,33 @@ class _FakeModelService implements RoomArModelService {
 }
 
 RoomArSessionArgs argsFor(MarkerArObject o) => RoomArSessionArgs(
+  firestoreProductId: o.firestoreProductId,
   object: o,
   metadata: RoomArProductManifest.byProductId[o.firestoreProductId]!,
   productTitle: o.displayName,
+);
+
+/// A session for a product with no bundled/native-specialized rendering slot
+/// — every Phase 9.2 coverage-expansion product, and any future Admin-created
+/// one. `object` is deliberately null (see `RoomArSessionArgs`'s doc comment).
+RoomArSessionArgs genericArgsFor(
+  String productId,
+  String title, {
+  ProductArMetadata? metadata,
+}) => RoomArSessionArgs(
+  firestoreProductId: productId,
+  object: null,
+  metadata:
+      metadata ??
+      ProductArMetadata(
+        storagePath: 'products/$productId/ar/model-v1.glb',
+        modelVersion: '1',
+        sha256: 'a' * 64,
+        widthM: 0.5,
+        depthM: 0.5,
+        heightM: 0.5,
+      ),
+  productTitle: title,
 );
 
 void main() {
@@ -91,6 +117,15 @@ void main() {
     RoomArModelService? service,
   }) => RoomArPreviewViewModel(
     args: argsFor(o),
+    channel: channel,
+    modelService: service,
+  );
+
+  RoomArPreviewViewModel vmForArgs(
+    RoomArSessionArgs args, {
+    RoomArModelService? service,
+  }) => RoomArPreviewViewModel(
+    args: args,
     channel: channel,
     modelService: service,
   );
@@ -194,5 +229,155 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(svc.resolved, ['glass-coffee-table']);
     vm.dispose();
+  });
+
+  group('Phase 9.2 dynamic eligibility (no bundled fallback)', () {
+    test('a generic product waits for the verified Storage file — never '
+        'flashes an unrelated bundled model on start', () async {
+      final vm = vmForArgs(
+        genericArgsFor('future-admin-product-99', 'A Brand New Product'),
+      );
+      await vm.start();
+      // Unlike the original-four path, nothing is sent to the native side
+      // yet — there is no bundled asset to show while resolution is
+      // pending, so it stays "loading" rather than briefly showing chair.
+      expect(channel.lastModel, isNull);
+      expect(vm.isPreparing, isTrue);
+      vm.dispose();
+    });
+
+    test('a verified resolve installs this exact product\'s file, keyed by its '
+        'own product id (never chair/table/lamp/sofa)', () async {
+      final svc = _FakeModelService()
+        ..outcome = RoomArModelReady(
+          source: RoomArModelSource.verifiedCache,
+          file: File('/cache/room_ar_models/x/armchair.glb'),
+        );
+      final vm = vmForArgs(
+        genericArgsFor('future-admin-product-99', 'A Brand New Product'),
+        service: svc,
+      );
+      await vm.start();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(svc.resolved, ['future-admin-product-99']);
+      expect(vm.nativeMode, 'future-admin-product-99');
+      expect(channel.lastModel!.$1, 'future-admin-product-99');
+      expect(channel.lastModel!.$2, contains('armchair.glb'));
+      vm.dispose();
+    });
+
+    test(
+      'a resolve failure with no bundled fallback surfaces the honest '
+      'render-failed screen — never substitutes chair or any other model',
+      () async {
+        final svc = _FakeModelService()..outcome = const RoomArModelOffline();
+        final vm = vmForArgs(
+          genericArgsFor('future-admin-product-99', 'A Brand New Product'),
+          service: svc,
+        );
+        await vm.start();
+        await Future<void>.delayed(Duration.zero);
+
+        // The viewmodel drives the native "failed" event itself (there is no
+        // real bundled asset to fall back to) — never sends a bundled/null
+        // path pretending it's a safe fallback for this product.
+        expect(channel.lastModel, ('future-admin-product-99', null));
+        channel.emit(RoomArPreviewLoad.failed);
+        await Future<void>.delayed(Duration.zero);
+        expect(vm.renderFailed, isTrue);
+        expect(vm.deliverySource, isNot(RoomArModelSource.bundledFallback));
+        vm.dispose();
+      },
+    );
+
+    test(
+      'non-renderable metadata (should never happen past the prep-screen '
+      'gate) still triggers the honest failure path, not a substitute',
+      () async {
+        final svc = _FakeModelService();
+        final vm = vmForArgs(
+          genericArgsFor(
+            'future-admin-product-99',
+            'A Brand New Product',
+            metadata: const ProductArMetadata(
+              storagePath: 'products/future-admin-product-99/ar/model-v1.glb',
+              modelVersion: '', // malformed — not renderable
+              sha256: 'not-a-hash',
+              widthM: 0,
+              depthM: 0,
+              heightM: 0,
+            ),
+          ),
+          service: svc,
+        );
+        await vm.start();
+        await Future<void>.delayed(Duration.zero);
+        expect(svc.resolved, isEmpty); // never even attempted a fetch
+        expect(channel.lastModel, ('future-admin-product-99', null));
+        vm.dispose();
+      },
+    );
+
+    test(
+      'a product with a stale RoomArProductManifest entry resolves using its '
+      'live Firestore metadata, never the frozen manifest values — matches '
+      "Tier-2's (MarkerArViewModel) precedence, so a customer sees the exact "
+      'model an Admin just replaced, on either tier',
+      () async {
+        // `luna-accent-chair` genuinely has a manifest entry — simulate an
+        // Admin having replaced its model (new storage path / sha256 / dims)
+        // after the manifest was hash-locked at authoring time.
+        final replaced = ProductArMetadata(
+          storagePath: 'products/luna-accent-chair/ar/model-v2.glb',
+          modelVersion: '2',
+          sha256: 'b' * 64,
+          widthM: 0.75,
+          depthM: 0.80,
+          heightM: 0.90,
+        );
+        expect(
+          replaced,
+          isNot(RoomArProductManifest.byProductId['luna-accent-chair']),
+        );
+        final svc = _FakeModelService()
+          ..outcome = RoomArModelReady(
+            source: RoomArModelSource.verifiedCache,
+            file: File('/cache/room_ar_models/x/model-v2.glb'),
+          );
+        final vm = vmForArgs(
+          RoomArSessionArgs(
+            firestoreProductId: 'luna-accent-chair',
+            object: MarkerArObject.chair,
+            metadata: replaced,
+            productTitle: 'Luna Accent Chair',
+          ),
+          service: svc,
+        );
+        await vm.start();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(svc.resolvedMetadata, [replaced]);
+        vm.dispose();
+      },
+    );
+
+    test('a shared-design product resolves by its own id, distinct from '
+        'other members of its group', () async {
+      final svc = _FakeModelService()
+        ..outcome = RoomArModelReady(
+          source: RoomArModelSource.verifiedCache,
+          file: File('/cache/rug.glb'),
+        );
+      final vm = vmForArgs(
+        genericArgsFor('beige-ar-in-stock-5', 'Beige AR Rug 5'),
+        service: svc,
+      );
+      await vm.start();
+      await Future<void>.delayed(Duration.zero);
+      expect(svc.resolved, ['beige-ar-in-stock-5']);
+      expect(svc.resolved, isNot(contains('beige-ar-in-stock-7')));
+      vm.dispose();
+    });
   });
 }

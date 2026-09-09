@@ -329,6 +329,55 @@ void main() {
       expect(vm.arModelCleanupWarning, isNotNull);
     });
 
+    // Phase 9.2 closeout — a committed product image must survive product
+    // deletion: a historical `OrderItemModel` snapshot (an already-placed
+    // order's line item) can carry that exact same download URL, and there
+    // is no way to know from here whether one does. Deleting the Storage
+    // object would silently break that order's rendering forever, with no
+    // way to detect or undo it — unlike the AR GLB, which no order field
+    // ever references. Regression guard: an earlier pass on this same
+    // closeout briefly deleted committed images here too (reasoning it
+    // would close the same orphaned-object gap the AR-GLB fix closed) and
+    // reverted it the same pass once this risk was found — this test exists
+    // so that specific mistake can never silently return.
+    testWidgets(
+      'deleting a product never touches its own committed Storage-hosted '
+      'images (protects historical order rendering)',
+      (tester) async {
+        const mainUrl = 'https://mock-storage.test/products/x/images/1.jpg';
+        const galleryUrl = 'https://mock-storage.test/products/x/images/2.jpg';
+        db.updateProduct(
+          db
+              .getProductById('luna-accent-chair')
+              .copyWith(
+                mainImage: const ProductImageRef(
+                  path: mainUrl,
+                  source: ProductImageSource.network,
+                ),
+                galleryMedia: [
+                  const ProductImageRef(
+                    path: galleryUrl,
+                    source: ProductImageSource.network,
+                  ),
+                ],
+              ),
+        );
+        final ctx = await _unmountedContext(tester);
+        final vm = AdminProductFormViewModel(
+          database: db,
+          categoryRepository: categoryRepo,
+          storageService: storage,
+          initialProductId: 'luna-accent-chair',
+        );
+        addTearDown(vm.dispose);
+
+        await vm.deleteProduct(ctx);
+
+        expect(db.products.any((p) => p.id == 'luna-accent-chair'), isFalse);
+        expect(storage.deletedProductImageUrls, isEmpty);
+      },
+    );
+
     testWidgets('R16: a successful save with no AR-model change leaves no '
         'cleanup warning', (tester) async {
       db.updateProduct(

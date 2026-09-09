@@ -142,13 +142,18 @@ void main() {
       }
     });
 
-    test('exactly the four physically-approved products carry a production AR '
-        'contract (R13/R14/R15); every other product has none', () {
-      const arIds = {
+    test('exactly the approved products (4 original + 26 Phase 9.2 '
+        'coverage-expansion) carry a production AR contract; every other '
+        'product has none', () {
+      final arIds = {
         'luna-accent-chair',
         'glass-coffee-table',
         'modern-table-lamp',
         'luna-3-seater-sofa',
+        'velvet-armchair',
+        'wooden-console',
+        'marble-side-table',
+        for (var i = 2; i <= 24; i++) 'beige-ar-in-stock-$i',
       };
       for (final p in MockCommerceDatabase().products) {
         if (arIds.contains(p.id)) {

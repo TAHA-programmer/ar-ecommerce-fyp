@@ -199,6 +199,20 @@ class ProductArMetadata {
 
   Map<String, dynamic> _selfMap() => toFirestoreFields();
 
+  /// `true` only when [storagePath] is exactly the expected Storage object
+  /// path for [productId] at this contract's own [modelVersion] —
+  /// `products/{productId}/ar/model-v{modelVersion}.glb`.
+  ///
+  /// Defence-in-depth for the customer Room-AR launch gate (Phase 9.2 —
+  /// dynamic product eligibility): the Admin upload flow always derives
+  /// [storagePath] from the product's own id at write time, so this can
+  /// never fail via that path today, but a live document can still be
+  /// migrated, hand-edited, or written by a future code path outside that
+  /// flow. This guards against ever rendering one product's session using a
+  /// Storage object that actually belongs to a *different* product.
+  bool belongsToProduct(String productId) =>
+      storagePath == 'products/$productId/ar/model-v$modelVersion.glb';
+
   ProductArMetadata copyWith({
     String? storagePath,
     String? format,
