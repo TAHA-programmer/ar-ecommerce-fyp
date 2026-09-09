@@ -16,6 +16,7 @@ import '../widgets/home_hero_carousel.dart';
 import '../widgets/home_search_bar.dart';
 import '../widgets/home_section_header.dart';
 
+import '../../../../app/routes/app_router.dart';
 import '../../../../app/routes/route_names.dart';
 import '../../../../app/routes/explore_launch_intent.dart';
 import '../../../../app/viewmodels/customer_address_state.dart';
@@ -30,13 +31,38 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> {
+class _HomeViewState extends State<HomeView> with RouteAware {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeViewModel>().loadHomeData();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Returned to Home from a pushed screen (e.g. Product Details) — refresh
+    // the view-history / stats rails so a just-viewed product shows up in
+    // "Recently Viewed" without a manual pull-to-refresh.
+    if (mounted) {
+      context.read<HomeViewModel>().reloadDynamicSections();
+    }
   }
 
   void _handleToggleFavorite(HomeViewModel viewModel, String productId) {
@@ -102,15 +128,16 @@ class _HomeViewState extends State<HomeView> {
                       SliverToBoxAdapter(
                         child: _buildShopByCategory(viewModel),
                       ),
-                      SliverToBoxAdapter(child: _buildTopRated(viewModel)),
+                      SliverToBoxAdapter(child: _buildBestSellers(viewModel)),
                       SliverToBoxAdapter(
                         child: _buildFeaturedProducts(viewModel),
                       ),
                       SliverToBoxAdapter(child: _buildNewArrivals(viewModel)),
                       SliverToBoxAdapter(child: _buildArEnabled(viewModel)),
                       SliverToBoxAdapter(child: _buildVirtualTryOn(viewModel)),
+                      SliverToBoxAdapter(child: _buildPopular(viewModel)),
                       SliverToBoxAdapter(
-                        child: _buildTopRatedFurnitureDecor(viewModel),
+                        child: _buildRecentlyViewed(viewModel),
                       ),
                     ],
                     // Bottom padding for the floating nav bar
@@ -226,20 +253,25 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildTopRated(HomeViewModel viewModel) {
-    if (viewModel.topRatedStatus != HomeSectionStatus.ready) {
+  Widget _buildBestSellers(HomeViewModel viewModel) {
+    if (viewModel.bestSellersStatus != HomeSectionStatus.ready) {
       return const SizedBox.shrink();
     }
-    final products = viewModel.topRated;
+    final products = viewModel.bestSellers;
+    // Genuine `unitsSold` data → "Best Sellers". Otherwise the honest
+    // rating fallback → "Top Rated" (never a fabricated sales claim).
+    final title = viewModel.bestSellersUsesRealSalesData
+        ? 'Best Sellers'
+        : 'Top Rated';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
-          title: 'Top Rated',
+          title: title,
           onSeeAll: () => _openExplore(
             ExploreLaunchIntent(
               fromHome: true,
-              productIds: products.map((p) => p.id).toList(),
+              productIds: viewModel.bestSellersSeeAllIds,
             ),
           ),
         ),
@@ -282,7 +314,7 @@ class _HomeViewState extends State<HomeView> {
           onSeeAll: () => _openExplore(
             ExploreLaunchIntent(
               fromHome: true,
-              productIds: products.map((p) => p.id).toList(),
+              productIds: viewModel.featuredSeeAllIds,
             ),
           ),
         ),
@@ -434,20 +466,25 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildTopRatedFurnitureDecor(HomeViewModel viewModel) {
-    if (viewModel.topRatedFurnitureDecorStatus != HomeSectionStatus.ready) {
+  Widget _buildPopular(HomeViewModel viewModel) {
+    if (viewModel.popularFurnitureDecorStatus != HomeSectionStatus.ready) {
       return const SizedBox.shrink();
     }
-    final products = viewModel.topRatedFurnitureDecor;
+    final products = viewModel.popularFurnitureDecor;
+    // Genuine `favoriteCount` data → "Popular Furniture & Decor". Otherwise
+    // the honest rating fallback → "Top Rated Furniture & Decor".
+    final title = viewModel.popularUsesRealFavoriteData
+        ? 'Popular Furniture & Decor'
+        : 'Top Rated Furniture & Decor';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
-          title: 'Top Rated Furniture & Decor',
+          title: title,
           onSeeAll: () => _openExplore(
             ExploreLaunchIntent(
               fromHome: true,
-              productIds: products.map((p) => p.id).toList(),
+              productIds: viewModel.popularSeeAllIds,
             ),
           ),
         ),
@@ -466,6 +503,49 @@ class _HomeViewState extends State<HomeView> {
                 onFavoriteToggle: () =>
                     _handleToggleFavorite(viewModel, product.id),
                 onAddToCart: () => _handleAddToCart(viewModel, product.id),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentlyViewed(HomeViewModel viewModel) {
+    if (viewModel.recentlyViewedStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.recentlyViewedProducts;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeSectionHeader(
+          title: 'Recently Viewed',
+          // "See all" (→ the dedicated page) only when the customer has more
+          // than the three shown — otherwise there is nothing extra to see.
+          onSeeAll: viewModel.recentlyViewedHasSeeAll
+              ? () => Navigator.pushNamed(context, RouteNames.recentlyViewed)
+              : null,
+        ),
+        SizedBox(
+          height: 320,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: VerticalProductCard(
+                  product: product,
+                  width: 200,
+                  aspectRatio: 1.0,
+                  isFavorite: viewModel.isFavorite(product.id),
+                  onFavoriteToggle: () =>
+                      _handleToggleFavorite(viewModel, product.id),
+                  onAddToCart: () => _handleAddToCart(viewModel, product.id),
+                ),
               );
             },
           ),

@@ -26,17 +26,20 @@ class HomeSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: onSeeAll,
-            child: const Text(
-              'See all >',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+          // No "See all" affordance when there is nowhere meaningful to go
+          // (e.g. Recently Viewed with 3 or fewer eligible items).
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: const Text(
+                'See all >',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

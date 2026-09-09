@@ -48,6 +48,7 @@ import '../../features/address/views/delivery_address_view.dart';
 import '../../features/address/views/address_form_view.dart';
 import '../../features/address/views/saved_addresses_view.dart';
 import '../../features/favorites/views/favorites_view.dart';
+import '../../features/recently_viewed/views/recently_viewed_view.dart';
 import '../../features/product_details/repositories/product_details_repository.dart';
 import '../../app/viewmodels/customer_shopping_state.dart';
 import '../../app/viewmodels/customer_address_state.dart';
@@ -80,6 +81,13 @@ import '../../features/admin/orders_payments/views/admin_order_detail_view.dart'
 
 class AppRouter {
   AppRouter._();
+
+  /// App-wide navigation observer. `HomeView` subscribes to it so that
+  /// returning to Home from a pushed screen (e.g. Product Details) refreshes
+  /// the view-history / stats rails — a product the customer just opened
+  /// then shows up in "Recently Viewed" without a manual pull-to-refresh.
+  static final RouteObserver<PageRoute<dynamic>> routeObserver =
+      RouteObserver<PageRoute<dynamic>>();
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -363,6 +371,11 @@ class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (_) => const FavoritesView(),
+        );
+      case RouteNames.recentlyViewed:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => const RecentlyViewedView(),
         );
       case RouteNames.orders:
         return MaterialPageRoute(

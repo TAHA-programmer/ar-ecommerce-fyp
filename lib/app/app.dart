@@ -51,6 +51,7 @@ class TWinArApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: RouteNames.splash,
       onGenerateRoute: AppRouter.onGenerateRoute,
+      navigatorObservers: [AppRouter.routeObserver],
     );
 
     final providers = AppProviders.providers(

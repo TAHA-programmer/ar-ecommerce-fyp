@@ -21,6 +21,15 @@ class FirestoreRecentlyViewedRepository implements RecentlyViewedRepository {
   /// [_keepNewest] anyway.
   static const int _keepNewest = 30;
   static const int _pruneEvery = 10;
+
+  /// The prune read is bounded to this many documents. A `recordView` adds at
+  /// most one *new* doc (a re-view overwrites), so between two prunes the
+  /// collection grows by at most [_pruneEvery]; this window (3× that over
+  /// [_keepNewest]) always contains the whole overflow in normal operation,
+  /// so a single prune restores the newest-[_keepNewest] invariant exactly.
+  /// If a long run of prune failures ever let it grow past the window,
+  /// successive prunes still walk it back down — just over more calls.
+  static const int _pruneScanLimit = _keepNewest + _pruneEvery * 3;
   int _writesSincePrune = 0;
 
   FirestoreRecentlyViewedRepository(
@@ -61,7 +70,13 @@ class FirestoreRecentlyViewedRepository implements RecentlyViewedRepository {
     CollectionReference<Map<String, dynamic>> col,
   ) async {
     try {
-      final snap = await col.orderBy('viewedAt', descending: true).get();
+      // Bounded read: newest [_pruneScanLimit] only. `batch.delete` on a doc
+      // a concurrent prune (another device) already removed is a no-op, so
+      // overlapping prunes are safe.
+      final snap = await col
+          .orderBy('viewedAt', descending: true)
+          .limit(_pruneScanLimit)
+          .get();
       if (snap.docs.length <= _keepNewest) return;
       final batch = _firestore.batch();
       for (final doc in snap.docs.skip(_keepNewest)) {

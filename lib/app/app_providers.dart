@@ -15,6 +15,8 @@ import 'viewmodels/customer_address_state.dart';
 import 'viewmodels/customer_order_state.dart';
 import '../features/home/repositories/home_repository.dart';
 import '../features/home/repositories/firestore_home_repository.dart';
+import '../features/home/repositories/product_stats_repository.dart';
+import '../features/home/repositories/firestore_product_stats_repository.dart';
 import '../features/home/viewmodels/home_viewmodel.dart';
 import '../features/explore/repositories/explore_repository.dart';
 import '../features/explore/repositories/firestore_explore_repository.dart';
@@ -152,6 +154,13 @@ class AppProviders {
       create: (_) => checkoutPaymentService ?? StripeCheckoutPaymentService(),
     ),
     Provider<HomeRepository>(create: (_) => FirestoreHomeRepository()),
+    // Dynamic Home Content Stage 3 — read-only ordering signals for Home's
+    // Best Sellers (`unitsSold`) / Popular (`favoriteCount`) sections.
+    // Returns `[]` on any error (Stage 2 rules/Functions not deployed yet →
+    // Home falls back to the honest rating ranking).
+    Provider<ProductStatsRepository>(
+      create: (_) => FirestoreProductStatsRepository(),
+    ),
     Provider<ExploreRepository>(create: (_) => FirestoreExploreRepository()),
     ChangeNotifierProxyProvider2<
       FavoritesRepository,
@@ -215,6 +224,8 @@ class AppProviders {
         context.read<ProductDetailsRepository>(),
         context.read<CustomerShoppingState>(),
         context.read<CommerceDatabase>(),
+        context.read<ProductStatsRepository>(),
+        context.read<RecentlyViewedRepository>(),
       ),
     ),
     ChangeNotifierProvider(
