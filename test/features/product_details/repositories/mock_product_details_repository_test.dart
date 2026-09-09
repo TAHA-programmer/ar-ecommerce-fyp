@@ -1,22 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
-import 'package:twin_ar/features/home/repositories/mock_home_repository.dart';
 import 'package:twin_ar/features/explore/repositories/mock_explore_repository.dart';
 import 'package:twin_ar/core/models/product/product_category.dart';
 import 'package:twin_ar/core/models/product/product_experience_type.dart';
 
 void main() {
   late MockProductDetailsRepository repository;
-  late MockHomeRepository homeRepository;
+  late MockCommerceDatabase catalogue;
   late MockExploreRepository exploreRepository;
 
   setUp(() {
-    repository = MockProductDetailsRepository(
-      MockCommerceDatabase(),
-      simulateDelay: false,
-    );
-    homeRepository = MockHomeRepository(MockCommerceDatabase());
+    catalogue = MockCommerceDatabase();
+    repository = MockProductDetailsRepository(catalogue, simulateDelay: false);
     exploreRepository = MockExploreRepository(MockCommerceDatabase());
   });
 
@@ -43,35 +39,12 @@ void main() {
       expect(product.defaultSize, isNotNull);
     });
 
-    test('all Home unique product IDs resolve', () async {
-      // Home uses multiple methods to generate data
-      final featured = await homeRepository.getFeaturedProducts();
-      final bestSellers = await homeRepository.getBestSellers();
-      final newArrivals = await homeRepository.getNewArrivals();
-      final popular = await homeRepository.getPopularFurniture();
-      final recent = await homeRepository.getRecentlyViewed();
-
-      final allIds = <String>{};
-
-      for (var p in featured) {
-        allIds.add(p.id);
-      }
-      for (var p in bestSellers) {
-        allIds.add(p.id);
-      }
-      for (var p in newArrivals) {
-        allIds.add(p.id);
-      }
-      for (var p in popular) {
-        allIds.add(p.id);
-      }
-      for (var p in recent) {
-        allIds.add(p.id);
-      }
-
-      for (var id in allIds) {
-        final product = await repository.getProductDetails(id);
-        expect(product.summary.id, id);
+    test('every catalogue product ID resolves to a detail model', () async {
+      // Home now derives every section from the CommerceDatabase catalogue
+      // cache, so "the IDs Home can show" == "the catalogue".
+      for (final product in catalogue.products) {
+        final detail = await repository.getProductDetails(product.id);
+        expect(detail.summary.id, product.id);
       }
     });
 

@@ -118,5 +118,29 @@ void main() {
       await repo.recordView('');
       expect(await repo.recentProductIds(), isEmpty);
     });
+
+    test('amortised pruning keeps the collection at the newest 30 (bounded '
+        'read) and keeps the very newest', () async {
+      final repo = FirestoreRecentlyViewedRepository(
+        _session('u1'),
+        firestore: firestore,
+      );
+      // 50 distinct views → prune runs at #10/#20/#30/#40/#50; each pass
+      // reads at most 60 docs and trims back to exactly 30.
+      for (var i = 0; i < 50; i++) {
+        await repo.recordView('p${i.toString().padLeft(2, '0')}');
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+
+      final docs = await firestore
+          .collection('users')
+          .doc('u1')
+          .collection('recentlyViewed')
+          .get();
+      expect(docs.docs.length, 30);
+
+      final newest = await repo.recentProductIds(limit: 3);
+      expect(newest, ['p49', 'p48', 'p47']);
+    });
   });
 }

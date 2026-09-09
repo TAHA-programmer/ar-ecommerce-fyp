@@ -44,6 +44,7 @@ class RouteNames {
   static const String checkout = '/checkout';
   static const String profile = '/profile';
   static const String favorites = '/favorites';
+  static const String recentlyViewed = '/recently-viewed';
   static const String savedAddresses = '/saved-addresses';
   static const String editProfile = '/edit-profile';
   static const String helpSupport = '/help-support';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
 import 'package:twin_ar/app/viewmodels/customer_address_state.dart';
 import 'package:twin_ar/app/viewmodels/customer_profile_state.dart';
@@ -14,7 +15,6 @@ import 'package:twin_ar/core/models/auth/user_profile_model.dart';
 import 'package:twin_ar/core/models/order/order_model.dart';
 import 'package:twin_ar/core/models/order/payment_record.dart';
 import 'package:twin_ar/core/models/product/product_model.dart';
-import 'package:twin_ar/core/models/product/product_summary_model.dart';
 import 'package:twin_ar/core/widgets/navigation/customer_bottom_navigation.dart';
 import 'package:twin_ar/core/widgets/navigation/customer_header.dart';
 import 'package:twin_ar/core/widgets/states/app_error_state.dart';
@@ -23,12 +23,14 @@ import 'package:twin_ar/features/home/models/category_model.dart';
 import 'package:twin_ar/features/home/models/home_banner_model.dart';
 import 'package:twin_ar/features/home/repositories/home_repository.dart';
 import 'package:twin_ar/features/home/repositories/mock_home_repository.dart';
+import 'package:twin_ar/features/home/repositories/mock_product_stats_repository.dart';
 import 'package:twin_ar/features/home/viewmodels/home_viewmodel.dart';
 import 'package:twin_ar/features/home/views/home_view.dart';
 import 'package:twin_ar/features/home/widgets/cards/vertical_product_card.dart';
 import 'package:twin_ar/features/home/widgets/home_hero_carousel.dart';
 import 'package:twin_ar/features/home/widgets/home_search_bar.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
+import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
 import 'package:twin_ar/features/profile/repositories/mock_user_profile_repository.dart';
 
 const _uid = 'test-uid';
@@ -51,9 +53,7 @@ AddressModel _address({
   isDefault: isDefault,
 );
 
-/// A [HomeRepository] whose Categories read throws until [healed]. Banners
-/// stay fine. The product sections do not go through the repository at all
-/// now — they derive from the [CommerceDatabase] cache.
+/// A [HomeRepository] whose Categories read throws until [healed].
 class _CategoriesFailRepository implements HomeRepository {
   bool healed = false;
 
@@ -66,27 +66,11 @@ class _CategoriesFailRepository implements HomeRepository {
   }
 
   @override
-  Future<List<ProductSummaryModel>> getBestSellers() async => const [];
-  @override
-  Future<List<ProductSummaryModel>> getFeaturedProducts() async => const [];
-  @override
-  Future<List<ProductSummaryModel>> getNewArrivals() async => const [];
-  @override
-  Future<List<ProductSummaryModel>> getArEnabledProducts() async => const [];
-  @override
-  Future<List<ProductSummaryModel>> getVirtualTryOnCollection() async =>
-      const [];
-  @override
-  Future<List<ProductSummaryModel>> getPopularFurniture() async => const [];
-  @override
-  Future<List<ProductSummaryModel>> getRecentlyViewed() async => const [];
-  @override
   Future<void> refresh() async {}
 }
 
-/// An empty catalogue — so the cache-derived Home sections have nothing to
-/// show. Combined with [_CategoriesFailRepository] this is the only scenario
-/// that warrants Home's full-screen error + Retry.
+/// An empty catalogue — combined with [_CategoriesFailRepository] this is the
+/// only scenario that warrants Home's full-screen error + Retry.
 class _EmptyCommerceDatabase extends CommerceDatabase {
   @override
   List<ProductModel> get products => const [];
@@ -111,6 +95,37 @@ class _EmptyCommerceDatabase extends CommerceDatabase {
 }
 
 void main() {
+  List<SingleChildWidget> homeProviders(
+    CommerceDatabase db, {
+    HomeRepository? repo,
+    MockProductStatsRepository? stats,
+    MockRecentlyViewedRepository? recentlyViewed,
+    required CustomerProfileState profileState,
+    required CustomerAddressState addressState,
+  }) => [
+    ChangeNotifierProvider(
+      create: (_) => CustomerShoppingState(
+        MockFavoritesRepository(),
+        MockCartRepository(),
+      ),
+    ),
+    ChangeNotifierProvider<CustomerProfileState>.value(value: profileState),
+    ChangeNotifierProvider<CustomerAddressState>.value(value: addressState),
+    ChangeNotifierProvider(
+      create: (context) => HomeViewModel(
+        repo ?? MockHomeRepository(),
+        MockProductDetailsRepository(
+          db is MockCommerceDatabase ? db : MockCommerceDatabase(),
+          simulateDelay: false,
+        ),
+        context.read<CustomerShoppingState>(),
+        db,
+        stats ?? MockProductStatsRepository(),
+        recentlyViewed ?? MockRecentlyViewedRepository(signedIn: false),
+      ),
+    ),
+  ];
+
   Future<Widget> createTestWidget({
     ValueChanged<RouteSettings>? onRoutePushed,
     List<AddressModel>? addresses,
@@ -149,28 +164,11 @@ void main() {
         return null;
       },
       home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider(
-            create: (_) => CustomerShoppingState(
-              MockFavoritesRepository(),
-              MockCartRepository(),
-            ),
-          ),
-          ChangeNotifierProvider<CustomerProfileState>.value(
-            value: profileState,
-          ),
-          ChangeNotifierProvider<CustomerAddressState>.value(
-            value: addressState,
-          ),
-          ChangeNotifierProvider(
-            create: (context) => HomeViewModel(
-              MockHomeRepository(db),
-              MockProductDetailsRepository(db, simulateDelay: false),
-              context.read<CustomerShoppingState>(),
-              db,
-            ),
-          ),
-        ],
+        providers: homeProviders(
+          db,
+          profileState: profileState,
+          addressState: addressState,
+        ),
         child: const HomeView(),
       ),
     );
@@ -204,9 +202,10 @@ void main() {
       expect(find.text('Shop by Category'), findsOneWidget);
 
       final scrollable = find.byType(Scrollable).first;
+      // No productStats data in this fixture → the honest rating fallback
+      // titles, never a fabricated sales / popularity claim.
       for (final title in const [
         'Top Rated',
-        'Featured Products',
         'New Arrivals',
         'AR Enabled Products',
         'Virtual Try-On Collection',
@@ -219,14 +218,63 @@ void main() {
         );
         expect(find.text(title), findsOneWidget, reason: title);
       }
-
-      // Removed until its real per-customer contract ships (Stage 2/3).
-      expect(find.text('Recently Viewed'), findsNothing);
-      // Never a fabricated-sales / fabricated-popularity label.
       expect(find.text('Best Sellers'), findsNothing);
       expect(find.text('Popular Furniture & Decor'), findsNothing);
+      // No recorded views in this fixture.
+      expect(find.text('Recently Viewed'), findsNothing);
 
       expect(find.byType(CustomerBottomNavigation), findsOneWidget);
+    });
+
+    testWidgets('genuine productStats data flips the titles to "Best Sellers" '
+        'and "Popular Furniture & Decor"', (tester) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final db = MockCommerceDatabase();
+      final firstFurniture = db.products.firstWhere(
+        (p) => p.categoryKind.name == 'furniture',
+      );
+      final anyProduct = db.products.first;
+      final profileState = CustomerProfileState(
+        MockUserProfileRepository(seed: const {}),
+      );
+      final addressState = CustomerAddressState(MockAddressRepository());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: homeProviders(
+              db,
+              profileState: profileState,
+              addressState: addressState,
+              stats: MockProductStatsRepository(
+                unitsSold: {anyProduct.id: 12},
+                favoriteCount: {firstFurniture.id: 8},
+              ),
+            ),
+            child: const HomeView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+        find.text('Best Sellers'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Best Sellers'), findsOneWidget);
+      expect(find.text('Top Rated'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('Popular Furniture & Decor'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Popular Furniture & Decor'), findsOneWidget);
     });
 
     testWidgets('delivery-address row shows the default address and is '
@@ -247,7 +295,6 @@ void main() {
 
       expect(find.textContaining('Deliver to'), findsOneWidget);
       expect(find.textContaining('742 Evergreen Terrace'), findsOneWidget);
-      // The old hardcoded value and its down-arrow are gone.
       expect(find.text('Adiala Road, Rawalpindi'), findsNothing);
       expect(find.byIcon(Icons.keyboard_arrow_down), findsNothing);
 
@@ -268,7 +315,6 @@ void main() {
 
       expect(find.textContaining('Deliver to'), findsNothing);
       expect(find.byIcon(Icons.location_on), findsNothing);
-      // Product sections still render — address absence never blanks them.
       final scrollable = find.byType(Scrollable).first;
       await tester.scrollUntilVisible(
         find.text('New Arrivals'),
@@ -300,8 +346,6 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final repo = _CategoriesFailRepository();
-      final db = MockCommerceDatabase(); // real catalogue → product sections OK
       final profileState = CustomerProfileState(
         MockUserProfileRepository(seed: const {}),
       );
@@ -310,37 +354,19 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: MultiProvider(
-            providers: [
-              ChangeNotifierProvider(
-                create: (_) => CustomerShoppingState(
-                  MockFavoritesRepository(),
-                  MockCartRepository(),
-                ),
-              ),
-              ChangeNotifierProvider<CustomerProfileState>.value(
-                value: profileState,
-              ),
-              ChangeNotifierProvider<CustomerAddressState>.value(
-                value: addressState,
-              ),
-              ChangeNotifierProvider(
-                create: (context) => HomeViewModel(
-                  repo,
-                  MockProductDetailsRepository(db, simulateDelay: false),
-                  context.read<CustomerShoppingState>(),
-                  db,
-                ),
-              ),
-            ],
+            providers: homeProviders(
+              MockCommerceDatabase(),
+              repo: _CategoriesFailRepository(),
+              profileState: profileState,
+              addressState: addressState,
+            ),
             child: const HomeView(),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      // No full-screen error — Home has plenty of content.
       expect(find.byType(AppErrorState), findsNothing);
-      // Inline category retry strip present.
       expect(find.text("Couldn't load categories."), findsOneWidget);
       final scrollable = find.byType(Scrollable).first;
       await tester.scrollUntilVisible(
@@ -359,7 +385,6 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final repo = _CategoriesFailRepository();
-      final db = _EmptyCommerceDatabase();
       final profileState = CustomerProfileState(
         MockUserProfileRepository(seed: const {}),
       );
@@ -368,31 +393,12 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: MultiProvider(
-            providers: [
-              ChangeNotifierProvider(
-                create: (_) => CustomerShoppingState(
-                  MockFavoritesRepository(),
-                  MockCartRepository(),
-                ),
-              ),
-              ChangeNotifierProvider<CustomerProfileState>.value(
-                value: profileState,
-              ),
-              ChangeNotifierProvider<CustomerAddressState>.value(
-                value: addressState,
-              ),
-              ChangeNotifierProvider(
-                create: (context) => HomeViewModel(
-                  repo,
-                  MockProductDetailsRepository(
-                    MockCommerceDatabase(),
-                    simulateDelay: false,
-                  ),
-                  context.read<CustomerShoppingState>(),
-                  db,
-                ),
-              ),
-            ],
+            providers: homeProviders(
+              _EmptyCommerceDatabase(),
+              repo: repo,
+              profileState: profileState,
+              addressState: addressState,
+            ),
             child: const HomeView(),
           ),
         ),

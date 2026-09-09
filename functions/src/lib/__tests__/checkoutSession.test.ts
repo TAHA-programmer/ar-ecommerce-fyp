@@ -52,6 +52,21 @@ describe("sessionIdFor", () => {
   it("cannot be collided by moving the separator (uid|key boundary is unambiguous)", () => {
     expect(sessionIdFor("a", "b c")).not.toBe(sessionIdFor("a b", "c"));
   });
+
+  // GOLDEN — locks the exact hash output. In `sessionIdFor` the separator
+  // between `userId` and `idempotencyKey` is Unicode code point U+0000 (the
+  // NUL character; the source spells it with a backslash-zero escape). This
+  // test fails loudly if that separator is ever changed to anything else —
+  // e.g. a plain space, which would reintroduce the collision the test above
+  // guards against.
+  it("matches known input to output (session-id derivation is stable forever)", () => {
+    expect(sessionIdFor("uid-1", "key-abc")).toBe(
+      "306c38162448c80a97e0545c864a732a50033e5e649d1c56514b48722c1fccef",
+    );
+    expect(sessionIdFor("a", "b c")).toBe(
+      "fa1e0a6ab73453f0cffe280563a257cc85ebb3d554e1695e32acd4371301c5a2",
+    );
+  });
 });
 
 describe("stripeIdempotencyKeyFor", () => {

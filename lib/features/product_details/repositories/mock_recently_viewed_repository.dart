@@ -18,6 +18,11 @@ class MockRecentlyViewedRepository implements RecentlyViewedRepository {
   /// Force the next [recordView] / [recentProductIds] to fail (swallowed).
   bool failNext = false;
 
+  /// Make [recentProductIds] *throw* (the Firestore impl swallows its own
+  /// read errors to `[]`; a consumer that does its own resolution — e.g.
+  /// the Recently Viewed page — needs to prove it handles a throw too).
+  bool throwOnRead = false;
+
   List<String> get history => List.unmodifiable(_ordered);
 
   @override
@@ -37,6 +42,7 @@ class MockRecentlyViewedRepository implements RecentlyViewedRepository {
 
   @override
   Future<List<String>> recentProductIds({int limit = 12}) async {
+    if (throwOnRead) throw StateError('recentlyViewed read failed');
     if (!signedIn) return const [];
     if (failNext) {
       failNext = false;
