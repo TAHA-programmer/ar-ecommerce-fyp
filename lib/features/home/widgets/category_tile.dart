@@ -43,7 +43,10 @@ class CategoryTile extends StatelessWidget {
         Navigator.pushNamed(
           context,
           RouteNames.explore,
-          arguments: ExploreLaunchIntent(categoryId: category.id),
+          arguments: ExploreLaunchIntent(
+            fromHome: true,
+            categoryId: category.id,
+          ),
         );
       },
       child: Container(

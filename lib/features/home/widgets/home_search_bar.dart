@@ -20,14 +20,24 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
   }
 
   void _submitSearch(String query) {
+    // Every Home → Explore entry starts from a neutral Explore state (see
+    // `ExploreLaunchIntent.fromHome`), so a search from Home never inherits
+    // the Explore tab's persisted / Figma-default filters.
     if (query.trim().isNotEmpty) {
       Navigator.pushNamed(
         context,
         RouteNames.explore,
-        arguments: ExploreLaunchIntent(searchQuery: query.trim()),
+        arguments: ExploreLaunchIntent(
+          fromHome: true,
+          searchQuery: query.trim(),
+        ),
       );
     } else {
-      Navigator.pushNamed(context, RouteNames.explore);
+      Navigator.pushNamed(
+        context,
+        RouteNames.explore,
+        arguments: const ExploreLaunchIntent(fromHome: true),
+      );
     }
   }
 
@@ -84,7 +94,10 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
               Navigator.pushNamed(
                 context,
                 RouteNames.explore,
-                arguments: const ExploreLaunchIntent(openFilterSheet: true),
+                arguments: const ExploreLaunchIntent(
+                  fromHome: true,
+                  openFilterSheet: true,
+                ),
               );
             },
             child: const Icon(Icons.tune, color: AppColors.primary),

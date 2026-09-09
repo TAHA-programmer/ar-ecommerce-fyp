@@ -51,6 +51,12 @@ class ExploreViewModel extends ChangeNotifier {
 
   List<String>? _intentProductIds;
 
+  /// `true` while a Home ranked "See all" ("Top Rated", Featured) is showing:
+  /// the intent's `productIds` arrive pre-ordered and that order is kept
+  /// until the user picks an explicit sort (`applySort`) or the pin is
+  /// cleared (`refresh`).
+  bool _preserveIntentOrder = false;
+
   List<CatalogProductModel> _baseCatalog = [];
 
   String _searchText = '';
@@ -149,6 +155,7 @@ class ExploreViewModel extends ChangeNotifier {
       // Reset to default first-time explore state
       _searchText = '';
       _intentProductIds = null;
+      _preserveIntentOrder = false;
       _activeFilterState = const ExploreFilterState(
         inStockOnly: true,
         arAvailable: true,
@@ -187,10 +194,26 @@ class ExploreViewModel extends ChangeNotifier {
 
   void applySort(ExploreSortOption newSortOption) {
     _activeSortOption = newSortOption;
+    // The user has expressed an explicit ordering preference — drop the
+    // "keep the Home ranked order" pin.
+    _preserveIntentOrder = false;
     notifyListeners();
   }
 
   void applyIntent(ExploreLaunchIntent intent) {
+    if (intent.fromHome) {
+      // A Home-originated navigation ("See all", hero CTA, category tile,
+      // search) must start from a clean slate — never inherit the Explore
+      // tab's persisted / Figma-default filters. It then applies ONLY the
+      // one preset dimension below. The direct Explore-tab open passes no
+      // intent, so its session state is untouched.
+      _searchText = '';
+      _activeFilterState = const ExploreFilterState();
+      _activeSortOption = ExploreSortOption.recommended;
+      _intentProductIds = null;
+      _preserveIntentOrder = false;
+    }
+
     if (intent.searchQuery != null) {
       _searchText = intent.searchQuery!;
     }
@@ -208,6 +231,9 @@ class ExploreViewModel extends ChangeNotifier {
 
     if (intent.productIds != null) {
       _intentProductIds = intent.productIds;
+      // A Home ranked list ("Top Rated" / Featured) arrives pre-ordered;
+      // preserve that order under the neutral sort until the user re-sorts.
+      _preserveIntentOrder = intent.fromHome;
     }
 
     notifyListeners();
@@ -301,6 +327,20 @@ class ExploreViewModel extends ChangeNotifier {
     }
 
     // 8. Sorting
+    if (_preserveIntentOrder && _intentProductIds != null) {
+      // Render a Home ranked "See all" in exactly the order Home supplied
+      // (any product not in the list — shouldn't happen — sinks to the end).
+      final order = <String, int>{};
+      for (var i = 0; i < _intentProductIds!.length; i++) {
+        order[_intentProductIds![i]] = i;
+      }
+      results.sort(
+        (a, b) => (order[a.summary.id] ?? 1 << 30).compareTo(
+          order[b.summary.id] ?? 1 << 30,
+        ),
+      );
+      return results;
+    }
     switch (_activeSortOption) {
       case ExploreSortOption.recommended:
         results.sort(

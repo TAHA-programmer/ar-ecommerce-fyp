@@ -18,7 +18,9 @@ import '../widgets/home_section_header.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../app/routes/explore_launch_intent.dart';
+import '../../../../app/viewmodels/customer_address_state.dart';
 import '../../../../app/viewmodels/customer_profile_state.dart';
+import '../../../../features/address/models/address_model.dart';
 import '../../explore/models/explore_sort_option.dart';
 
 class HomeView extends StatefulWidget {
@@ -49,6 +51,10 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
+  void _openExplore(ExploreLaunchIntent intent) {
+    Navigator.pushNamed(context, RouteNames.explore, arguments: intent);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,7 +81,7 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ),
                       )
-                    else if (viewModel.hasError && viewModel.isEmpty)
+                    else if (viewModel.showFullScreenError)
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppErrorState(
@@ -96,7 +102,7 @@ class _HomeViewState extends State<HomeView> {
                       SliverToBoxAdapter(
                         child: _buildShopByCategory(viewModel),
                       ),
-                      SliverToBoxAdapter(child: _buildBestSellers(viewModel)),
+                      SliverToBoxAdapter(child: _buildTopRated(viewModel)),
                       SliverToBoxAdapter(
                         child: _buildFeaturedProducts(viewModel),
                       ),
@@ -104,10 +110,7 @@ class _HomeViewState extends State<HomeView> {
                       SliverToBoxAdapter(child: _buildArEnabled(viewModel)),
                       SliverToBoxAdapter(child: _buildVirtualTryOn(viewModel)),
                       SliverToBoxAdapter(
-                        child: _buildPopularFurniture(viewModel),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _buildRecentlyViewed(viewModel),
+                        child: _buildTopRatedFurnitureDecor(viewModel),
                       ),
                     ],
                     // Bottom padding for the floating nav bar
@@ -139,6 +142,16 @@ class _HomeViewState extends State<HomeView> {
         ? 'there'
         : fullName.split(RegExp(r'\s+')).first;
 
+    // The delivery-address row is driven by the authoritative default-address
+    // pointer. It renders ONLY once the address state has settled AND a valid
+    // default exists — otherwise the whole row (icon included) is absent. Its
+    // loading/failure is structurally isolated from the product sections
+    // (separate slivers, no shared future).
+    final addressState = context.watch<CustomerAddressState>();
+    final AddressModel? defaultAddress = addressState.isLoading
+        ? null
+        : addressState.defaultAddress;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
@@ -162,57 +175,43 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.location_on,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                'Deliver to, ',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              Expanded(
-                child: Text(
-                  'Adiala Road, Rawalpindi',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 2),
-              const Icon(
-                Icons.keyboard_arrow_down,
-                size: 16,
-                color: AppColors.primary,
-              ),
-            ],
-          ),
+          if (defaultAddress != null) ...[
+            const SizedBox(height: 4),
+            _DeliveryAddressRow(address: defaultAddress),
+          ],
         ],
       ),
     );
   }
 
+  // ── sections ─────────────────────────────────────────────────────────────
+
   Widget _buildShopByCategory(HomeViewModel viewModel) {
-    if (viewModel.categories.isEmpty) return const SizedBox.shrink();
+    final hasCategories = viewModel.categories.isNotEmpty;
+
+    // Categories failed and there is no last-good list to fall back on →
+    // a compact inline retry strip. The product sections below are untouched.
+    if (viewModel.categoriesStatus == HomeSectionStatus.error &&
+        !hasCategories) {
+      return _SectionRetryStrip(
+        label: "Couldn't load categories.",
+        onRetry: viewModel.retryCategories,
+      );
+    }
+    // Still loading, or genuinely empty → hide the whole section.
+    if (!hasCategories) return const SizedBox.shrink();
+
+    // `ready`, or `error` with a last-good list → render it.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
           title: 'Shop by Category',
-          onSeeAll: () {
-            Navigator.pushNamed(context, RouteNames.explore);
-          },
+          onSeeAll: () =>
+              _openExplore(const ExploreLaunchIntent(fromHome: true)),
         ),
         SizedBox(
-          height: 100, // Increased height for larger category tiles
+          height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -227,41 +226,40 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildBestSellers(HomeViewModel viewModel) {
-    if (viewModel.bestSellers.isEmpty) return const SizedBox.shrink();
+  Widget _buildTopRated(HomeViewModel viewModel) {
+    if (viewModel.topRatedStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.topRated;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
-          title: 'Best Sellers',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: const ExploreLaunchIntent(
-                sortOption: ExploreSortOption.mostPopular,
-              ),
-            );
-          },
+          title: 'Top Rated',
+          onSeeAll: () => _openExplore(
+            ExploreLaunchIntent(
+              fromHome: true,
+              productIds: products.map((p) => p.id).toList(),
+            ),
+          ),
         ),
         SizedBox(
-          height: 320, // Increased for wider card proportion
+          height: 320,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.bestSellers.length,
+            itemCount: products.length,
             itemBuilder: (context, index) {
-              final product = viewModel.bestSellers[index];
+              final product = products[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 12.0),
                 child: VerticalProductCard(
                   product: product,
-                  width: 200, // Increased width
-                  aspectRatio: 1.0, // Match Figma square image proportion
+                  width: 200,
+                  aspectRatio: 1.0,
                   isFavorite: viewModel.isFavorite(product.id),
                   onFavoriteToggle: () =>
                       _handleToggleFavorite(viewModel, product.id),
-                  // Removed onAddToCart as per Figma Best Sellers
                 ),
               );
             },
@@ -272,34 +270,32 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildFeaturedProducts(HomeViewModel viewModel) {
-    if (viewModel.featuredProducts.isEmpty) return const SizedBox.shrink();
+    if (viewModel.featuredStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.featuredProducts;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
           title: 'Featured Products',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: ExploreLaunchIntent(
-                productIds: viewModel.featuredProducts
-                    .map((p) => p.id)
-                    .toList(),
-              ),
-            );
-          },
+          onSeeAll: () => _openExplore(
+            ExploreLaunchIntent(
+              fromHome: true,
+              productIds: products.map((p) => p.id).toList(),
+            ),
+          ),
         ),
         SizedBox(
-          height: 400, // Allow full height for card
+          height: 400,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.featuredProducts.length,
+            itemCount: products.length,
             itemBuilder: (context, index) {
-              final product = viewModel.featuredProducts[index];
+              final product = products[index];
               return Container(
-                width: 280, // Fixed width for featured products
+                width: 280,
                 margin: const EdgeInsets.only(right: 12),
                 child: FeaturedProductCard(
                   product: product,
@@ -317,31 +313,31 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildNewArrivals(HomeViewModel viewModel) {
-    if (viewModel.newArrivals.isEmpty) return const SizedBox.shrink();
+    if (viewModel.newArrivalsStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.newArrivals;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
           title: 'New Arrivals',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: const ExploreLaunchIntent(
-                sortOption: ExploreSortOption.newest,
-              ),
-            );
-          },
+          onSeeAll: () => _openExplore(
+            const ExploreLaunchIntent(
+              fromHome: true,
+              sortOption: ExploreSortOption.newest,
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: viewModel.newArrivals.take(4).length,
+            itemCount: products.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final product = viewModel.newArrivals[index];
+              final product = products[index];
               return WideProductCard(
                 product: product,
                 isFavorite: viewModel.isFavorite(product.id),
@@ -357,34 +353,33 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildArEnabled(HomeViewModel viewModel) {
-    if (viewModel.arEnabledProducts.isEmpty) return const SizedBox.shrink();
+    if (viewModel.arEnabledStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.arEnabledProducts;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
           title: 'AR Enabled Products',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: const ExploreLaunchIntent(arOnly: true),
-            );
-          },
+          onSeeAll: () => _openExplore(
+            const ExploreLaunchIntent(fromHome: true, arOnly: true),
+          ),
         ),
         SizedBox(
-          height: 340, // Increased for wider card proportion
+          height: 340,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.arEnabledProducts.length,
+            itemCount: products.length,
             itemBuilder: (context, index) {
-              final product = viewModel.arEnabledProducts[index];
+              final product = products[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 12.0),
                 child: VerticalProductCard(
                   product: product,
-                  width: 220, // Increased width
-                  aspectRatio: 1.0, // Match Figma square image proportion
+                  width: 220,
+                  aspectRatio: 1.0,
                   isFavorite: viewModel.isFavorite(product.id),
                   onFavoriteToggle: () =>
                       _handleToggleFavorite(viewModel, product.id),
@@ -399,35 +394,32 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildVirtualTryOn(HomeViewModel viewModel) {
-    if (viewModel.virtualTryOnCollection.isEmpty) {
+    if (viewModel.virtualTryOnStatus != HomeSectionStatus.ready) {
       return const SizedBox.shrink();
     }
+    final products = viewModel.virtualTryOnCollection;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
           title: 'Virtual Try-On Collection',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: const ExploreLaunchIntent(tryOnOnly: true),
-            );
-          },
+          onSeeAll: () => _openExplore(
+            const ExploreLaunchIntent(fromHome: true, tryOnOnly: true),
+          ),
         ),
         SizedBox(
-          height: 340, // Increased height to avoid overflow and fit wider card
+          height: 340,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.virtualTryOnCollection.length,
+            itemCount: products.length,
             itemBuilder: (context, index) {
-              final product = viewModel.virtualTryOnCollection[index];
+              final product = products[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 12.0),
                 child: VerticalProductCard(
                   product: product,
-                  width: 220, // Widened card
+                  width: 220,
                   aspectRatio: 1.0,
                   isFavorite: viewModel.isFavorite(product.id),
                   onFavoriteToggle: () =>
@@ -442,34 +434,32 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildPopularFurniture(HomeViewModel viewModel) {
-    if (viewModel.popularFurniture.isEmpty) return const SizedBox.shrink();
+  Widget _buildTopRatedFurnitureDecor(HomeViewModel viewModel) {
+    if (viewModel.topRatedFurnitureDecorStatus != HomeSectionStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    final products = viewModel.topRatedFurnitureDecor;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
-          title: 'Popular Furniture & Decor',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: ExploreLaunchIntent(
-                productIds: viewModel.popularFurniture
-                    .map((p) => p.id)
-                    .toList(),
-              ),
-            );
-          },
+          title: 'Top Rated Furniture & Decor',
+          onSeeAll: () => _openExplore(
+            ExploreLaunchIntent(
+              fromHome: true,
+              productIds: products.map((p) => p.id).toList(),
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: viewModel.popularFurniture.take(4).length,
+            itemCount: products.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final product = viewModel.popularFurniture[index];
+              final product = products[index];
               return HorizontalSplitProductCard(
                 product: product,
                 isFavorite: viewModel.isFavorite(product.id),
@@ -483,47 +473,90 @@ class _HomeViewState extends State<HomeView> {
       ],
     );
   }
+}
 
-  Widget _buildRecentlyViewed(HomeViewModel viewModel) {
-    if (viewModel.recentlyViewed.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HomeSectionHeader(
-          title: 'Recently Viewed',
-          onSeeAll: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.explore,
-              arguments: ExploreLaunchIntent(
-                productIds: viewModel.recentlyViewed.map((p) => p.id).toList(),
-              ),
-            );
-          },
-        ),
-        SizedBox(
-          height: 280, // Increased height to avoid overflow
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.recentlyViewed.length,
-            itemBuilder: (context, index) {
-              final product = viewModel.recentlyViewed[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: VerticalProductCard(
-                  product: product,
-                  width: 180, // Wider width
-                  aspectRatio: 1.0,
-                  isFavorite: viewModel.isFavorite(product.id),
-                  onFavoriteToggle: () =>
-                      _handleToggleFavorite(viewModel, product.id),
+/// Tappable delivery-address row (replaces the old hardcoded
+/// "Deliver to, Adiala Road, Rawalpindi" + its down-arrow). Shown only when a
+/// valid default address exists. Tapping opens Saved Addresses.
+class _DeliveryAddressRow extends StatelessWidget {
+  final AddressModel address;
+
+  const _DeliveryAddressRow({required this.address});
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = [
+      address.addressLine1.trim(),
+      address.city.trim(),
+    ].where((s) => s.isNotEmpty).toList();
+    final summary = parts.isNotEmpty
+        ? parts.join(', ')
+        : (address.label?.trim().isNotEmpty ?? false
+              ? address.label!.trim()
+              : 'Saved address');
+
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, RouteNames.savedAddresses),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.location_on,
+              size: 14,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              'Deliver to ',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            Flexible(
+              child: Text(
+                summary,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Compact inline "this one section failed — Retry" strip. Never blanks the
+/// rest of Home.
+class _SectionRetryStrip extends StatelessWidget {
+  final String label;
+  final VoidCallback onRetry;
+
+  const _SectionRetryStrip({required this.label, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
     );
   }
 }

@@ -80,6 +80,24 @@ void main() {
       expect(vm.resolvedCategory, isNotNull);
     });
 
+    test('editing a product never resets its addedDate — New Arrivals '
+        'ordering stays truthful (Dynamic Home Stage 1)', () {
+      final original = db.getProductById('luna-accent-chair').addedDate;
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+        initialProductId: 'luna-accent-chair',
+      );
+      vm.titleController.text = 'Luna Accent Chair (Refreshed)';
+
+      // The model every save path (`saveDraft` / `publish` / `updateProduct`)
+      // builds goes through the same `_buildModelForSave`.
+      final built = vm.buildArConfigurationPreview();
+
+      expect(built.addedDate, original);
+      expect(built.title, 'Luna Accent Chair (Refreshed)');
+    });
+
     test('AR Type filtering by category', () {
       final vm = AdminProductFormViewModel(
         database: db,
