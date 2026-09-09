@@ -8,6 +8,7 @@ import 'package:twin_ar/features/room_ar/marker_ar/models/marker_ar_config.dart'
 import 'package:twin_ar/features/room_ar/marker_ar/models/marker_ar_object.dart';
 import 'package:twin_ar/features/room_ar/marker_ar/viewmodels/marker_ar_viewmodel.dart';
 import 'package:twin_ar/features/room_ar/marker_ar/views/marker_ar_view.dart';
+import 'package:twin_ar/core/models/product/product_ar_metadata.dart';
 import 'package:twin_ar/features/room_ar/room_ar_product_manifest.dart';
 
 import 'marker_ar_viewmodel_test.dart' show FakeRoomArMarkerChannel;
@@ -207,6 +208,52 @@ void main() {
       expect(find.byIcon(Icons.straighten), findsOneWidget); // calibration
       expect(find.byIcon(Icons.print_outlined), findsOneWidget); // marker sheet
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the marker PlatformView is created with the product mode as '
+        'a creation param (issue #3) — a bundled product', (tester) async {
+      await setViewport(tester, const Size(393, 851));
+      await tester.pumpWidget(customerHarness(MarkerArObject.sofa));
+      await tester.pumpAndSettle();
+
+      final view = tester.widget<AndroidView>(find.byType(AndroidView));
+      expect(view.viewType, 'twin_ar/room_ar/marker/view');
+      expect((view.creationParams as Map)['mode'], MarkerArObject.sofa.mode);
+    });
+
+    testWidgets('the marker PlatformView creation param is the live Firestore '
+        'id (never "chair") for an Admin-associated product (issue #3)', (
+      tester,
+    ) async {
+      await setViewport(tester, const Size(393, 851));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider(
+            create: (_) => MarkerArViewModel(
+              channel: channel,
+              mode: MarkerArLaunchMode.customerProduct,
+              initialObject: MarkerArObject.chair, // placeholder
+              customerFirestoreProductId: 'other-product-3',
+              customerProductTitle: 'Modern Table Lamp',
+              customerMetadata: ProductArMetadata(
+                storagePath: 'products/other-product-3/ar/model-v1.glb',
+                modelVersion: '1',
+                sha256: 'd' * 64,
+                widthM: 0.2,
+                depthM: 0.2,
+                heightM: 0.45,
+              ),
+            )..start(),
+            child: const MarkerArView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final view = tester.widget<AndroidView>(find.byType(AndroidView));
+      expect((view.creationParams as Map)['mode'], 'other-product-3');
+      expect((view.creationParams as Map)['mode'], isNot('chair'));
+      expect(view.onPlatformViewCreated, isNotNull);
     });
 
     testWidgets('the close button pops the route', (tester) async {

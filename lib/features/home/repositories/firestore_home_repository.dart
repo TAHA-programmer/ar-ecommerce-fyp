@@ -36,14 +36,50 @@ class FirestoreHomeRepository implements HomeRepository {
       .where('publicationStatus', isEqualTo: 'published')
       .where('isActive', isEqualTo: true);
 
+  /// Fetches a curated ID list as individual `products/{id}` document reads,
+  /// run in parallel, order-preserving.
+  ///
+  /// It deliberately does NOT use a single
+  /// `.where(FieldPath.documentId, whereIn: ids)` query: `firestore.rules`'
+  /// `products/{id}` read rule dereferences `resource.data.publicationStatus`,
+  /// and Firestore evaluates that rule per requested id for a
+  /// `whereIn`-on-documentId query. A curated id that has since been deleted,
+  /// unpublished or deactivated (e.g. `minimalist-bedroom-set`, permanently
+  /// removed from the catalogue) makes `resource` null for that id, the rule
+  /// throws, and the ENTIRE query is rejected with `permission-denied` —
+  /// which took all of Home down, not just one rail. Per-document `get()`s
+  /// isolate that: a missing / draft / inactive id simply fails its own
+  /// read (the rule denies it) and is skipped, never the whole batch.
   Future<List<ProductSummaryModel>> _fetchByIds(List<String> ids) async {
     if (ids.isEmpty) return const [];
-    final snapshot = await _publishedActive
-        .where(FieldPath.documentId, whereIn: ids)
-        .get();
-    return snapshot.docs
-        .map((d) => productModelFromFirestore(d.id, d.data()).toSummaryModel())
-        .toList();
+    final snapshots = await Future.wait(
+      ids.map(
+        (id) => _products
+            .doc(id)
+            .get()
+            .then<DocumentSnapshot<Map<String, dynamic>>?>(
+              (d) => d,
+              // Deleted id -> `not-found`; draft/inactive id -> the rule
+              // denies it (`permission-denied`). Either way: skip it.
+              onError: (_) => null,
+            ),
+      ),
+    );
+    final out = <ProductSummaryModel>[];
+    for (final doc in snapshots) {
+      if (doc == null || !doc.exists) continue;
+      final data = doc.data();
+      if (data == null) continue;
+      // Defence in depth: the rule already guarantees published + active, but
+      // a curated rail must never surface a draft even if that rule is later
+      // relaxed.
+      if (data['publicationStatus'] != 'published' ||
+          data['isActive'] != true) {
+        continue;
+      }
+      out.add(productModelFromFirestore(doc.id, data).toSummaryModel());
+    }
+    return out;
   }
 
   Future<List<ProductSummaryModel>> _fetchByField(
@@ -110,14 +146,14 @@ class FirestoreHomeRepository implements HomeRepository {
   Future<List<ProductSummaryModel>> getNewArrivals() =>
       _fetchByField('recommendationRank', 20);
 
+  // `minimalist-bedroom-set` was permanently removed from the catalogue
+  // (reference pack §33.5) and is intentionally not listed here. `_fetchByIds`
+  // now tolerates a missing id, but a permanently-dead literal is still dead
+  // weight — a replacement AR product is a curation decision for later.
   @override
-  Future<List<ProductSummaryModel>> getArEnabledProducts() =>
-      _fetchByIds(const [
-        'minimalist-bedroom-set',
-        'wooden-console',
-        'glass-coffee-table',
-        'velvet-armchair',
-      ]);
+  Future<List<ProductSummaryModel>> getArEnabledProducts() => _fetchByIds(
+    const ['wooden-console', 'glass-coffee-table', 'velvet-armchair'],
+  );
 
   @override
   Future<List<ProductSummaryModel>> getVirtualTryOnCollection() =>

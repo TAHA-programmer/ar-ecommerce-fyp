@@ -17,18 +17,23 @@ void main() {
   });
 
   group('MockExploreRepository Tests', () {
-    test('filters out products with showInCatalog=false', () async {
-      final catalog = await repository.getCatalog();
-      final explicitNotInCatalog = catalog
-          .where((p) => p.summary.id == 'luna-3-seater-sofa')
-          .toList();
-      expect(
-        explicitNotInCatalog.isEmpty,
-        true,
-        reason:
-            'Luna sofa defaults to showInCatalog=false and should be hidden',
-      );
-    });
+    test(
+      'showInCatalog=false no longer hides a product from Explore '
+      '(Phase 9.3 pre-work - showInCatalog is not a customer Explore filter)',
+      () async {
+        final catalog = await repository.getCatalog();
+        final sofa = catalog
+            .where((p) => p.summary.id == 'luna-3-seater-sofa')
+            .toList();
+        expect(
+          sofa.isNotEmpty,
+          true,
+          reason:
+              'Luna sofa is showInCatalog=false but is published+active, so it '
+              'is part of the full customer catalogue now',
+        );
+      },
+    );
 
     test('includes active products with showInCatalog=true', () async {
       final catalog = await repository.getCatalog();
@@ -55,13 +60,23 @@ void main() {
       );
     });
 
-    test('count preserves approved exact explore amount', () async {
+    test('catalog is the complete published+active set, not an arbitrary '
+        'ceiling (no hardcoded count)', () async {
       final items = await repository.getCatalog();
+      final expected = db.products
+          .where(
+            (p) =>
+                p.isActive &&
+                p.publicationStatus == ProductPublicationStatus.published,
+          )
+          .length;
+      expect(items.length, expected);
       expect(
         items.length,
-        36,
+        greaterThan(36),
         reason:
-            'Exactly 36 items generated for Explore catalog must be visible',
+            'the old showInCatalog-curated view capped Explore near 36; the '
+            'full catalogue is larger',
       );
     });
 

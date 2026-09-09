@@ -55,6 +55,7 @@ import java.util.concurrent.Executors
 class RoomArMarkerView(
     private val context: Context,
     private val viewId: Int,
+    initialMode: String = "chair",
 ) : PlatformView, LifecycleOwner {
 
     private val tag = "RoomArMarkerView"
@@ -68,9 +69,10 @@ class RoomArMarkerView(
     // Filament model overlay — renders into a transparent TextureView layered
     // above the camera PreviewView (TextureView-over-TextureView composites reliably;
     // a separate transparent SurfaceView did not → "black camera" bug).
-    private val modelRenderer: RoomArModelRenderer? = runCatching { RoomArModelRenderer(context) }
-        .onFailure { Log.e(tag, "RoomArModelRenderer init failed", it) }
-        .getOrNull()
+    private val modelRenderer: RoomArModelRenderer? =
+        runCatching { RoomArModelRenderer(context, initialMode) }
+            .onFailure { Log.e(tag, "RoomArModelRenderer init failed", it) }
+            .getOrNull()
 
     private val root = FrameLayout(context).apply {
         addView(

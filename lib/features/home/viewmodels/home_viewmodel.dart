@@ -28,8 +28,9 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void _onDbChanged() {
-    _hasLoaded = false;
-    loadHomeData();
+    // The catalogue changed under us (Admin edit, sign-in/out re-subscribe).
+    // Re-pull the curated sections without tearing the current UI down.
+    loadHomeData(force: true);
   }
 
   @override
@@ -41,6 +42,25 @@ class HomeViewModel extends ChangeNotifier {
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
+
+  /// True when the last load/refresh attempt failed. The View shows an honest
+  /// error + Retry state instead of a permanently blank screen — but only
+  /// when there is also nothing already on screen (a failed background
+  /// refresh keeps the last good content, matching [refresh]'s behaviour).
+  bool _hasError = false;
+  bool get hasError => _hasError;
+
+  /// True when no section has any content yet (first load never succeeded).
+  bool get isEmpty =>
+      _banners.isEmpty &&
+      _categories.isEmpty &&
+      _bestSellers.isEmpty &&
+      _featuredProducts.isEmpty &&
+      _newArrivals.isEmpty &&
+      _arEnabledProducts.isEmpty &&
+      _virtualTryOnCollection.isEmpty &&
+      _popularFurniture.isEmpty &&
+      _recentlyViewed.isEmpty;
 
   List<HomeBannerModel> _banners = [];
   List<HomeBannerModel> get banners => _banners;
@@ -112,10 +132,24 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   bool _hasLoaded = false;
+  bool _loadInFlight = false;
 
-  Future<void> loadHomeData() async {
-    if (_hasLoaded) return;
-    _isLoading = true;
+  /// Loads (or, with [force], reloads) every Home section.
+  ///
+  /// * A failed attempt does NOT latch `_hasLoaded`, so the View's Retry
+  ///   button and a later `_onDbChanged` / auth-readiness notification can
+  ///   recover — the previous behaviour set `_hasLoaded = true` in `finally`
+  ///   even on failure, so Home stayed blank forever after the first error.
+  /// * `_loadInFlight` collapses the near-simultaneous calls from the View's
+  ///   `initState` and the `CommerceDatabase` listener into one, so a
+  ///   failing load never fans out into duplicate parallel attempts.
+  Future<void> loadHomeData({bool force = false}) async {
+    if (_loadInFlight) return;
+    if (_hasLoaded && !force) return;
+    _loadInFlight = true;
+    // Only show the full-screen spinner on a genuine first load; a forced
+    // reload keeps whatever is already on screen.
+    _isLoading = !_hasLoaded;
     notifyListeners();
 
     try {
@@ -140,44 +174,29 @@ class HomeViewModel extends ChangeNotifier {
       _virtualTryOnCollection = results[6] as List<ProductSummaryModel>;
       _popularFurniture = results[7] as List<ProductSummaryModel>;
       _recentlyViewed = results[8] as List<ProductSummaryModel>;
-    } catch (e) {
-      // Print error in debug mode for now
-      debugPrint('Failed to load home data: $e');
-    } finally {
+      _hasError = false;
       _hasLoaded = true;
+    } catch (e) {
+      debugPrint('Failed to load home data: $e');
+      _hasError = true;
+      // Deliberately NOT setting `_hasLoaded = true` — keep this retryable.
+      // Existing content (from an earlier good load) is left in place.
+    } finally {
+      _loadInFlight = false;
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  /// Explicit user retry from the error state.
+  Future<void> retry() => loadHomeData(force: true);
+
   Future<void> refresh() async {
     try {
       await _repository.refresh();
-      final results = await Future.wait([
-        _repository.getBanners(),
-        _repository.getCategories(),
-        _repository.getBestSellers(),
-        _repository.getFeaturedProducts(),
-        _repository.getNewArrivals(),
-        _repository.getArEnabledProducts(),
-        _repository.getVirtualTryOnCollection(),
-        _repository.getPopularFurniture(),
-        _repository.getRecentlyViewed(),
-      ]);
-
-      _banners = results[0] as List<HomeBannerModel>;
-      _categories = results[1] as List<CategoryModel>;
-      _bestSellers = results[2] as List<ProductSummaryModel>;
-      _featuredProducts = results[3] as List<ProductSummaryModel>;
-      _newArrivals = results[4] as List<ProductSummaryModel>;
-      _arEnabledProducts = results[5] as List<ProductSummaryModel>;
-      _virtualTryOnCollection = results[6] as List<ProductSummaryModel>;
-      _popularFurniture = results[7] as List<ProductSummaryModel>;
-      _recentlyViewed = results[8] as List<ProductSummaryModel>;
-      notifyListeners();
     } catch (e) {
       debugPrint('Failed to refresh home data: $e');
-      // Do not clear existing data on error
     }
+    await loadHomeData(force: true);
   }
 }

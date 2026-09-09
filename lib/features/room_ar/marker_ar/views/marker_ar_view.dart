@@ -288,8 +288,16 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
 
   @override
   Widget build(BuildContext context) {
+    // Built once and handed to the Consumer as its `child`, so the native
+    // PlatformView subtree is NOT rebuilt on every per-frame ViewModel
+    // notification (matches the previous `const AndroidView`). `nativeMode` is
+    // immutable for the ViewModel's lifetime.
+    final platformView = _MarkerPlatformView(
+      mode: context.read<MarkerArViewModel>().nativeMode,
+    );
     return Consumer<MarkerArViewModel>(
-      builder: (context, vm, _) {
+      child: platformView,
+      builder: (context, vm, platformViewChild) {
         // Customer flow: a device that can't run the engine gets an honest
         // full-screen message and a way back — never a frozen camera. Wait for
         // the native config handshake so the fallback config isn't misread as
@@ -326,11 +334,7 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
                     onScaleStart: _onScaleStart,
                     onScaleUpdate: _onScaleUpdate,
                     onScaleEnd: _onScaleEnd,
-                    child: const AndroidView(
-                      viewType: 'twin_ar/room_ar/marker/view',
-                      creationParams: <String, dynamic>{},
-                      creationParamsCodec: StandardMessageCodec(),
-                    ),
+                    child: platformViewChild,
                   );
                 },
               ),
@@ -445,6 +449,37 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
           ],
         );
       },
+    );
+  }
+}
+
+/// The Tier-2 Marker-AR PlatformView.
+///
+/// [mode] (the native renderer slot key — `chair`/`table`/`lamp`/`sofa` for a
+/// bundled product, or the live Firestore product id otherwise) is passed as a
+/// **creation param**, not a post-creation `setObject` channel call: the
+/// native renderer selects the right slot synchronously while it is being
+/// constructed, so a product with no bundled counterpart renders *nothing*
+/// until its verified GLB arrives — never the chair. A post-creation call can
+/// be dropped if it races the PlatformView's own creation (which is exactly
+/// what left the chair on screen on the first cold launch). [mode] is
+/// immutable for a session, so rebuilding this widget never recreates the
+/// platform view. Mirrors Tier 1's `ArCorePlatformView`.
+class _MarkerPlatformView extends StatelessWidget {
+  final String mode;
+  const _MarkerPlatformView({required this.mode});
+
+  @override
+  Widget build(BuildContext context) {
+    return AndroidView(
+      viewType: 'twin_ar/room_ar/marker/view',
+      creationParams: <String, dynamic>{'mode': mode},
+      creationParamsCodec: const StandardMessageCodec(),
+      // Guaranteed-post-creation re-send of the Storage-delivered external
+      // model (its file path isn't known until the download/cache resolve
+      // finishes). Harmless/idempotent if nothing raced.
+      onPlatformViewCreated: (_) =>
+          context.read<MarkerArViewModel>().onPlatformViewCreated(),
     );
   }
 }
