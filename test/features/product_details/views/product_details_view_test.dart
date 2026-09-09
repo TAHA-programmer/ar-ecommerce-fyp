@@ -11,6 +11,8 @@ import 'package:twin_ar/core/data/mock_favorites_repository.dart';
 import 'package:twin_ar/core/widgets/navigation/customer_bottom_navigation.dart';
 import 'package:twin_ar/features/product_details/repositories/product_details_repository.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
+import 'package:twin_ar/features/product_details/repositories/recently_viewed_repository.dart';
+import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
 
 void main() {
   Widget createTestWidget(String productId, {MockCommerceDatabase? db}) {
@@ -25,6 +27,9 @@ void main() {
           ),
           ChangeNotifierProvider<CategoryRepository>(
             create: (_) => MockCategoryRepository(),
+          ),
+          Provider<RecentlyViewedRepository>(
+            create: (_) => MockRecentlyViewedRepository(),
           ),
           ChangeNotifierProvider(
             create: (_) => CustomerShoppingState(

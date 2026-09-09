@@ -74,6 +74,12 @@ ProductModel productModelFromFirestore(String id, Map<String, dynamic> data) {
     addedDate: _dateFromTimestamp(data['addedDate']),
     rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
     reviewCount: (data['reviewCount'] as num?)?.toInt() ?? 0,
+    // Phase 9.3 "Dynamic Home Content" Stage 2 — explicit Admin feature flag.
+    // Absent on every pre-Stage-2 document => `false` / the neutral rank.
+    isFeatured: data['isFeatured'] as bool? ?? false,
+    featuredRank:
+        (data['featuredRank'] as num?)?.toInt() ??
+        ProductModel.defaultFeaturedRank,
     // Legacy Admin AR & Media staging fields (kept until R16).
     arModelAssetPath: data['arModelAssetPath'] as String?,
     arScale: (data['arScale'] as num?)?.toDouble(),
@@ -135,6 +141,12 @@ extension ProductModelFirestoreMapper on ProductModel {
       'addedDate': Timestamp.fromDate(addedDate),
       'rating': rating,
       'reviewCount': reviewCount,
+      // Phase 9.3 Stage 2: only persisted when the product is actually
+      // featured — same "omit when default" discipline as `arModelDisabled`
+      // and `lastStockUpdatedAt`, so a full `.set()` never adds noise keys
+      // to an untouched product or churns the seed export.
+      if (isFeatured) 'isFeatured': true,
+      if (isFeatured) 'featuredRank': featuredRank,
       // Legacy Admin AR & Media staging fields (kept until R16).
       'arModelAssetPath': arModelAssetPath,
       'arScale': arScale,

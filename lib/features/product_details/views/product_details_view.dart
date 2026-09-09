@@ -7,6 +7,7 @@ import '../../../core/models/product/product_category.dart';
 import '../../../core/widgets/feedback/app_toast.dart';
 import '../../../app/routes/route_names.dart';
 import '../repositories/product_details_repository.dart';
+import '../repositories/recently_viewed_repository.dart';
 import '../viewmodels/product_details_viewmodel.dart';
 import '../widgets/layouts/clothing_product_details_layout.dart';
 import '../widgets/layouts/home_product_details_layout.dart';
@@ -25,6 +26,7 @@ class ProductDetailsView extends StatelessWidget {
         shoppingState: context.read<CustomerShoppingState>(),
         categoryRepository: context.read<CategoryRepository>(),
         productId: productId,
+        recentlyViewed: context.read<RecentlyViewedRepository>(),
       ),
       child: const _ProductDetailsContent(),
     );

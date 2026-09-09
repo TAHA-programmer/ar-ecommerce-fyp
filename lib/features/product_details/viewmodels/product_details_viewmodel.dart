@@ -10,11 +10,17 @@ import '../../../core/models/product/product_color_option.dart';
 import '../../../core/models/product/product_size.dart';
 import '../models/product_detail_model.dart';
 import '../repositories/product_details_repository.dart';
+import '../repositories/recently_viewed_repository.dart';
 
 class ProductDetailsViewModel extends ChangeNotifier {
   final ProductDetailsRepository _repository;
   final CustomerShoppingState _shoppingState;
   final CategoryRepository _categoryRepository;
+
+  /// Phase 9.3 Stage 2 — optional; when provided, a successful load of an
+  /// eligible product records a view (fire-and-forget, non-blocking). Null in
+  /// tests that don't care about history.
+  final RecentlyViewedRepository? _recentlyViewed;
   final String productId;
 
   ProductDetailsViewModel({
@@ -22,9 +28,11 @@ class ProductDetailsViewModel extends ChangeNotifier {
     required CustomerShoppingState shoppingState,
     required CategoryRepository categoryRepository,
     required this.productId,
+    RecentlyViewedRepository? recentlyViewed,
   }) : _repository = repository,
        _shoppingState = shoppingState,
-       _categoryRepository = categoryRepository {
+       _categoryRepository = categoryRepository,
+       _recentlyViewed = recentlyViewed {
     _loadProduct();
     _shoppingState.addListener(_onShoppingStateChanged);
   }
@@ -109,6 +117,15 @@ class ProductDetailsViewModel extends ChangeNotifier {
 
     try {
       _product = await _repository.getProductDetails(productId);
+
+      // Phase 9.3 Stage 2 — record the view. For a customer, a successful
+      // single-doc read implies the product is published + active (the
+      // Firestore rule denies drafts/inactive), so "load succeeded" is the
+      // eligibility gate. Fire-and-forget: the repository never throws and
+      // this is not awaited into the render path.
+      if (_product != null) {
+        _recentlyViewed?.recordView(productId);
+      }
 
       // Initialize defaults based on available options
       if (_product != null) {

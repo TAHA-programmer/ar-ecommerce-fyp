@@ -2521,6 +2521,161 @@ async function main() {
     await assertFails(deleteDoc(doc(bob.firestore(), `users/${ALICE}/favorites/p1`)));
   });
 
+  // ── Phase 9.3 "Dynamic Home Content" Stage 2 ────────────────────────────
+  console.log('users/{uid}/recentlyViewed/{productId} - Phase 9.3 Stage 2');
+
+  async function seedRecentlyViewed(uid, productId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), `users/${uid}/recentlyViewed/${productId}`),
+        { viewedAt: Timestamp.now() },
+      );
+    });
+  }
+
+  await run('the owner can record a view (create with viewedAt == request.time)', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(
+      setDoc(doc(alice.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('the owner can re-record a view (update = move-to-front)', async () => {
+    await testEnv.clearFirestore();
+    await seedRecentlyViewed(ALICE, 'p1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(
+      setDoc(doc(alice.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('a recentlyViewed write with a backdated viewedAt is rejected', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: Timestamp.fromDate(new Date('2020-01-01')),
+      }),
+    );
+  });
+
+  await run('a recentlyViewed write with an extra field is rejected', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: serverTimestamp(),
+        productId: 'p1',
+      }),
+    );
+  });
+
+  await run('another user cannot read or write someone else\'s recentlyViewed', async () => {
+    await testEnv.clearFirestore();
+    await seedRecentlyViewed(ALICE, 'p1');
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `users/${ALICE}/recentlyViewed/p1`)));
+    await assertFails(
+      setDoc(doc(bob.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('the owner can delete their own recentlyViewed entry', async () => {
+    await testEnv.clearFirestore();
+    await seedRecentlyViewed(ALICE, 'p1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(deleteDoc(doc(alice.firestore(), `users/${ALICE}/recentlyViewed/p1`)));
+  });
+
+  await run('an unauthenticated client cannot touch recentlyViewed', async () => {
+    await testEnv.clearFirestore();
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(
+      setDoc(doc(anon.firestore(), `users/${ALICE}/recentlyViewed/p1`), {
+        viewedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  console.log('productStats / statsAdjustments - Phase 9.3 Stage 2 (server-only aggregates)');
+
+  async function seedProductStats(productId, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `productStats/${productId}`), data);
+    });
+  }
+
+  await run('a signed-in customer can READ productStats (Home ordering)', async () => {
+    await testEnv.clearFirestore();
+    await seedProductStats('p1', { unitsSold: 7, favoriteCount: 3 });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), 'productStats/p1')));
+  });
+
+  await run('an unauthenticated client cannot read productStats', async () => {
+    await testEnv.clearFirestore();
+    await seedProductStats('p1', { unitsSold: 7 });
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(getDoc(doc(anon.firestore(), 'productStats/p1')));
+  });
+
+  await run('NO client (customer or superAdmin) can write productStats', async () => {
+    await testEnv.clearFirestore();
+    await seedProductStats('p1', { unitsSold: 7 });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'productStats/p1'), { unitsSold: 999 }),
+    );
+    await assertFails(
+      setDoc(doc(admin.firestore(), 'productStats/p1'), { unitsSold: 999 }),
+    );
+    await assertFails(deleteDoc(doc(alice.firestore(), 'productStats/p1')));
+  });
+
+  await run('the private favoriteVoters guard subcollection is fully denied to clients', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'productStats/p1/favoriteVoters/alice-uid'),
+        { at: Timestamp.now() },
+      );
+    });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      getDoc(doc(alice.firestore(), 'productStats/p1/favoriteVoters/alice-uid')),
+    );
+    await assertFails(
+      setDoc(doc(alice.firestore(), 'productStats/p1/favoriteVoters/alice-uid'), {
+        at: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('the statsAdjustments ledger is fully denied to every client', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'statsAdjustments/ord-1'), {
+        kind: 'order_cancelled',
+      });
+    });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(getDoc(doc(alice.firestore(), 'statsAdjustments/ord-1')));
+    await assertFails(
+      setDoc(doc(alice.firestore(), 'statsAdjustments/ord-2'), { kind: 'x' }),
+    );
+  });
+
   console.log(
     'users/{uid}/favorites - addFavorite idempotency (real emulator, '
       + 'pre-deployment correction pass)',

@@ -3,6 +3,7 @@ import 'package:twin_ar/core/data/mock_category_repository.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/features/product_details/viewmodels/product_details_viewmodel.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
+import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
 import 'package:twin_ar/app/viewmodels/customer_shopping_state.dart';
 import 'package:twin_ar/core/data/mock_cart_repository.dart';
 import 'package:twin_ar/core/data/mock_favorites_repository.dart';
@@ -253,6 +254,60 @@ void main() {
         final error = await vm.addToCart();
         expect(error, isNull);
         expect(shoppingState.cartCount, 1);
+      });
+    });
+
+    group('recently-viewed recording (Dynamic Home Stage 2)', () {
+      test('records the view once on a successful load', () async {
+        final rv = MockRecentlyViewedRepository();
+        ProductDetailsViewModel(
+          repository: repository,
+          shoppingState: shoppingState,
+          categoryRepository: categoryRepository,
+          productId: 'luna-accent-chair',
+          recentlyViewed: rv,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(rv.recordedViews, ['luna-accent-chair']);
+        expect(rv.history, ['luna-accent-chair']);
+      });
+
+      test('does NOT record when the product fails to load', () async {
+        final rv = MockRecentlyViewedRepository();
+        ProductDetailsViewModel(
+          repository: repository,
+          shoppingState: shoppingState,
+          categoryRepository: categoryRepository,
+          productId: 'does-not-exist',
+          recentlyViewed: rv,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(rv.recordedViews, isEmpty);
+      });
+
+      test('a failing view write never surfaces on Product Details', () async {
+        final rv = MockRecentlyViewedRepository()..failNext = true;
+        final vm = ProductDetailsViewModel(
+          repository: repository,
+          shoppingState: shoppingState,
+          categoryRepository: categoryRepository,
+          productId: 'luna-accent-chair',
+          recentlyViewed: rv,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(vm.error, isNull);
+        expect(vm.product, isNotNull);
+      });
+
+      test('works with no repository injected (optional seam)', () async {
+        final vm = ProductDetailsViewModel(
+          repository: repository,
+          shoppingState: shoppingState,
+          categoryRepository: categoryRepository,
+          productId: 'luna-accent-chair',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(vm.product, isNotNull);
       });
     });
   });

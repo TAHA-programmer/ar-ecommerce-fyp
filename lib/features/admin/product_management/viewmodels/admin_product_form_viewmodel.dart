@@ -74,6 +74,7 @@ class AdminProductFormViewModel extends ChangeNotifier {
   final priceController = TextEditingController();
   final discountPriceController = TextEditingController();
   final stockController = TextEditingController();
+  final featuredRankController = TextEditingController();
 
   // Basic Info State - Phase 8.8b: a real categoryId reference, resolved
   // live against CategoryRepository, never a silently-defaulted enum value.
@@ -152,6 +153,19 @@ class AdminProductFormViewModel extends ChangeNotifier {
   ProductPublicationStatus get publicationStatus => _publicationStatus;
 
   bool _showInCatalog = true;
+
+  // Phase 9.3 "Dynamic Home Content" Stage 2 — explicit Home feature control.
+  bool _isFeatured = false;
+  bool get isFeatured => _isFeatured;
+
+  int _featuredRank = ProductModel.defaultFeaturedRank;
+  int get featuredRank => _featuredRank;
+
+  void setIsFeatured(bool value) {
+    _isFeatured = value;
+    _markDirty();
+    notifyListeners();
+  }
 
   // Details State
   Set<ProductColorOption> _availableColors = {};
@@ -297,6 +311,15 @@ class AdminProductFormViewModel extends ChangeNotifier {
     priceController.addListener(_markDirty);
     discountPriceController.addListener(_markDirty);
     stockController.addListener(_markDirty);
+    featuredRankController.addListener(_onFeaturedRankChanged);
+  }
+
+  void _onFeaturedRankChanged() {
+    final parsed = int.tryParse(featuredRankController.text.trim());
+    _featuredRank = (parsed == null || parsed < 0)
+        ? ProductModel.defaultFeaturedRank
+        : parsed;
+    _markDirty();
   }
 
   void _markDirty() {
@@ -315,6 +338,7 @@ class AdminProductFormViewModel extends ChangeNotifier {
     priceController.dispose();
     discountPriceController.dispose();
     stockController.dispose();
+    featuredRankController.dispose();
     super.dispose();
   }
 
@@ -338,6 +362,9 @@ class AdminProductFormViewModel extends ChangeNotifier {
     _isActive = product.isActive;
     _publicationStatus = product.publicationStatus;
     _showInCatalog = product.showInCatalog;
+    _isFeatured = product.isFeatured;
+    _featuredRank = product.featuredRank;
+    featuredRankController.text = product.featuredRank.toString();
 
     _availableColors = Set.from(product.availableColors);
     _availableSizes = Set.from(product.availableSizes);
@@ -879,6 +906,12 @@ class AdminProductFormViewModel extends ChangeNotifier {
       reviewCount: isEditMode ? _originalProduct!.reviewCount : 0,
       popularityScore: isEditMode ? _originalProduct!.popularityScore : 0,
       recommendationRank: isEditMode ? _originalProduct!.recommendationRank : 0,
+      // Phase 9.3 Stage 2 — an editable form field. Populated from the
+      // existing product on edit (`_populateFormFromProduct`), so a
+      // title-only save preserves the feature flag/rank; a new product
+      // starts un-featured at the neutral rank.
+      isFeatured: _isFeatured,
+      featuredRank: _featuredRank,
       // Legacy field: carried through verbatim on an edit (never re-created),
       // cleared when the product is not Room AR.
       arModelAssetPath: _experienceType == ProductExperienceType.roomAr
