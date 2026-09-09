@@ -60,6 +60,24 @@ class ProductModel {
   final double rating;
   final int reviewCount;
 
+  /// Phase 9.3 — "Dynamic Home Content" Stage 2. Explicit Admin "feature this
+  /// on Home" control (replaces the overloaded `recommendationRank == 10`
+  /// sentinel Home used as an interim signal). Absent/false for every product
+  /// the Admin has never featured — the mapper only writes the key when it is
+  /// `true`, so no existing document or seed is disturbed. Home does NOT read
+  /// this until Stage 3.
+  final bool isFeatured;
+
+  /// Ordering weight for [isFeatured] products (lower = earlier). Ignored
+  /// entirely when [isFeatured] is `false`; the mapper only persists it
+  /// alongside a `true` [isFeatured]. Defaults to [defaultFeaturedRank].
+  final int featuredRank;
+
+  /// The neutral default [featuredRank] — a product featured without an
+  /// explicit rank sorts after every explicitly-ranked one but before the
+  /// non-featured tail.
+  static const int defaultFeaturedRank = 1000;
+
   /// **Legacy Admin AR & Media staging field** — a bare asset file name chosen
   /// in the mock admin flow. It is *not* the production Room-AR pointer; the
   /// runtime uses [arMetadata] (Phase 9.2 R11/R12). Kept read/write only so the
@@ -121,6 +139,8 @@ class ProductModel {
     required this.addedDate,
     this.rating = 0.0,
     this.reviewCount = 0,
+    this.isFeatured = false,
+    this.featuredRank = defaultFeaturedRank,
     this.arModelAssetPath,
     this.arScale,
     this.arMetadata,
@@ -179,6 +199,8 @@ class ProductModel {
     DateTime? addedDate,
     double? rating,
     int? reviewCount,
+    bool? isFeatured,
+    int? featuredRank,
     String? arModelAssetPath,
     double? arScale,
     ProductArMetadata? arMetadata,
@@ -223,6 +245,8 @@ class ProductModel {
       addedDate: addedDate ?? this.addedDate,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
+      isFeatured: isFeatured ?? this.isFeatured,
+      featuredRank: featuredRank ?? this.featuredRank,
       arModelAssetPath: clearArModelAssetPath
           ? null
           : (arModelAssetPath ?? this.arModelAssetPath),

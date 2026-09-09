@@ -1,5 +1,7 @@
-# Build output
-lib/
+# Build output — the `tsc` emit dir ONLY. Anchored with a leading slash so it
+# matches `functions/lib/` and NOT `functions/src/lib/**` (the real Cloud
+# Functions business-logic layer, which IS tracked).
+/lib/
 
 # Dependencies
 node_modules/

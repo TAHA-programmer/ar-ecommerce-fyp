@@ -98,6 +98,61 @@ void main() {
       expect(built.title, 'Luna Accent Chair (Refreshed)');
     });
 
+    test('Dynamic Home Stage 2 — a new product is un-featured at the neutral '
+        'rank; setting the switch builds isFeatured:true', () {
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+      );
+      expect(vm.isFeatured, isFalse);
+      expect(vm.featuredRank, ProductModel.defaultFeaturedRank);
+
+      vm.setIsFeatured(true);
+      vm.featuredRankController.text = '3';
+      final built = vm.buildArConfigurationPreview();
+      expect(built.isFeatured, isTrue);
+      expect(built.featuredRank, 3);
+    });
+
+    test('Dynamic Home Stage 2 — a blank/invalid feature rank falls back to '
+        'the neutral default', () {
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+      );
+      vm.setIsFeatured(true);
+      vm.featuredRankController.text = 'abc';
+      expect(
+        vm.buildArConfigurationPreview().featuredRank,
+        ProductModel.defaultFeaturedRank,
+      );
+      vm.featuredRankController.text = '-9';
+      expect(
+        vm.buildArConfigurationPreview().featuredRank,
+        ProductModel.defaultFeaturedRank,
+      );
+    });
+
+    test('Dynamic Home Stage 2 — editing a featured product without touching '
+        'the switch preserves isFeatured + featuredRank', () async {
+      final seeded = db.getProductById('luna-accent-chair');
+      await db.updateProduct(
+        seeded.copyWith(isFeatured: true, featuredRank: 2),
+      );
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+        initialProductId: 'luna-accent-chair',
+      );
+      expect(vm.isFeatured, isTrue);
+      expect(vm.featuredRank, 2);
+
+      vm.titleController.text = 'Luna Accent Chair (edited)';
+      final built = vm.buildArConfigurationPreview();
+      expect(built.isFeatured, isTrue);
+      expect(built.featuredRank, 2);
+    });
+
     test('AR Type filtering by category', () {
       final vm = AdminProductFormViewModel(
         database: db,
@@ -591,7 +646,9 @@ void main() {
       await tester.pumpWidget(buildApp(productId: product.id));
       await tester.pumpAndSettle();
 
-      await tester.drag(find.byType(ListView), const Offset(0, -1600));
+      // -1800 to match the sibling R16 test below: the Add/Edit form grew a
+      // "Feature on Home" control (Dynamic Home Stage 2) above this point.
+      await tester.drag(find.byType(ListView), const Offset(0, -1800));
       await tester.pumpAndSettle();
 
       expect(find.text('Select Model Type'), findsOneWidget);

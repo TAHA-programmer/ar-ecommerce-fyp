@@ -432,5 +432,63 @@ void main() {
         }
       });
     });
+
+    group('Phase 9.3 Stage 2 isFeatured / featuredRank', () {
+      ProductModel base({bool isFeatured = false, int? featuredRank}) =>
+          ProductModel(
+            id: 'p',
+            sku: 'S',
+            title: 'T',
+            description: '',
+            categoryId: 'furniture',
+            categoryKind: ProductCategory.furniture,
+            subcategory: '',
+            priceAmount: 1000,
+            stockQuantity: 1,
+            mainImage: const ProductImageRef(path: 'x'),
+            experienceType: ProductExperienceType.none,
+            addedDate: DateTime(2026, 1, 1),
+            deliveryEstimate: '3-5',
+            isFeatured: isFeatured,
+            featuredRank: featuredRank ?? ProductModel.defaultFeaturedRank,
+          );
+
+      test('a non-featured product omits both keys (pre-Stage-2 docs '
+          'untouched, seed export unchanged)', () {
+        final map = base().toFirestoreMap();
+        expect(map.containsKey('isFeatured'), isFalse);
+        expect(map.containsKey('featuredRank'), isFalse);
+      });
+
+      test('a featured product writes isFeatured:true + featuredRank and '
+          'round-trips', () {
+        final map = base(isFeatured: true, featuredRank: 5).toFirestoreMap();
+        expect(map['isFeatured'], true);
+        expect(map['featuredRank'], 5);
+        final restored = productModelFromFirestore('p', map);
+        expect(restored.isFeatured, true);
+        expect(restored.featuredRank, 5);
+      });
+
+      test('a doc with no isFeatured maps to false + the neutral rank', () {
+        final restored = productModelFromFirestore('p', {
+          'title': 'T',
+          'publicationStatus': 'published',
+        });
+        expect(restored.isFeatured, false);
+        expect(restored.featuredRank, ProductModel.defaultFeaturedRank);
+      });
+
+      test('a stray featuredRank without isFeatured is still read but never '
+          're-written (isFeatured gates the write)', () {
+        final restored = productModelFromFirestore('p', {
+          'title': 'T',
+          'featuredRank': 3,
+        });
+        expect(restored.isFeatured, false);
+        expect(restored.featuredRank, 3);
+        expect(restored.toFirestoreMap().containsKey('featuredRank'), isFalse);
+      });
+    });
   });
 }

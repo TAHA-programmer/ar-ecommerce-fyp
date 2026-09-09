@@ -355,6 +355,26 @@ service cloud.firestore {
         allow delete: if isOwner(uid);
       }
 
+      // Phase 9.3 "Dynamic Home Content" Stage 2 - per-customer product-view
+      // history. Same owner-scoped shape as `favorites` (document ID IS the
+      // productId, so a re-view is a same-document overwrite). The single
+      // real field is `viewedAt`, which must always equal `request.time` -
+      // a client can never backdate or forward-date a view. UNLIKE
+      // `favorites`, `update` IS allowed (a re-view moves the product to the
+      // front by rewriting `viewedAt`), still under the identical field
+      // shape. `productStats` / any Home ranking is server-maintained and
+      // NOT derived from this collection.
+      function isValidRecentlyViewedWrite(data) {
+        return data.keys().hasOnly(['viewedAt'])
+            && data.viewedAt == request.time;
+      }
+      match /recentlyViewed/{productId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidRecentlyViewedWrite(request.resource.data);
+        allow update: if isOwner(uid) && isValidRecentlyViewedWrite(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
       match /cart/{cartItemId} {
         allow read: if isOwner(uid);
         allow create: if isOwner(uid) && isValidCartItemCreate(request.resource.data);
@@ -382,6 +402,35 @@ service cloud.firestore {
                       && resource.data.publicationStatus == 'published'
                       && resource.data.isActive == true);
       allow write: if isAdmin();
+    }
+
+    // Phase 9.3 "Dynamic Home Content" Stage 2 - server-maintained ordering
+    // aggregates (`unitsSold`, `favoriteCount`, `lastSoldAt`, `updatedAt`).
+    // NON-sensitive counts, readable by any signed-in customer so Home can
+    // order its Best Sellers / Popular sections (Stage 3). Written
+    // EXCLUSIVELY by Cloud Functions via the Admin SDK (which bypasses these
+    // rules) - the exactly-once `stripeWebhook` finalize path
+    // (`unitsSold`++), the `orders/{id}` cancel trigger (`unitsSold`--, once,
+    // guarded by `statsAdjustments/{orderId}`), and the
+    // `users/*/favorites/*` trigger (`favoriteCount` +/- 1, once per
+    // (user,product), guarded by the private `favoriteVoters` subcollection).
+    // NO client write path, now or ever.
+    match /productStats/{productId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+      // `favoriteVoters/{uid}` - the per-(user,product) idempotency guard for
+      // the favourite-count trigger. Purely server-internal.
+      match /{subCollection}/{subDoc} {
+        allow read, write: if false;
+      }
+    }
+
+    // Phase 9.3 Stage 2 - server-only ledger: one document per order whose
+    // cancellation has already been applied to `productStats`. The cancel
+    // trigger creates it inside the same transaction as the decrement, so a
+    // duplicate trigger delivery is an exact no-op. Mirrors `stripeEvents`.
+    match /statsAdjustments/{orderId} {
+      allow read, write: if false;
     }
 
     // Phase 8.8 - Dynamic Categories Foundation.

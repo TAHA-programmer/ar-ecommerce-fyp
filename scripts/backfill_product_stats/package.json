@@ -1,0 +1,13 @@
+{
+  "name": "twin-ar-backfill-product-stats",
+  "private": true,
+  "description": "Developer-only Phase 9.3 'Dynamic Home Content' Stage 2 tool: recompute-from-source backfill of the server-only productStats/{productId} ordering aggregates (unitsSold from non-cancelled orders, favoriteCount from users/*/favorites) + the favoriteVoters idempotency-guard docs. DRY RUN by default (reads only). Idempotent: re-running yields the same values, never doubled. Not Flutter app code, not a Cloud Function.",
+  "type": "module",
+  "scripts": {
+    "backfill": "node backfill_product_stats.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

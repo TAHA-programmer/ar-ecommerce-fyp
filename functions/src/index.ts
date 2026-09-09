@@ -37,3 +37,11 @@ initializeApp();
 export { createPaymentIntent } from "./createPaymentIntent";
 export { stripeWebhook } from "./stripeWebhook";
 export { releaseExpiredReservations } from "./releaseExpiredReservations";
+
+// Phase 9.3 "Dynamic Home Content" Stage 2 - server-maintained Home ordering
+// aggregates (`productStats/{productId}`). `unitsSold` is bumped inside the
+// existing exactly-once webhook finalize path; these two Firestore triggers
+// keep it and `favoriteCount` correct on cancellation / favouriting, each
+// exactly idempotent. NOT deployed yet.
+export { adjustStatsOnOrderCancel } from "./adjustStatsOnOrderCancel";
+export { adjustFavoriteCount } from "./adjustFavoriteCount";

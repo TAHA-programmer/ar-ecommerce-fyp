@@ -30,6 +30,8 @@ import 'viewmodels/customer_profile_state.dart';
 
 import '../features/product_details/repositories/product_details_repository.dart';
 import '../features/product_details/repositories/firestore_product_details_repository.dart';
+import '../features/product_details/repositories/recently_viewed_repository.dart';
+import '../features/product_details/repositories/firestore_recently_viewed_repository.dart';
 import '../features/room_ar/capability/room_ar_capability_service.dart';
 import '../features/checkout/services/checkout_payment_service.dart';
 import '../features/checkout/services/stripe_checkout_payment_service.dart';
@@ -130,6 +132,13 @@ class AppProviders {
     // CommerceDatabase maintains for Admin/Checkout).
     Provider<ProductDetailsRepository>(
       create: (_) => FirestoreProductDetailsRepository(),
+    ),
+    // Phase 9.3 "Dynamic Home Content" Stage 2 — per-customer product-view
+    // history. Owner-scoped writer (records a view on a successful Product
+    // Details load); no live listener. Home does not read this until Stage 3.
+    Provider<RecentlyViewedRepository>(
+      create: (context) =>
+          FirestoreRecentlyViewedRepository(context.read<AuthSessionState>()),
     ),
     // Phase 9.2 R8 — Room-AR device-capability probe for tier routing. Leaf
     // infra (a native method channel + permission_handler); no dependencies.

@@ -345,6 +345,43 @@ class _AdminProductFormContent extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.primary),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Feature on Home',
+                      style: AppTypography.bodySmall,
+                    ),
+                  ),
+                  Switch(
+                    value: viewModel.isFeatured,
+                    onChanged: viewModel.setIsFeatured,
+                    activeThumbColor: AppColors.primary,
+                  ),
+                ],
+              ),
+              if (viewModel.isFeatured) ...[
+                const SizedBox(height: 4),
+                _buildTextField(
+                  'Feature order (lower shows first)',
+                  viewModel.featuredRankController,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
