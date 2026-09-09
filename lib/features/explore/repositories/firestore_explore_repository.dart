@@ -7,13 +7,17 @@ import 'explore_repository.dart';
 
 /// Phase 8.5: real Firestore-backed product reads for the Explore catalog.
 ///
-/// `showInCatalog == true` is applied as a query-level filter here (not a
-/// security rule - see Correction 5 / `firestore.rules`), exactly matching
-/// [MockExploreRepository]'s existing strict triple condition:
-/// `publicationStatus == published && isActive == true && showInCatalog ==
-/// true`. This is deliberately a *narrower* query than the rule allows
-/// (which only requires `published && isActive`), so it always satisfies
-/// the rule automatically.
+/// The customer catalogue is every `publicationStatus == 'published' &&
+/// isActive == true` product — the exact set `firestore.rules`' `products/{id}`
+/// read rule allows a signed-in customer, so the query satisfies the rule
+/// automatically and no draft/inactive product is ever reachable.
+///
+/// Phase 9.3 pre-work: the earlier extra `showInCatalog == true` clause was
+/// removed by developer decision — Explore now shows the complete
+/// customer-eligible catalogue, not a curated subset. `showInCatalog` remains
+/// on the model/Admin form but no longer gates customer Explore visibility.
+/// Home keeps its own independent curation (it never used `showInCatalog` as a
+/// filter either — see `FirestoreHomeRepository`).
 class FirestoreExploreRepository implements ExploreRepository {
   final FirebaseFirestore _firestore;
 
@@ -26,7 +30,6 @@ class FirestoreExploreRepository implements ExploreRepository {
         .collection('products')
         .where('publicationStatus', isEqualTo: 'published')
         .where('isActive', isEqualTo: true)
-        .where('showInCatalog', isEqualTo: true)
         .get();
 
     return snapshot.docs

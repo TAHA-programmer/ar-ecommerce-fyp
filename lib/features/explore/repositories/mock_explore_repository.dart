@@ -14,12 +14,14 @@ class MockExploreRepository implements ExploreRepository {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 800));
 
-    // Return the specific products for explore (from our seed DB)
+    // The complete customer-eligible catalogue: every published + active
+    // product. `showInCatalog` is no longer a customer Explore filter
+    // (Phase 9.3 pre-work — developer decision); it stays on the model but
+    // does not gate visibility here. Mirrors `FirestoreExploreRepository`.
     return _db.products
         .where(
           (p) =>
               p.isActive &&
-              p.showInCatalog &&
               p.publicationStatus == ProductPublicationStatus.published,
         )
         .map((p) => p.toCatalogModel())

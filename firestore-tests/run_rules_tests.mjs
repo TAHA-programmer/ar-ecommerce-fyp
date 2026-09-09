@@ -38,6 +38,7 @@ import {
   where,
   orderBy,
   limit,
+  documentId,
   serverTimestamp,
   writeBatch,
   runTransaction,
@@ -740,6 +741,179 @@ async function main() {
     });
     await assertSucceeds(getDoc(doc(admin.firestore(), 'products/p1')));
   });
+
+  // ── Home + Explore customer LIST queries (Phase 9.3 pre-work) ────────────
+  // firestore.rules is not a post-query filter: a customer collection query
+  // must prove every possible result is readable. These reproduce the exact
+  // queries the customer app issues.
+  console.log('products - Home / Explore customer collection queries');
+
+  const catalogueProduct = (id, over = {}) => ({
+    title: id,
+    publicationStatus: 'published',
+    isActive: true,
+    showInCatalog: true,
+    recommendationRank: 0,
+    ...over,
+  });
+
+  async function seedCatalogue(docs) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      for (const [id, data] of Object.entries(docs)) {
+        await setDoc(doc(db, `products/${id}`), data);
+      }
+    });
+  }
+
+  await run(
+    'Explore getCatalog query (published + active, NO showInCatalog clause) ' +
+      'succeeds and returns every published+active product',
+    async () => {
+      await testEnv.clearFirestore();
+      await seedCatalogue({
+        a: catalogueProduct('a', { showInCatalog: true }),
+        b: catalogueProduct('b', { showInCatalog: false }), // Home-curated
+        c: catalogueProduct('c', { publicationStatus: 'draft' }),
+        d: catalogueProduct('d', { isActive: false }),
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      const snap = await assertSucceeds(
+        getDocs(
+          query(
+            collection(alice.firestore(), 'products'),
+            where('publicationStatus', '==', 'published'),
+            where('isActive', '==', true),
+          ),
+        ),
+      );
+      const ids = snap.docs.map((d) => d.id).sort();
+      if (ids.join(',') !== 'a,b') {
+        throw new Error(`expected [a,b], got [${ids}]`);
+      }
+    },
+  );
+
+  await run(
+    'Home _fetchByField query (published + active + recommendationRank ==) ' +
+      'succeeds',
+    async () => {
+      await testEnv.clearFirestore();
+      await seedCatalogue({
+        f1: catalogueProduct('f1', { recommendationRank: 10 }),
+        f2: catalogueProduct('f2', { recommendationRank: 20 }),
+        f3: catalogueProduct('f3', {
+          recommendationRank: 10,
+          publicationStatus: 'draft',
+        }),
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      const snap = await assertSucceeds(
+        getDocs(
+          query(
+            collection(alice.firestore(), 'products'),
+            where('publicationStatus', '==', 'published'),
+            where('isActive', '==', true),
+            where('recommendationRank', '==', 10),
+          ),
+        ),
+      );
+      if (snap.docs.map((d) => d.id).join(',') !== 'f1') {
+        throw new Error(`expected [f1], got [${snap.docs.map((d) => d.id)}]`);
+      }
+    },
+  );
+
+  await run(
+    'REGRESSION: Home whereIn-on-documentId query is DENIED outright when ' +
+      'any curated id no longer exists (this is why one deleted product ' +
+      '(minimalist-bedroom-set) took all of Home down)',
+    async () => {
+      await testEnv.clearFirestore();
+      await seedCatalogue({
+        'wooden-console': catalogueProduct('wooden-console'),
+        'glass-coffee-table': catalogueProduct('glass-coffee-table'),
+        'velvet-armchair': catalogueProduct('velvet-armchair'),
+        // 'minimalist-bedroom-set' deliberately absent
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      await assertFails(
+        getDocs(
+          query(
+            collection(alice.firestore(), 'products'),
+            where('publicationStatus', '==', 'published'),
+            where('isActive', '==', true),
+            where(documentId(), 'in', [
+              'wooden-console',
+              'glass-coffee-table',
+              'velvet-armchair',
+              'minimalist-bedroom-set',
+            ]),
+          ),
+        ),
+      );
+    },
+  );
+
+  await run(
+    'FIX: the per-document get()s the new _fetchByIds issues each resolve ' +
+      'independently — existing published ids succeed, a missing id fails ' +
+      'only its own read (never a batch), and a draft id stays denied',
+    async () => {
+      await testEnv.clearFirestore();
+      await seedCatalogue({
+        'wooden-console': catalogueProduct('wooden-console'),
+        'glass-coffee-table': catalogueProduct('glass-coffee-table'),
+        'draft-one': catalogueProduct('draft-one', {
+          publicationStatus: 'draft',
+        }),
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      const db = alice.firestore();
+      await assertSucceeds(getDoc(doc(db, 'products/wooden-console')));
+      await assertSucceeds(getDoc(doc(db, 'products/glass-coffee-table')));
+      await assertFails(getDoc(doc(db, 'products/minimalist-bedroom-set')));
+      await assertFails(getDoc(doc(db, 'products/draft-one')));
+    },
+  );
+
+  await run(
+    'Home getCategories query (categories where isActive == true) succeeds',
+    async () => {
+      await testEnv.clearFirestore();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'categories/furniture'), {
+          name: 'Furniture',
+          key: 'furniture',
+          kind: 'furniture',
+          imageUrl: '',
+          isActive: true,
+          sortOrder: 10,
+        });
+        await setDoc(doc(db, 'categories/retired'), {
+          name: 'Retired',
+          key: 'retired',
+          kind: 'furniture',
+          imageUrl: '',
+          isActive: false,
+          sortOrder: 5,
+        });
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      const snap = await assertSucceeds(
+        getDocs(
+          query(
+            collection(alice.firestore(), 'categories'),
+            where('isActive', '==', true),
+          ),
+        ),
+      );
+      if (snap.docs.map((d) => d.id).join(',') !== 'furniture') {
+        throw new Error(`expected [furniture], got [${snap.docs.map((d) => d.id)}]`);
+      }
+    },
+  );
 
   console.log('products/{id} - write (Phase 8.6)');
 

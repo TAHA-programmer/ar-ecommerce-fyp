@@ -50,7 +50,10 @@ import kotlin.math.sqrt
  * ([scaleMultiplier]) scales the whole model; marker size is handled upstream by
  * re-solving solvePnP so the pose itself stays metric.
  */
-class RoomArModelRenderer(context: Context) {
+class RoomArModelRenderer(
+    context: Context,
+    initialMode: String = "chair",
+) {
 
     companion object {
         init { Utils.init() }   // loads libfilament-jni / gltfio-jni
@@ -150,7 +153,14 @@ class RoomArModelRenderer(context: Context) {
     @Volatile var scaleMultiplier = 1.0
     @Volatile var offsetX = 0.0   // metres along the marker plane +X (right)
     @Volatile var offsetZ = 0.0   // metres along the marker plane +Y (forward on the sheet)
-    @Volatile private var mode = "chair"
+    // Seeded from the PlatformView `mode` creation param so the correct slot
+    // is selected in `init` (below) synchronously with construction — a
+    // coverage-expansion / Admin-associated product (keyed by its Firestore
+    // id, no bundled counterpart) then renders NOTHING until its verified
+    // external GLB arrives, instead of briefly showing the chair while a
+    // post-creation `setArMode` call races the PlatformView. A blank/unknown
+    // value falls back to "chair" (the debug engine-dev default).
+    @Volatile private var mode = initialMode.ifBlank { "chair" }
 
     private val smoother = PoseSmoother()
     private var choreographer: Choreographer? = null

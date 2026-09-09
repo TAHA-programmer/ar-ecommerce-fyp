@@ -108,6 +108,15 @@ class MarkerArViewModel extends ChangeNotifier {
   /// rendered — the matching [MarkerArObject.mode] for one of the four
   /// originally-bundled products, or the live Firestore product id for
   /// everything else (customer mode only; always unique per product).
+  ///
+  /// Public so [MarkerArView] can pass it as the PlatformView `creationParams`
+  /// `mode` — the native renderer then selects the right slot *at
+  /// construction* (an empty slot, rendering nothing, for a product with no
+  /// bundled counterpart) instead of hard-defaulting to the chair and waiting
+  /// for a post-creation channel call that can be dropped if it races the
+  /// PlatformView. Mirrors Tier 1 (`RoomArCoreViewModel.nativeMode`).
+  String get nativeMode => _nativeMode;
+
   String get _nativeMode {
     if (_mode == MarkerArLaunchMode.customerProduct &&
         _customerObject == null) {
@@ -182,6 +191,27 @@ class MarkerArViewModel extends ChangeNotifier {
   RoomArModelSource? _deliverySource;
   bool _customerResolveRan = false;
 
+  /// The verified external GLB path once Storage delivery has settled to
+  /// `Ready`, or null (still resolving, or falling back to the bundled asset).
+  /// Kept so [onPlatformViewCreated] can re-apply it if the delivery finished
+  /// before the native PlatformView existed.
+  String? _resolvedExternalPath;
+
+  /// Called from [MarkerArView] once the native PlatformView actually exists
+  /// (`AndroidView.onPlatformViewCreated`). The `mode` creation param already
+  /// selected the correct slot synchronously during native construction; this
+  /// is the guaranteed-post-creation re-send for the Storage-delivered
+  /// external model, whose file path isn't known until the download/cache
+  /// resolve finishes and whose `setExternalModel` call can otherwise race
+  /// (and lose to) the PlatformView's own creation. Idempotent — the renderer
+  /// just re-applies the same state if nothing raced. Mirrors Tier 1
+  /// (`RoomArCoreViewModel.onPlatformViewReady`).
+  void onPlatformViewCreated() {
+    _channel.setObject(_nativeMode);
+    final path = _resolvedExternalPath;
+    if (path != null) _channel.setExternalModel(_nativeMode, path);
+  }
+
   /// The live Storage-delivery state for the customer's single product
   /// (checking cache → downloading → verifying → ready / offline / rejected).
   RoomArModelState get deliveryState => _deliveryState;
@@ -237,6 +267,7 @@ class MarkerArViewModel extends ChangeNotifier {
 
     if (outcome is RoomArModelReady && outcome.file != null) {
       _deliverySource = outcome.source;
+      _resolvedExternalPath = outcome.file!.path;
       await _channel.setExternalModel(_nativeMode, outcome.file!.path);
     } else if (_hasBundledFallback) {
       // offline / rejected / failed → the app-bundled GLB is the

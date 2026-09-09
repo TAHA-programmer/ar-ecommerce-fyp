@@ -675,5 +675,117 @@ void main() {
       expect(svc.resolvedMetadata, [replaced]);
       c.dispose();
     });
+
+    group(
+      'cold-launch model race (issue #3 — wrong chair on first launch)',
+      () {
+        final adminMeta = ProductArMetadata(
+          storagePath: 'products/other-product-3/ar/model-v1.glb',
+          modelVersion: '1',
+          sha256: 'd' * 64,
+          widthM: 0.20,
+          depthM: 0.20,
+          heightM: 0.45,
+        );
+
+        MarkerArViewModel adminAssociatedVm({
+          RoomArModelService? service,
+        }) => MarkerArViewModel(
+          channel: channel,
+          calibrationStore: MarkerCalibrationStore(),
+          mode: MarkerArLaunchMode.customerProduct,
+          // A placeholder — this product is NOT one of the four bundled ones.
+          initialObject: MarkerArObject.chair,
+          customerFirestoreProductId: 'other-product-3',
+          customerProductTitle: 'Modern Table Lamp',
+          customerMetadata: adminMeta,
+          roomArModelService: service,
+        );
+
+        test('nativeMode is the live Firestore id, never a bundled slot key, '
+            'for an Admin-associated product', () {
+          final c = adminAssociatedVm();
+          expect(c.nativeMode, 'other-product-3');
+          expect(c.nativeMode, isNot('chair'));
+          c.dispose();
+        });
+
+        test('nativeMode is the bundled slot key for one of the four original '
+            'products', () {
+          final c = customerVm(object: MarkerArObject.sofa);
+          expect(c.nativeMode, MarkerArObject.sofa.mode);
+          c.dispose();
+        });
+
+        test(
+          'onPlatformViewCreated re-sends setObject with the real mode — and '
+          'the model path once resolved — so a call dropped before the '
+          'PlatformView existed is recovered',
+          () async {
+            final svc = _FakeModelService()
+              ..outcome = RoomArModelReady(
+                source: RoomArModelSource.verifiedCache,
+                file: File('/cache/room_ar_models/other-product-3/model.glb'),
+              );
+            final c = adminAssociatedVm(service: svc);
+            await c.start();
+            await Future<void>.delayed(Duration.zero);
+            channel.calls.clear();
+
+            c.onPlatformViewCreated();
+
+            expect(channel.calls, contains('setObject:other-product-3'));
+            expect(
+              channel.calls,
+              contains(
+                'setExternalModel:other-product-3:'
+                '/cache/room_ar_models/other-product-3/model.glb',
+              ),
+            );
+            // never the chair
+            expect(channel.calls.any((x) => x.contains(':chair')), isFalse);
+            c.dispose();
+          },
+        );
+
+        test(
+          'onPlatformViewCreated before the download finishes re-sends only '
+          'setObject (empty slot) — never a chair, never a stale model',
+          () async {
+            final svc = _FakeModelService()
+              ..outcome = const RoomArModelDownloading();
+            final c = adminAssociatedVm(service: svc);
+            await c.start();
+            channel.calls.clear();
+
+            c.onPlatformViewCreated();
+
+            expect(channel.calls, ['setObject:other-product-3']);
+            expect(channel.lastExternalModel, isNull);
+            c.dispose();
+          },
+        );
+
+        test('the resolved external path is exposed for the PlatformView '
+            're-send after delivery completes', () async {
+          final svc = _FakeModelService()
+            ..outcome = RoomArModelReady(
+              source: RoomArModelSource.freshDownload,
+              file: File('/cache/x/model.glb'),
+            );
+          final c = adminAssociatedVm(service: svc);
+          await c.start();
+          await Future<void>.delayed(Duration.zero);
+
+          channel.calls.clear();
+          c.onPlatformViewCreated();
+          expect(
+            channel.calls,
+            contains('setExternalModel:other-product-3:/cache/x/model.glb'),
+          );
+          c.dispose();
+        });
+      },
+    );
   });
 }

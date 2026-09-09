@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/feedback/app_toast.dart';
 import '../../../../core/widgets/navigation/customer_bottom_navigation.dart';
 import '../../../../core/widgets/navigation/customer_header.dart';
+import '../../../../core/widgets/states/app_error_state.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../widgets/cards/featured_product_card.dart';
 import '../widgets/cards/horizontal_split_product_card.dart';
@@ -72,6 +73,16 @@ class _HomeViewState extends State<HomeView> {
                           child: CircularProgressIndicator(
                             color: AppColors.primary,
                           ),
+                        ),
+                      )
+                    else if (viewModel.hasError && viewModel.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppErrorState(
+                          message:
+                              "We couldn't load your home feed. Please check "
+                              'your connection and try again.',
+                          onRetry: viewModel.retry,
                         ),
                       )
                     else ...[

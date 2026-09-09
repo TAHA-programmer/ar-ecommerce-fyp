@@ -81,6 +81,87 @@ void main() {
       },
     );
 
+    test(
+      'a curated ID that no longer exists is silently skipped - it never '
+      'takes the whole rail (or Home) down. Regression: the AR rail hardcoded '
+      'minimalist-bedroom-set, which was deleted; the old '
+      'whereIn-on-documentId query then failed the ENTIRE query with '
+      'permission-denied against the real rules (see the emulator test)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        await _seed(firestore, 'wooden-console', isRoomAr: true);
+        await _seed(firestore, 'glass-coffee-table', isRoomAr: true);
+        await _seed(firestore, 'velvet-armchair', isRoomAr: true);
+        // 'minimalist-bedroom-set' deliberately NOT seeded (deleted from live)
+        final repository = FirestoreHomeRepository(firestore: firestore);
+
+        final result = await repository.getArEnabledProducts();
+
+        expect(result.map((p) => p.id).toSet(), {
+          'wooden-console',
+          'glass-coffee-table',
+          'velvet-armchair',
+        });
+      },
+    );
+
+    test('getArEnabledProducts no longer references the deleted '
+        'minimalist-bedroom-set at all', () async {
+      final firestore = FakeFirebaseFirestore();
+      await _seed(firestore, 'minimalist-bedroom-set', isRoomAr: true);
+      await _seed(firestore, 'wooden-console', isRoomAr: true);
+      await _seed(firestore, 'glass-coffee-table', isRoomAr: true);
+      await _seed(firestore, 'velvet-armchair', isRoomAr: true);
+      final repository = FirestoreHomeRepository(firestore: firestore);
+
+      final result = await repository.getArEnabledProducts();
+
+      expect(result.map((p) => p.id).contains('minimalist-bedroom-set'), false);
+      expect(result.length, 3);
+    });
+
+    test('a curated ID that is now a draft is skipped, not returned, and does '
+        'not throw', () async {
+      final firestore = FakeFirebaseFirestore();
+      await _seed(firestore, 'luna-3-seater-sofa');
+      await _seed(firestore, 'boho-woven-rug', publicationStatus: 'draft');
+      await _seed(firestore, 'classic-blue-shirt', isActive: false);
+      final repository = FirestoreHomeRepository(firestore: firestore);
+
+      final result = await repository.getBestSellers();
+
+      expect(result.map((p) => p.id).toList(), ['luna-3-seater-sofa']);
+    });
+
+    test('curated rail order is preserved', () async {
+      final firestore = FakeFirebaseFirestore();
+      await _seed(firestore, 'classic-blue-shirt');
+      await _seed(firestore, 'luna-3-seater-sofa');
+      await _seed(firestore, 'boho-woven-rug');
+      final repository = FirestoreHomeRepository(firestore: firestore);
+
+      final result = await repository.getBestSellers();
+
+      // getBestSellers order: sofa, rug, shirt
+      expect(result.map((p) => p.id).toList(), [
+        'luna-3-seater-sofa',
+        'boho-woven-rug',
+        'classic-blue-shirt',
+      ]);
+    });
+
+    test(
+      'every curated ID missing returns an empty rail, not an error',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repository = FirestoreHomeRepository(firestore: firestore);
+
+        expect(await repository.getRecentlyViewed(), isEmpty);
+        expect(await repository.getPopularFurniture(), isEmpty);
+        expect(await repository.getVirtualTryOnCollection(), isEmpty);
+      },
+    );
+
     test('getBanners returns the static content, not products', () async {
       final firestore = FakeFirebaseFirestore();
       final repository = FirestoreHomeRepository(firestore: firestore);
