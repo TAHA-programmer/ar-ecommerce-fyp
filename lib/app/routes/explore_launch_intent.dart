@@ -11,6 +11,16 @@ class ExploreLaunchIntent {
   final List<String>? productIds;
   final bool openFilterSheet;
 
+  /// `true` when this intent originates from a Home "See all" / hero CTA /
+  /// category tile / search. `ExploreViewModel.applyIntent` then FIRST resets
+  /// Explore to a neutral state (no search, no advanced filters,
+  /// `ProductCategory.all`, `recommended` sort) and ONLY THEN applies this
+  /// intent's one preset dimension — so a Home entry never inherits the
+  /// Explore tab's persisted / Figma-default filters (In Stock + AR + Beige).
+  /// A direct Explore-tab open passes no intent at all and keeps its session
+  /// state unchanged.
+  final bool fromHome;
+
   const ExploreLaunchIntent({
     this.searchQuery,
     this.category,
@@ -20,5 +30,6 @@ class ExploreLaunchIntent {
     this.sortOption,
     this.productIds,
     this.openFilterSheet = false,
+    this.fromHome = false,
   });
 }

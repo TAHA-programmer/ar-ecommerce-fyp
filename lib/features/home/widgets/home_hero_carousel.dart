@@ -149,17 +149,26 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                 ),
                 GestureDetector(
                   onTap: () {
+                    // Every Home → Explore entry starts from a neutral
+                    // Explore state (see `ExploreLaunchIntent.fromHome`).
                     ExploreLaunchIntent intent;
                     if (banner.ctaText == 'Shop New') {
                       intent = const ExploreLaunchIntent(
+                        fromHome: true,
                         sortOption: ExploreSortOption.newest,
                       );
                     } else if (banner.ctaText == 'Explore AR') {
-                      intent = const ExploreLaunchIntent(arOnly: true);
+                      intent = const ExploreLaunchIntent(
+                        fromHome: true,
+                        arOnly: true,
+                      );
                     } else if (banner.ctaText == 'Try It On') {
-                      intent = const ExploreLaunchIntent(tryOnOnly: true);
+                      intent = const ExploreLaunchIntent(
+                        fromHome: true,
+                        tryOnOnly: true,
+                      );
                     } else {
-                      intent = const ExploreLaunchIntent();
+                      intent = const ExploreLaunchIntent(fromHome: true);
                     }
                     Navigator.pushNamed(
                       context,
@@ -199,7 +208,10 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
                 Navigator.pushNamed(
                   context,
                   RouteNames.explore,
-                  arguments: const ExploreLaunchIntent(arOnly: true),
+                  arguments: const ExploreLaunchIntent(
+                    fromHome: true,
+                    arOnly: true,
+                  ),
                 );
               },
               child: Container(
