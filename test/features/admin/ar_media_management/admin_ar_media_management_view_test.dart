@@ -122,7 +122,7 @@ void main() {
   testWidgets('a model-less product shows "no model" and a select button', (
     tester,
   ) async {
-    viewModel.selectProduct('velvet-armchair');
+    viewModel.selectProduct('other-product-3');
     await tester.binding.setSurfaceSize(const Size(390, 900));
     await tester.pumpWidget(buildApp());
     await tester.pumpAndSettle();
@@ -136,7 +136,7 @@ void main() {
   testWidgets('picking a valid GLB stages a candidate with editable dims', (
     tester,
   ) async {
-    viewModel.selectProduct('velvet-armchair');
+    viewModel.selectProduct('other-product-3');
     picker.next = writeBoxGlb(dir: tmp, name: 'armchair.glb');
     await tester.binding.setSurfaceSize(const Size(390, 1100));
     await tester.pumpWidget(buildApp());

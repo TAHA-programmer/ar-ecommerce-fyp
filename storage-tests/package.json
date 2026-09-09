@@ -4,7 +4,7 @@
   "description": "Firebase Storage Security Rules verification for TWin AR (Phase 8.7), run against the Firebase Local Emulator Suite. Separate Node toolchain from `flutter test` per 13_TESTING_AND_QA_RULES.md's Lean Testing Policy - not part of the Flutter build or app runtime. Mirrors ../firestore-tests/ exactly.",
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --config ../firebase.json --only storage \"node run_rules_tests.mjs\""
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore,storage \"node run_rules_tests.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",

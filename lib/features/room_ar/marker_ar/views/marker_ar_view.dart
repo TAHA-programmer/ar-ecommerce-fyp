@@ -306,6 +306,13 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
                   ),
           );
         }
+        // Storage delivery definitively failed and this product has no
+        // compiled-in bundled asset to fall back to (true for every
+        // product except the four originally-bundled ones) — an honest
+        // full-screen state, never a substitute model.
+        if (vm.isCustomerMode && vm.customerModelUnavailable) {
+          return const _ModelUnavailable();
+        }
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -342,7 +349,7 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
                     markerSidePx: vm.frame.markerSidePx,
                     calibrated: vm.isCalibrated,
                     markerMm: vm.calibration.markerSizeMm,
-                    objectName: vm.object.displayName,
+                    objectName: vm.productTitle,
                     engineError: vm.hasEngineError,
                     engineErrorMessage: vm.engineErrorMessage,
                   ),
@@ -427,10 +434,7 @@ class _MarkerArCameraState extends State<_MarkerArCamera> {
                 onOpenCalibration: () =>
                     MarkerArCalibrationSheet.show(context, vm),
                 selector: vm.isCustomerMode
-                    ? _ProductChip(
-                        icon: vm.object.icon,
-                        label: vm.object.displayName,
-                      )
+                    ? _ProductChip(icon: vm.productIcon, label: vm.productTitle)
                     : MarkerArObjectSelector(
                         objects: vm.selectableObjects,
                         selected: vm.object,
@@ -529,6 +533,71 @@ class _ProductChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Full-screen honest state for the customer flow when Storage delivery has
+/// definitively failed for a product with no compiled-in bundled fallback
+/// (every product except the four originally-bundled ones). Never a
+/// substitute model — the camera/engine may be perfectly fine here, there is
+/// simply nothing verified to show yet.
+class _ModelUnavailable extends StatelessWidget {
+  const _ModelUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: AppColors.white,
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+              const Spacer(),
+              const Icon(
+                Icons.view_in_ar_outlined,
+                color: AppColors.white,
+                size: 44,
+              ),
+              const SizedBox(height: AppSpacing.m),
+              Text(
+                'This 3D model isn\'t available right now',
+                style: AppTypography.headingMedium.copyWith(
+                  color: AppColors.white,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'We couldn\'t load this product\'s model. Please check your '
+                'connection and try again later.',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.white.withValues(alpha: 0.8),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.l),
+              AppPrimaryButton(
+                label: 'Go back',
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              const Spacer(flex: 2),
+            ],
+          ),
+        ),
       ),
     );
   }

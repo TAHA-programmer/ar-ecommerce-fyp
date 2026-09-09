@@ -38,6 +38,16 @@ class FakeRoomArCapabilityService implements RoomArCapabilityService {
     cameraPermission: RoomArCameraPermission.denied,
   );
 
+  /// Phase 9.2 R6 — an ARCore-certified device (camera + GLES3 + ARCore
+  /// available, camera granted) → Tier 1.
+  static const arCoreDevice = RoomArDeviceCapabilities(
+    hasCamera: true,
+    hasOpenGles3: true,
+    markerEngineReady: true,
+    arCoreAvailable: true,
+    cameraPermission: RoomArCameraPermission.granted,
+  );
+
   @override
   Future<RoomArDeviceCapabilities> detect() async {
     detectCalls++;

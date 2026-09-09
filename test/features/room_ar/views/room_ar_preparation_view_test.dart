@@ -50,6 +50,32 @@ void main() {
   }
 
   group('RoomArPreparationView — tier-adaptive', () {
+    testWidgets('Tier 1 (ARCore) device: markerless copy + "Start AR" → '
+        'roomArCoreSession (Phase 9.2 R6)', (tester) async {
+      await tester.pumpWidget(
+        harness(
+          'luna-accent-chair',
+          caps: FakeRoomArCapabilityService.arCoreDevice,
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+
+      expect(find.text('Luna Accent Chair'), findsOneWidget);
+      expect(find.text('Start AR'), findsOneWidget);
+      expect(find.textContaining('no marker to print'), findsOneWidget);
+      // no Tier-2 print instructions on the Tier-1 screen
+      expect(find.textContaining('Print the'), findsNothing);
+
+      await tester.ensureVisible(find.text('Start AR'));
+      await tester.tap(find.text('Start AR'));
+      await tester.pumpAndSettle();
+      expect(lastRouteName, RouteNames.roomArCoreSession);
+      expect(
+        (lastRouteArgs as RoomArSessionArgs).firestoreProductId,
+        'luna-accent-chair',
+      );
+    });
+
     testWidgets('Tier 2 device: marker copy + "Start AR" → roomArSession', (
       tester,
     ) async {
@@ -67,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(lastRouteName, RouteNames.roomArSession);
       expect(
-        (lastRouteArgs as RoomArSessionArgs).object.firestoreProductId,
+        (lastRouteArgs as RoomArSessionArgs).firestoreProductId,
         'luna-accent-chair',
       );
       expect(find.text('Coming soon'), findsNothing);
@@ -132,7 +158,7 @@ void main() {
     testWidgets('roomAr product with no approved model: no launch at all', (
       tester,
     ) async {
-      await tester.pumpWidget(harness('velvet-armchair'));
+      await tester.pumpWidget(harness('other-product-3'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       expect(find.text('Start AR'), findsNothing);

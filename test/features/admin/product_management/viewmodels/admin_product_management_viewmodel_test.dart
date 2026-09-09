@@ -4,6 +4,7 @@ import 'package:twin_ar/core/data/mock_category_repository.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/core/models/category/commerce_category_model.dart';
 import 'package:twin_ar/core/models/product/product_category.dart';
+import 'package:twin_ar/core/models/product/product_image_ref.dart';
 import 'package:twin_ar/core/services/mock_storage_service.dart';
 import 'package:twin_ar/features/admin/product_management/models/admin_category_config.dart';
 import 'package:twin_ar/features/admin/product_management/models/admin_category_sort_option.dart';
@@ -150,6 +151,46 @@ void main() {
       expect(result, isTrue);
       expect(mockStorageService.deletedArModelPaths, isEmpty);
     });
+
+    // Phase 9.2 closeout — a committed product image must survive product
+    // deletion: a historical `OrderItemModel` snapshot (an already-placed
+    // order's line item) can carry that exact same download URL, and there
+    // is no way to know from here whether one does. Deleting the Storage
+    // object would silently break that order's rendering forever, with no
+    // way to detect or undo it — unlike the AR GLB, which no order field
+    // ever references. Regression guard: an earlier pass on this same
+    // closeout briefly deleted committed images here too (reasoning it
+    // would close the same orphaned-object gap the AR-GLB fix closed) and
+    // reverted it the same pass once this risk was found — this test exists
+    // so that specific mistake can never silently return.
+    testWidgets(
+      'deleting a product never touches its own committed Storage-hosted '
+      'images (protects historical order rendering)',
+      (tester) async {
+        final context = await _pumpContext(tester);
+        final base = mockDatabase.getProductById('luna-accent-chair');
+        const mainUrl = 'https://mock-storage.test/products/x/images/1.jpg';
+        const galleryUrl = 'https://mock-storage.test/products/x/images/2.jpg';
+        final withImages = base.copyWith(
+          mainImage: const ProductImageRef(
+            path: mainUrl,
+            source: ProductImageSource.network,
+          ),
+          galleryMedia: [
+            const ProductImageRef(
+              path: galleryUrl,
+              source: ProductImageSource.network,
+            ),
+          ],
+        );
+        await mockDatabase.updateProduct(withImages);
+
+        final result = await viewModel.deleteProduct(context, withImages.id);
+
+        expect(result, isTrue);
+        expect(mockStorageService.deletedProductImageUrls, isEmpty);
+      },
+    );
   });
 
   group('AdminProductManagementViewModel - Categories Mode (Phase 8.8)', () {

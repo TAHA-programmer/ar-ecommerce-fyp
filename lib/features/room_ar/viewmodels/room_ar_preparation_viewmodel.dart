@@ -9,12 +9,19 @@ import '../marker_ar/room_ar_session_args.dart';
 
 /// Backs the Room-AR preparation screen (Phase 9.2 R15/R17 + R7/R8).
 ///
-/// Loads the opened product, checks it is one of the four approved Room-AR
-/// products with renderable `arMetadata`, then runs the device-capability probe
-/// (R8) and resolves the best **currently usable** tier: Tier-2 Marker AR, or
-/// the Tier-3 Interactive 3D Preview, or (rare) neither. The screen adapts its
-/// copy and its launch button to [resolvedTier]; ineligible products still show
-/// the honest "not ready yet" state and cannot launch anything.
+/// Loads the opened product, checks it has a fully valid, renderable
+/// `arMetadata` contract that genuinely belongs to it
+/// (`ProductDetailModel.hasRenderableArModel` +
+/// `ProductArMetadata.belongsToProduct`), then runs the device-capability
+/// probe (R8) and resolves the best **currently usable** tier: Tier-1
+/// markerless ARCore (R6), Tier-2 Marker AR, the Tier-3 Interactive 3D
+/// Preview, or (rare) neither. The screen adapts its copy and its launch
+/// button to [resolvedTier]; ineligible products still show the honest "not
+/// ready yet" state and cannot launch anything.
+///
+/// Eligibility is **not** limited to the four originally-bundled products —
+/// see [RoomArSessionArgs] for how a product with no bundled/native-
+/// specialized rendering treatment still gets its own correct model.
 class RoomArPreparationViewModel extends ChangeNotifier {
   final ProductDetailsRepository repository;
   final RoomArCapabilityService capabilityService;
@@ -47,6 +54,10 @@ class RoomArPreparationViewModel extends ChangeNotifier {
 
   bool get _eligible => _sessionArgs != null;
 
+  /// Launch Tier-1 markerless ARCore (Phase 9.2 R6).
+  bool get canStartArCore =>
+      _eligible && _decision.tier == RoomArTier.tier1Arcore;
+
   /// Launch Tier-2 Marker AR.
   bool get canStartAr => _eligible && _decision.tier == RoomArTier.tier2Marker;
 
@@ -63,11 +74,20 @@ class RoomArPreparationViewModel extends ChangeNotifier {
   RoomArSessionArgs? get _sessionArgs {
     final p = _product;
     if (p == null || !p.hasRenderableArModel) return null;
-    final object = MarkerArObject.fromFirestoreProductId(p.summary.id);
     final metadata = p.arMetadata;
-    if (object == null || metadata == null) return null;
+    // Defence-in-depth: refuse a contract whose storage path doesn't
+    // actually belong to this product id (see [ProductArMetadata
+    // .belongsToProduct]) — never launch a session that could render a
+    // different product's model.
+    if (metadata == null || !metadata.belongsToProduct(p.summary.id)) {
+      return null;
+    }
     return RoomArSessionArgs(
-      object: object,
+      firestoreProductId: p.summary.id,
+      // Non-null only for the four originally-bundled products — a pure
+      // rendering hint, never an eligibility requirement (see
+      // RoomArSessionArgs's doc comment).
+      object: MarkerArObject.fromFirestoreProductId(p.summary.id),
       metadata: metadata,
       productTitle: p.summary.title,
     );

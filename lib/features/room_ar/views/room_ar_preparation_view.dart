@@ -81,7 +81,9 @@ class RoomArPreparationView extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              viewModel.canStartAr || viewModel.canPreview
+                              viewModel.canStartArCore ||
+                                      viewModel.canStartAr ||
+                                      viewModel.canPreview
                                   ? 'Cancel'
                                   : 'Go Back',
                               style: AppTypography.label.copyWith(
@@ -106,6 +108,7 @@ class RoomArPreparationView extends StatelessWidget {
   }
 
   List<Widget> _buildBody(BuildContext context, RoomArPreparationViewModel vm) {
+    if (vm.canStartArCore) return _tier1Body(context, vm);
     if (vm.canStartAr) return _tier2Body(context, vm);
     if (vm.canPreview) return _tier3Body(context, vm);
 
@@ -126,6 +129,89 @@ class RoomArPreparationView extends StatelessWidget {
       ),
       const SizedBox(height: 24),
       const RoomArWarningCard(),
+    ];
+  }
+
+  // ── Tier 1 — Markerless ARCore ──────────────────────────────────────────────
+  List<Widget> _tier1Body(BuildContext context, RoomArPreparationViewModel vm) {
+    return [
+      Text(
+        'Room AR scans your room in real time and places this piece exactly '
+        'where you point — no marker to print. Walk around it at its real '
+        'size before you buy.',
+        style: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textPrimary,
+          height: 1.4,
+        ),
+      ),
+      const SizedBox(height: 24),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Expanded(
+            child: RoomArInstructionItem(
+              stepNumber: 1,
+              icon: Icons.wb_sunny_outlined,
+              text: 'Use a\nwell-lit\nroom',
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: RoomArInstructionItem(
+              stepNumber: 2,
+              icon: Icons.screen_rotation_outlined,
+              text: 'Move the\nphone slowly\nover the floor',
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: RoomArInstructionItem(
+              stepNumber: 3,
+              icon: Icons.touch_app_outlined,
+              text: 'Tap the\nhighlighted\narea to place',
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: RoomArInstructionItem(
+              stepNumber: 4,
+              icon: Icons.rotate_right,
+              text: 'Drag to move,\ntwist to\nrotate',
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 24),
+      const RoomArInfoCard(),
+      const SizedBox(height: 16),
+      const RoomArWarningCard(),
+      const SizedBox(height: 32),
+      _primaryButton(
+        label: 'Start AR',
+        icon: Icons.view_in_ar_outlined,
+        onPressed: () => Navigator.pushNamed(
+          context,
+          RouteNames.roomArCoreSession,
+          arguments: vm.sessionArgs,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: TextButton(
+          onPressed: () => Navigator.pushNamed(
+            context,
+            RouteNames.roomArPreview,
+            arguments: vm.sessionArgs,
+          ),
+          child: Text(
+            'Prefer a 3D preview instead?',
+            style: AppTypography.label.copyWith(
+              color: AppColors.primaryDark,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
     ];
   }
 

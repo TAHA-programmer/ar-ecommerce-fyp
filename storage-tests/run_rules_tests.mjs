@@ -7,6 +7,16 @@
 // wraps this script in `firebase emulators:exec`. Not part of the Flutter
 // build/app runtime - mirrors `../firestore-tests/` exactly, per
 // `13_TESTING_AND_QA_RULES.md`'s Lean Testing Policy.
+//
+// Phase 9.2 §17-follow-up: the `products/{productId}/ar/{modelFile}` READ
+// rule is now metadata-driven — it cross-service-reads the product's own
+// live `products/{productId}` Firestore document (`firestore.get()` /
+// `firestore.exists()` from within a Storage rule). Proving that requires
+// BOTH emulators running together (`--only firestore,storage`, both already
+// declared in `../firebase.json`) and this suite now seeds Firestore
+// product documents (bypassing Firestore's own rules, exactly like the
+// existing Storage `seed()` helper bypasses Storage's) before exercising
+// Storage reads against them.
 
 import { readFileSync } from 'fs';
 import {
@@ -15,6 +25,7 @@ import {
   assertFails,
 } from '@firebase/rules-unit-testing';
 import { ref, uploadBytes, getBytes, deleteObject } from 'firebase/storage';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const ALICE = 'alice-uid';
 const BOB = 'bob-uid';
@@ -79,9 +90,61 @@ async function seed(path, bytes = jpegBytes, contentType = 'image/jpeg') {
   });
 }
 
+// Phase 9.2 §17-follow-up — the exact `ar*` shape `hasRenderableArMetadata()`
+// requires, ready for a customer read of `products/{productId}/ar/model-v1
+// .glb`. Every field mirrors `ProductArMetadata.toFirestoreFields()`.
+function validArProductDoc(productId, overrides = {}) {
+  return {
+    publicationStatus: 'published',
+    isActive: true,
+    experienceType: 'roomAr',
+    arModelStoragePath: `products/${productId}/ar/model-v1.glb`,
+    arModelFormat: 'glb',
+    arModelVersion: '1',
+    arModelSha256: 'a'.repeat(64),
+    arWidthM: 0.7,
+    arDepthM: 0.72,
+    arHeightM: 0.82,
+    arScale: 1.0,
+    arScaleContract: 'twin-ar/scale-contract-9.2.2',
+    ...overrides,
+  };
+}
+
+// Bypasses firestore.rules, exactly like `seed()` bypasses storage.rules —
+// this is the developer/Admin-SDK write path in production (the app itself
+// only ever gets here through `isAdmin()`-gated writes).
+async function seedProduct(productId, data) {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'products', productId), data);
+  });
+}
+
+async function deleteProductDoc(productId) {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await deleteDoc(doc(context.firestore(), 'products', productId));
+  });
+}
+
 async function main() {
   testEnv = await initializeTestEnvironment({
-    projectId: 'demo-twin-ar-storage-rules-test',
+    // Must match the project the emulator suite is actually configured for
+    // (`.firebaserc` / `firebase.json`'s `flutter.platforms` block —
+    // `twin-ar-d4d75`), NOT an arbitrary "demo-" label. The emulator suite
+    // defaults to "single project mode": a Storage rule's cross-service
+    // `firestore.get()` call is routed to THAT configured project
+    // regardless of what project id a client SDK requests, so seeding a
+    // Firestore document under a different project id (as this test
+    // originally did) leaves the Storage rule looking at an empty
+    // namespace — confirmed directly via the emulator's own log
+    // ("Multiple projectIds are not recommended in single project mode…").
+    // Still fully local — this never reaches any real Firebase project.
+    projectId: 'twin-ar-d4d75',
+    firestore: {
+      rules: readFileSync('../firestore.rules', 'utf8'),
+      host: 'localhost',
+      port: 8080,
+    },
     storage: {
       rules: readFileSync('../storage.rules', 'utf8'),
       host: 'localhost',
@@ -402,78 +465,253 @@ async function main() {
     await assertFails(deleteObject(ref(anon, 'categories/furniture/images/i.jpg')));
   });
 
-  console.log('products/{productId}/ar/model-v{n}.glb — read (Phase 9.2 R10)');
+  console.log('products/{productId}/ar/model-v{n}.glb — read, metadata-driven (Phase 9.2 §17-follow-up)');
 
-  await run('a signed-in customer can read an approved product AR model', async () => {
-    await seed(
-      'products/luna-accent-chair/ar/model-v1.glb',
-      glbBytes,
-      'model/gltf-binary',
-    );
+  await run('a signed-in customer can read an original-four product AR model whose Firestore doc is complete + matching', async () => {
+    await seedProduct('luna-accent-chair', validArProductDoc('luna-accent-chair', {
+      arWidthM: 0.70, arDepthM: 0.72, arHeightM: 0.82,
+      arModelSha256: 'd67c68f823d06881ec1aabf7f8ca6f0128f1016483ea0307f5c2ecef66b3cf94',
+    }));
+    await seed('products/luna-accent-chair/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
     const alice = storageFor(ALICE, { role: 'customer' });
     await assertSucceeds(
       getBytes(ref(alice, 'products/luna-accent-chair/ar/model-v1.glb')),
     );
   });
 
-  await run('an unauthenticated client CANNOT read an AR model (not public, unlike product images)', async () => {
-    await seed(
-      'products/glass-coffee-table/ar/model-v1.glb',
-      glbBytes,
-      'model/gltf-binary',
+  await run('a signed-in customer can read a Phase 9.2 coverage-expansion product (velvet-armchair) with no hardcoded allowlist entry', async () => {
+    await seedProduct('velvet-armchair', validArProductDoc('velvet-armchair', {
+      arWidthM: 0.72, arDepthM: 0.76, arHeightM: 0.78,
+      arModelSha256: '9909929fdc84adf526127887ab782805bee0ff6863c04e0dd1510a4264f8a09e',
+    }));
+    await seed('products/velvet-armchair/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(
+      getBytes(ref(alice, 'products/velvet-armchair/ar/model-v1.glb')),
     );
+  });
+
+  await run('a signed-in customer can read a completely NEW, never-before-seen Admin-created product id — no manifest, enum, or rules edit involved', async () => {
+    const id = 'future-admin-product-2026-09-05';
+    await seedProduct(id, validArProductDoc(id));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('an unauthenticated client CANNOT read an AR model even with a fully valid Firestore doc (not public, unlike product images)', async () => {
+    await seedProduct('glass-coffee-table', validArProductDoc('glass-coffee-table'));
+    await seed('products/glass-coffee-table/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
     const anon = storageFor(null);
     await assertFails(
       getBytes(ref(anon, 'products/glass-coffee-table/ar/model-v1.glb')),
     );
   });
 
-  await run('a signed-in customer cannot read a non-approved product AR model', async () => {
-    await seed(
-      'products/velvet-armchair/ar/model-v1.glb',
-      glbBytes,
-      'model/gltf-binary',
-    );
+  await run('a signed-in customer cannot read a product with NO Firestore document at all (missing metadata)', async () => {
+    await seed('products/minimalist-bedroom-set/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
     const alice = storageFor(ALICE, { role: 'customer' });
     await assertFails(
-      getBytes(ref(alice, 'products/velvet-armchair/ar/model-v1.glb')),
+      getBytes(ref(alice, 'products/minimalist-bedroom-set/ar/model-v1.glb')),
     );
   });
 
-  await run('a superAdmin CAN read a non-approved product AR model (Phase 9.2 R16 — needed for the Admin AR & Media preview/re-verify; a superset of the write privilege they already hold)', async () => {
-    await seed(
-      'products/velvet-armchair/ar/model-v2.glb',
-      glbBytes,
-      'model/gltf-binary',
-    );
+  await run('a signed-in customer cannot read when the Firestore doc is missing required ar* fields (malformed metadata)', async () => {
+    const id = 'malformed-ar-product';
+    await seedProduct(id, {
+      publicationStatus: 'published',
+      isActive: true,
+      experienceType: 'roomAr',
+      arModelStoragePath: `products/${id}/ar/model-v1.glb`,
+      // arModelFormat / sha256 / dims / scale-contract all absent
+    });
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read when arModelSha256 is malformed (not 64 lowercase hex)', async () => {
+    const id = 'bad-sha-product';
+    await seedProduct(id, validArProductDoc(id, { arModelSha256: 'NOT-HEX' }));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read a disabled product (arModelDisabled: true)', async () => {
+    const id = 'disabled-ar-product';
+    await seedProduct(id, validArProductDoc(id, { arModelDisabled: true }));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read an unpublished/hidden product (publicationStatus: draft)', async () => {
+    const id = 'draft-ar-product';
+    await seedProduct(id, validArProductDoc(id, { publicationStatus: 'draft' }));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read an inactive product (isActive: false)', async () => {
+    const id = 'inactive-ar-product';
+    await seedProduct(id, validArProductDoc(id, { isActive: false }));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read a non-roomAr product (experienceType: none)', async () => {
+    const id = 'not-room-ar-product';
+    await seedProduct(id, validArProductDoc(id, { experienceType: 'none' }));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a signed-in customer cannot read a cross-product path — product A\'s own doc must name product A\'s object, not product B\'s', async () => {
+    // product-a's Firestore doc (incorrectly / maliciously) claims product-b's object.
+    await seedProduct('cross-product-a', validArProductDoc('cross-product-a', {
+      arModelStoragePath: 'products/cross-product-b/ar/model-v1.glb',
+    }));
+    await seed('products/cross-product-a/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    // Reading product-a's own object: doc's path doesn't match product-a's own path.
+    await assertFails(getBytes(ref(alice, 'products/cross-product-a/ar/model-v1.glb')));
+    // Reading product-b's object directly: product-b has no doc of its own.
+    await seed('products/cross-product-b/ar/model-v1.glb', glbBytes, 'model/gltf-binary');
+    await assertFails(getBytes(ref(alice, 'products/cross-product-b/ar/model-v1.glb')));
+  });
+
+  await run('exact per-product path ownership: a stale v1 object is denied once the doc points at v2', async () => {
+    const id = 'versioned-ar-product';
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    await seed(`products/${id}/ar/model-v2.glb`, glbBytes, 'model/gltf-binary');
+    await seedProduct(id, validArProductDoc(id, {
+      arModelStoragePath: `products/${id}/ar/model-v2.glb`,
+      arModelVersion: '2',
+    }));
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v2.glb`)));
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('deleting the Firestore doc revokes customer read of the still-present Storage object', async () => {
+    const id = 'deleted-doc-ar-product';
+    await seedProduct(id, validArProductDoc(id));
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+    await deleteProductDoc(id);
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('a superAdmin CAN read any product\'s model regardless of Firestore state (R16 preview/re-verify — a superset of the write privilege they already hold)', async () => {
+    // No Firestore doc at all for this product.
+    await seed('products/no-doc-admin-preview/ar/model-v2.glb', glbBytes, 'model/gltf-binary');
     const admin = storageFor(ADMIN, { role: 'superAdmin' });
     await assertSucceeds(
-      getBytes(ref(admin, 'products/velvet-armchair/ar/model-v2.glb')),
+      getBytes(ref(admin, 'products/no-doc-admin-preview/ar/model-v2.glb')),
     );
   });
 
   await run('a superAdmin still cannot read a wrongly-named object under ar/', async () => {
-    await seed(
-      'products/velvet-armchair/ar/latest.glb',
-      glbBytes,
-      'model/gltf-binary',
-    );
+    await seed('products/luna-accent-chair/ar/latest.glb', glbBytes, 'model/gltf-binary');
     const admin = storageFor(ADMIN, { role: 'superAdmin' });
-    await assertFails(
-      getBytes(ref(admin, 'products/velvet-armchair/ar/latest.glb')),
-    );
+    await assertFails(getBytes(ref(admin, 'products/luna-accent-chair/ar/latest.glb')));
   });
 
-  await run('a signed-in customer cannot read a wrongly-named object under ar/', async () => {
-    await seed(
-      'products/luna-accent-chair/ar/model.glb',
-      glbBytes,
-      'model/gltf-binary',
-    );
+  await run('a signed-in customer cannot read a wrongly-named object under ar/, even with a fully valid doc', async () => {
+    await seedProduct('luna-accent-chair', validArProductDoc('luna-accent-chair'));
+    await seed('products/luna-accent-chair/ar/model.glb', glbBytes, 'model/gltf-binary');
     const alice = storageFor(ALICE, { role: 'customer' });
     await assertFails(
       getBytes(ref(alice, 'products/luna-accent-chair/ar/model.glb')),
     );
+  });
+
+  console.log('products/{productId}/ar/model-v{n}.glb — Admin upload-before-save sequence (no circular Firestore dependency)');
+
+  await run('an authorized Admin can upload a brand-new product\'s GLB BEFORE any Firestore document exists for it', async () => {
+    const id = 'not-yet-saved-product';
+    // Deliberately no seedProduct() call — this proves the write rule never
+    // consults Firestore, so the real Admin flow (Storage upload happens
+    // before the Firestore write) can never deadlock on itself.
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, `products/${id}/ar/model-v1.glb`),
+        glbBytes,
+        arModelWriteMeta('model/gltf-binary'),
+      ),
+    );
+  });
+
+  await run('full sequence: Admin upload (no doc) → Firestore save/association → customer read succeeds', async () => {
+    const id = 'full-sequence-product';
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    // 1) Admin uploads the model first — no Firestore doc exists yet.
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, `products/${id}/ar/model-v1.glb`),
+        glbBytes,
+        arModelWriteMeta('model/gltf-binary'),
+      ),
+    );
+    // A customer cannot read it yet — no metadata associates it.
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+    // 2) Admin saves the product, associating the uploaded object.
+    await seedProduct(id, validArProductDoc(id));
+    // 3) Now the customer can read the exact associated model.
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+  });
+
+  await run('replacement: Admin uploads v2, re-associates, and the customer now gets v2 — never v1', async () => {
+    const id = 'replace-sequence-product';
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    await seedProduct(id, validArProductDoc(id));
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+
+    // Admin uploads the replacement...
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, `products/${id}/ar/model-v2.glb`),
+        glbBytes,
+        arModelWriteMeta('model/gltf-binary'),
+      ),
+    );
+    // ...then re-associates the product with it.
+    await seedProduct(id, validArProductDoc(id, {
+      arModelStoragePath: `products/${id}/ar/model-v2.glb`,
+      arModelVersion: '2',
+    }));
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v2.glb`)));
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+
+    // Admin then deletes the superseded v1 object (post-Firestore-write, per
+    // the app's own ordering) — deletion itself is still admin-only,
+    // Firestore-independent.
+    await assertSucceeds(deleteObject(ref(admin, `products/${id}/ar/model-v1.glb`)));
+    await assertFails(deleteObject(ref(alice, `products/${id}/ar/model-v2.glb`)));
+  });
+
+  await run('removal: disabling the entry point (arModelDisabled) revokes customer read without deleting the object', async () => {
+    const id = 'disable-sequence-product';
+    await seed(`products/${id}/ar/model-v1.glb`, glbBytes, 'model/gltf-binary');
+    await seedProduct(id, validArProductDoc(id));
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+
+    await seedProduct(id, validArProductDoc(id, { arModelDisabled: true }));
+    await assertFails(getBytes(ref(alice, `products/${id}/ar/model-v1.glb`)));
+
+    // The object itself is untouched — an admin can still read/re-enable.
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(getBytes(ref(admin, `products/${id}/ar/model-v1.glb`)));
   });
 
   console.log('products/{productId}/ar/model-v{n}.glb — write (Phase 9.2 R10)');

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/core/models/product/product_experience_type.dart';
 import 'package:twin_ar/core/models/product/product_model.dart';
+import 'package:twin_ar/core/models/product/product_publication_status.dart';
 import 'package:twin_ar/core/models/product/product_vto_model_type.dart';
 import 'package:twin_ar/core/services/mock_storage_service.dart';
 import 'package:twin_ar/features/admin/ar_media_management/viewmodels/ar_media_management_viewmodel.dart';
@@ -53,7 +54,7 @@ void main() {
       'dimensions', () async {
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair'); // roomAr, no committed model
+    vm.selectProduct('other-product-3'); // roomAr, no committed model
     expect(vm.roomArModelStatus, AdminRoomArModelStatus.noModel);
 
     picker.next = writeBoxGlb(
@@ -81,7 +82,7 @@ void main() {
     () async {
       final vm = general();
       addTearDown(vm.dispose);
-      vm.selectProduct('velvet-armchair');
+      vm.selectProduct('other-product-3');
       picker.next = writeJunkFile(tmp, 'not-a-model.glb');
       await vm.pickAndValidateModel();
       expect(vm.stagedCandidate, isNull);
@@ -92,7 +93,7 @@ void main() {
   test('a model that is not floor-centred is rejected', () async {
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair');
+    vm.selectProduct('other-product-3');
     picker.next = writeBoxGlb(dir: tmp, name: 'floating.glb', minY: 0.5);
     await vm.pickAndValidateModel();
     expect(vm.stagedCandidate, isNull);
@@ -102,7 +103,7 @@ void main() {
   test('cancelling the picker stages nothing and sets no error', () async {
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair');
+    vm.selectProduct('other-product-3');
     picker.next = null;
     await vm.pickAndValidateModel();
     expect(vm.stagedCandidate, isNull);
@@ -115,7 +116,7 @@ void main() {
       'renderable contract', () async {
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair');
+    vm.selectProduct('other-product-3');
     picker.next = writeBoxGlb(dir: tmp, name: 'armchair.glb');
     await vm.pickAndValidateModel();
 
@@ -123,13 +124,13 @@ void main() {
 
     expect(
       storage.uploadedArModelPaths,
-      contains('products/velvet-armchair/ar/model-v1.glb'),
+      contains('products/other-product-3/ar/model-v1.glb'),
     );
-    final saved = database.getProductById('velvet-armchair');
+    final saved = database.getProductById('other-product-3');
     expect(saved.arMetadata, isNotNull);
     expect(
       saved.arMetadata!.storagePath,
-      'products/velvet-armchair/ar/model-v1.glb',
+      'products/other-product-3/ar/model-v1.glb',
     );
     expect(saved.arMetadata!.modelVersion, '1');
     expect(saved.arMetadata!.isRenderable, isTrue);
@@ -178,7 +179,7 @@ void main() {
       filePicker: picker,
     );
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair');
+    vm.selectProduct('other-product-3');
     picker.next = writeBoxGlb(dir: tmp, name: 'armchair.glb');
     await vm.pickAndValidateModel();
 
@@ -272,7 +273,7 @@ void main() {
   test('every upload carries twinArAr* provenance metadata', () async {
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair');
+    vm.selectProduct('other-product-3');
     picker.next = writeBoxGlb(
       dir: tmp,
       name: 'armchair.glb',
@@ -290,13 +291,23 @@ void main() {
     expect(p.containsKey('twinArArWidthM'), isTrue);
   });
 
-  // ── honest status for a product not on the approved customer list ────
+  // ── honest status for a product not yet customer-visible ─────────────
+  // Phase 9.2 §17-follow-up: `productIsCustomerApproved` is no longer tied
+  // to `RoomArProductManifest` (a static list) — it now mirrors
+  // `storage.rules`' own dynamic, metadata-driven check: published + active
+  // + a renderable, enabled `ar*` contract. So "not yet approved" now means
+  // "not yet published/active", not "missing from a manifest".
 
-  test('a valid model on a NON-approved product shows readyNotApproved, '
-      'never "live"', () async {
+  test('a valid model on an unpublished (draft) product shows '
+      'readyNotApproved, never "live"', () async {
+    await database.updateProduct(
+      database
+          .getProductById('other-product-3')
+          .copyWith(publicationStatus: ProductPublicationStatus.draft),
+    );
     final vm = general();
     addTearDown(vm.dispose);
-    vm.selectProduct('velvet-armchair'); // roomAr, NOT in RoomArProductManifest
+    vm.selectProduct('other-product-3'); // roomAr, draft
     picker.next = writeBoxGlb(
       dir: tmp,
       name: 'armchair.glb',
@@ -311,9 +322,40 @@ void main() {
     expect(vm.roomArModelStatus, AdminRoomArModelStatus.readyNotApproved);
     // the model contract itself is valid…
     expect(
-      database.getProductById('velvet-armchair').arMetadata!.isRenderable,
+      database.getProductById('other-product-3').arMetadata!.isRenderable,
       isTrue,
     );
+  });
+
+  test('a valid model on an inactive product shows readyNotApproved, '
+      'never "live"', () async {
+    await database.updateProduct(
+      database.getProductById('other-product-3').copyWith(isActive: false),
+    );
+    final vm = general();
+    addTearDown(vm.dispose);
+    vm.selectProduct('other-product-3'); // roomAr, inactive
+    picker.next = writeBoxGlb(dir: tmp, name: 'armchair.glb');
+    await vm.pickAndValidateModel();
+    expect(await vm.saveChanges(), isTrue);
+
+    expect(vm.productIsCustomerApproved, isFalse);
+    expect(vm.roomArModelStatus, AdminRoomArModelStatus.readyNotApproved);
+  });
+
+  test('a valid model on a published, active, genuinely NEW product id — '
+      'never registered in RoomArProductManifest — shows "live"', () async {
+    final vm = general();
+    addTearDown(vm.dispose);
+    vm.selectProduct('other-product-3'); // roomAr, published + active
+    picker.next = writeBoxGlb(dir: tmp, name: 'armchair.glb');
+    await vm.pickAndValidateModel();
+    expect(await vm.saveChanges(), isTrue);
+
+    // No RoomArProductManifest entry exists for this id anywhere in the
+    // codebase — approval is now purely metadata-driven.
+    expect(vm.productIsCustomerApproved, isTrue);
+    expect(vm.roomArModelStatus, AdminRoomArModelStatus.live);
   });
 
   test('an approved product with a valid enabled model shows live', () async {
@@ -329,7 +371,7 @@ void main() {
   test('product-scoped save returns a staged contract + local upload path, '
       'never writing to the database', () async {
     final draft = database
-        .getProductById('velvet-armchair')
+        .getProductById('other-product-3')
         .copyWith(id: '__unsaved_product__', sku: 'Generated when saved');
     final scoped = ArMediaManagementViewModel.productScoped(
       draft,

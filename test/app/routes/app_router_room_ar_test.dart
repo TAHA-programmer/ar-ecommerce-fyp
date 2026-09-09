@@ -48,6 +48,7 @@ void main() {
 
   test('roomArSession with valid args returns a route for that product', () {
     final args = RoomArSessionArgs(
+      firestoreProductId: 'luna-accent-chair',
       object: MarkerArObject.chair,
       metadata: RoomArProductManifest.byProductId['luna-accent-chair']!,
       productTitle: 'Luna Accent Chair',
@@ -59,6 +60,56 @@ void main() {
     expect(route.settings.name, RouteNames.roomArSession);
     expect(route.settings.arguments, same(args));
   });
+
+  testWidgets(
+    'roomArCoreSession without RoomArSessionArgs falls to an honest error '
+    'route (Phase 9.2 R6)',
+    (tester) async {
+      await pumpRoute(
+        tester,
+        const RouteSettings(name: RouteNames.roomArCoreSession),
+      );
+      expect(
+        find.textContaining('Room AR is not available for this product'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'roomArCoreSession with a String (wrong argument type) is also rejected',
+    (tester) async {
+      await pumpRoute(
+        tester,
+        const RouteSettings(
+          name: RouteNames.roomArCoreSession,
+          arguments: 'luna-accent-chair',
+        ),
+      );
+      expect(
+        find.textContaining('Room AR is not available for this product'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  test(
+    'roomArCoreSession with valid args returns a route for that product',
+    () {
+      final args = RoomArSessionArgs(
+        firestoreProductId: 'luna-accent-chair',
+        object: MarkerArObject.chair,
+        metadata: RoomArProductManifest.byProductId['luna-accent-chair']!,
+        productTitle: 'Luna Accent Chair',
+      );
+      final route = AppRouter.onGenerateRoute(
+        RouteSettings(name: RouteNames.roomArCoreSession, arguments: args),
+      );
+      expect(route, isA<MaterialPageRoute<dynamic>>());
+      expect(route.settings.name, RouteNames.roomArCoreSession);
+      expect(route.settings.arguments, same(args));
+    },
+  );
 
   testWidgets('roomArPreview without RoomArSessionArgs → honest error route', (
     tester,
@@ -89,6 +140,7 @@ void main() {
 
   test('roomArPreview with valid args returns a route for that product', () {
     final args = RoomArSessionArgs(
+      firestoreProductId: 'luna-3-seater-sofa',
       object: MarkerArObject.sofa,
       metadata: RoomArProductManifest.byProductId['luna-3-seater-sofa']!,
       productTitle: 'Luna Right-Chaise Sectional Sofa',

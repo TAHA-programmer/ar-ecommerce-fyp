@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../core/models/product/product_ar_metadata.dart';
 import '../../room_ar_product_manifest.dart';
@@ -45,6 +45,8 @@ class MarkerArViewModel extends ChangeNotifier {
     RoomArModelService? roomArModelService,
     MarkerArLaunchMode mode = MarkerArLaunchMode.engineDev,
     ProductArMetadata? customerMetadata,
+    String? customerFirestoreProductId,
+    String? customerProductTitle,
   }) : _channel = channel ?? RoomArMarkerChannel(),
        _calibrationStore = calibrationStore ?? MarkerCalibrationStore(),
        _object = initialObject,
@@ -52,25 +54,101 @@ class MarkerArViewModel extends ChangeNotifier {
        // ignore: prefer_initializing_formals
        _mode = mode,
        // ignore: prefer_initializing_formals
-       _customerMetadata = customerMetadata;
+       _customerMetadata = customerMetadata,
+       // ignore: prefer_initializing_formals
+       _customerFirestoreProductId = customerFirestoreProductId,
+       // ignore: prefer_initializing_formals
+       _customerProductTitle = customerProductTitle,
+       // Non-null only when `initialObject` genuinely is the real mapping
+       // for `customerFirestoreProductId` (one of the four originally-
+       // bundled products) — computed once, up front, so nothing later ever
+       // has to guess "is chair here the real chair, or a placeholder?".
+       _customerObject =
+           mode == MarkerArLaunchMode.customerProduct &&
+               customerFirestoreProductId != null &&
+               MarkerArObject.fromFirestoreProductId(
+                     customerFirestoreProductId,
+                   ) ==
+                   initialObject
+           ? initialObject
+           : null;
 
   final MarkerArLaunchMode _mode;
   final ProductArMetadata? _customerMetadata;
 
+  /// The live Firestore product id for the customer single-product launch —
+  /// the source of truth for Storage delivery/caching. Null outside the
+  /// customer flow.
+  final String? _customerFirestoreProductId;
+
+  /// The product's real customer-facing title (from its live Firestore
+  /// document) — never derived from [MarkerArObject.displayName], which only
+  /// covers the four originally-bundled products.
+  final String? _customerProductTitle;
+
+  /// The real [MarkerArObject] mapping for the customer product, or `null`
+  /// when it is not one of the four originally-bundled products. Computed
+  /// once at construction — see the constructor body. Always `null` outside
+  /// customer mode (engine-dev uses [_object] directly).
+  final MarkerArObject? _customerObject;
+
   /// True for the customer single-product launch — the View hides the object
   /// selector and every developer control.
   bool get isCustomerMode => _mode == MarkerArLaunchMode.customerProduct;
+
+  /// `true` when this session has a real compiled-in bundled asset to fall
+  /// back to — always true in engine-dev mode (it only ever shows one of the
+  /// four), true in customer mode only for the four originally-bundled
+  /// products. `false` means a Storage delivery failure must surface an
+  /// honest "model unavailable" state — never a substitute model.
+  bool get _hasBundledFallback =>
+      _mode != MarkerArLaunchMode.customerProduct || _customerObject != null;
+
+  /// The native renderer's mode/slot key for the product actually being
+  /// rendered — the matching [MarkerArObject.mode] for one of the four
+  /// originally-bundled products, or the live Firestore product id for
+  /// everything else (customer mode only; always unique per product).
+  String get _nativeMode {
+    if (_mode == MarkerArLaunchMode.customerProduct &&
+        _customerObject == null) {
+      return _customerFirestoreProductId ?? _object.mode;
+    }
+    return _object.mode;
+  }
+
+  /// The product's customer-facing title — the real Firestore title in
+  /// customer mode, the bundled product's display name in engine-dev mode
+  /// (there is no separate "real" title to show there).
+  String get productTitle => _customerProductTitle ?? _object.displayName;
+
+  /// Chrome icon — the bundled product's icon for the original four /
+  /// engine-dev mode, a generic Room-AR glyph for every other customer
+  /// product. [productTitle] is what actually identifies the product.
+  IconData get productIcon =>
+      _hasBundledFallback ? _object.icon : Icons.view_in_ar_outlined;
+
+  /// `true` once Storage delivery has definitively failed for a customer
+  /// product with no bundled fallback — this session can show no model at
+  /// all, honestly, rather than ever substituting an unrelated one.
+  bool get customerModelUnavailable => _customerModelUnavailable;
+  bool _customerModelUnavailable = false;
 
   /// Launch args for the Tier-3 Interactive 3D Preview of this same product —
   /// used by the "View a 3D preview instead" fallback on the camera-permission
   /// and engine-unavailable screens. Null outside the customer flow.
   RoomArSessionArgs? get customerSessionArgs {
     final m = _customerMetadata;
-    if (_mode != MarkerArLaunchMode.customerProduct || m == null) return null;
+    final id = _customerFirestoreProductId;
+    if (_mode != MarkerArLaunchMode.customerProduct ||
+        m == null ||
+        id == null) {
+      return null;
+    }
     return RoomArSessionArgs(
-      object: _object,
+      firestoreProductId: id,
+      object: _customerObject,
       metadata: m,
-      productTitle: _object.displayName,
+      productTitle: productTitle,
     );
   }
 
@@ -117,21 +195,28 @@ class MarkerArViewModel extends ChangeNotifier {
   Future<void> _resolveCustomerModel() async {
     if (_mode != MarkerArLaunchMode.customerProduct) return;
     final service = _modelService;
-    if (service == null || _customerResolveRan) return;
+    final productId = _customerFirestoreProductId;
+    if (service == null || _customerResolveRan || productId == null) return;
     _customerResolveRan = true;
 
     final metadata =
-        _customerMetadata ??
-        RoomArProductManifest.byProductId[_object.firestoreProductId];
+        _customerMetadata ?? RoomArProductManifest.byProductId[productId];
 
     if (metadata == null || !metadata.isRenderable) {
-      // Should never happen past the prep-screen eligibility gate. Stay on the
-      // bundled GLB rather than block the session.
-      _deliverySource = RoomArModelSource.bundledFallback;
-      _deliveryState = const RoomArModelReady(
-        source: RoomArModelSource.bundledFallback,
-      );
-      await _channel.setExternalModel(_object, null);
+      // Should never happen past the prep-screen eligibility gate.
+      if (_hasBundledFallback) {
+        // The bundled GLB IS this exact product's approved model,
+        // byte-identical — a safe, honest fallback.
+        _deliverySource = RoomArModelSource.bundledFallback;
+        _deliveryState = const RoomArModelReady(
+          source: RoomArModelSource.bundledFallback,
+        );
+        await _channel.setExternalModel(_nativeMode, null);
+      } else {
+        // No bundled counterpart exists for this product — never substitute
+        // an unrelated model.
+        _customerModelUnavailable = true;
+      }
       _safeNotify();
       return;
     }
@@ -140,7 +225,7 @@ class MarkerArViewModel extends ChangeNotifier {
     _safeNotify();
 
     final outcome = await service.resolve(
-      productId: _object.firestoreProductId,
+      productId: productId,
       metadata: metadata,
       onState: (s) {
         if (_disposed) return;
@@ -152,15 +237,17 @@ class MarkerArViewModel extends ChangeNotifier {
 
     if (outcome is RoomArModelReady && outcome.file != null) {
       _deliverySource = outcome.source;
-      await _channel.setExternalModel(_object, outcome.file!.path);
-    } else {
-      // offline / rejected / failed / bundled → the app-bundled GLB is the
+      await _channel.setExternalModel(_nativeMode, outcome.file!.path);
+    } else if (_hasBundledFallback) {
+      // offline / rejected / failed → the app-bundled GLB is the
       // physically-approved, byte-identical fallback. Never a dead end.
       _deliverySource = RoomArModelSource.bundledFallback;
-      await _channel.setExternalModel(_object, null);
-      if (outcome is! RoomArModelReady) {
-        _showFlash('Showing the built-in 3D model');
-      }
+      await _channel.setExternalModel(_nativeMode, null);
+      _showFlash('Showing the built-in 3D model');
+    } else {
+      // No bundled counterpart exists for this product — surface an honest
+      // failure rather than ever rendering an unrelated placeholder.
+      _customerModelUnavailable = true;
     }
     _safeNotify();
   }
@@ -318,11 +405,11 @@ class MarkerArViewModel extends ChangeNotifier {
     if (_disposed) return;
     if (outcome is RoomArModelReady && outcome.file != null) {
       _r10ActiveSource[product] = outcome.source;
-      await _channel.setExternalModel(product, outcome.file!.path);
+      await _channel.setExternalModel(product.mode, outcome.file!.path);
     } else if (r10FallbackToBundled) {
       _r10ActiveSource[product] = RoomArModelSource.bundledFallback;
       (_r10History[product] ??= <String>[]).add('→ bundled fallback');
-      await _channel.setExternalModel(product, null);
+      await _channel.setExternalModel(product.mode, null);
     }
     _r10Busy.remove(product);
     _safeNotify();
@@ -338,7 +425,7 @@ class MarkerArViewModel extends ChangeNotifier {
     _r10ActiveSource.remove(product);
     _r10State[product] = const RoomArModelIdle();
     _r10History[product] = <String>[];
-    await _channel.setExternalModel(product, null);
+    await _channel.setExternalModel(product.mode, null);
     _safeNotify();
   }
 
@@ -379,7 +466,7 @@ class MarkerArViewModel extends ChangeNotifier {
     _calibration = await _calibrationStore.load();
     if (_disposed) return;
 
-    await _channel.setObject(_object);
+    await _channel.setObject(_nativeMode);
     await _channel.setMarkerSizeMm(_calibration.markerSizeMm);
     await _channel.setScaleTrim(_calibration.scaleTrim);
     await _channel.setYaw(_yaw);
@@ -439,7 +526,7 @@ class MarkerArViewModel extends ChangeNotifier {
   void selectObject(MarkerArObject next) {
     if (next == _object) return;
     _object = next;
-    _channel.setObject(next);
+    _channel.setObject(_nativeMode);
     _safeNotify();
   }
 

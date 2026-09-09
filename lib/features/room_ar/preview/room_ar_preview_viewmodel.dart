@@ -37,9 +37,16 @@ class RoomArPreviewViewModel extends ChangeNotifier {
   bool _disposed = false;
   bool _resolveRan = false;
 
-  MarkerArObject get object => _args.object;
+  MarkerArObject? get object => _args.object;
+  String get firestoreProductId => _args.firestoreProductId;
+  String get nativeMode => _args.nativeMode;
   String get productTitle => _args.productTitle;
   ProductArMetadata get metadata => _args.metadata;
+
+  /// `true` only for one of the four originally-bundled products — the only
+  /// case where a Storage delivery failure has a safe, byte-identical
+  /// fallback to show instead of an honest failure.
+  bool get _hasBundledFallback => _args.object != null;
 
   /// `[width, height, depth]` metres of the validated model — for the honest
   /// "shown at actual size" caption.
@@ -76,8 +83,14 @@ class RoomArPreviewViewModel extends ChangeNotifier {
       _safeNotify();
     });
 
-    // Show the bundled model immediately; the verified copy swaps in when ready.
-    await _channel.setModel(object.mode, null);
+    // Show the bundled model immediately when one exists for this product
+    // (the original four) — the verified copy swaps in when ready. A
+    // product with no bundled counterpart has nothing safe to show yet, so
+    // it waits (native reports "loading") rather than flashing an unrelated
+    // placeholder.
+    if (_hasBundledFallback) {
+      await _channel.setModel(nativeMode, null);
+    }
     unawaited(_resolveModel());
     _safeNotify();
   }
@@ -95,11 +108,34 @@ class RoomArPreviewViewModel extends ChangeNotifier {
     if (service == null || _resolveRan || _disposed) return;
     _resolveRan = true;
 
-    final meta =
-        RoomArProductManifest.byProductId[object.firestoreProductId] ??
-        _args.metadata;
+    // Prefer the live Firestore contract carried on `_args.metadata` — it is
+    // guaranteed renderable and to genuinely belong to this product by
+    // construction (`RoomArPreparationViewModel._sessionArgs` only ever
+    // builds a `RoomArSessionArgs` from a `hasRenderableArModel` product
+    // whose metadata passes `belongsToProduct`). This mirrors
+    // `MarkerArViewModel._resolveCustomerModel`'s Tier-2 precedence
+    // (`_customerMetadata ?? manifest`), so a customer sees the exact model
+    // an Admin currently has associated with the product — including right
+    // after a replacement — on BOTH tiers. `RoomArProductManifest` is
+    // consulted only as a last-resort defence-in-depth fallback for the
+    // (should-never-happen) case where the live contract itself is not
+    // renderable; it must never be allowed to shadow good live data merely
+    // because the product id also happens to have a manifest entry (true for
+    // all four originally-approved products, and now the Phase 9.2
+    // coverage-expansion ids too).
+    final meta = _args.metadata.isRenderable
+        ? _args.metadata
+        : (RoomArProductManifest.byProductId[_args.firestoreProductId] ??
+              _args.metadata);
     if (!meta.isRenderable) {
-      _deliverySource = RoomArModelSource.bundledFallback;
+      if (_hasBundledFallback) {
+        _deliverySource = RoomArModelSource.bundledFallback;
+      } else {
+        // No bundled counterpart — trigger the native renderer's own
+        // "failed" event so the existing honest-failure screen shows,
+        // rather than leaving the customer on an indefinite spinner.
+        await _channel.setModel(nativeMode, null);
+      }
       _safeNotify();
       return;
     }
@@ -108,7 +144,7 @@ class RoomArPreviewViewModel extends ChangeNotifier {
     _safeNotify();
 
     final outcome = await service.resolve(
-      productId: object.firestoreProductId,
+      productId: _args.firestoreProductId,
       metadata: meta,
       onState: (s) {
         if (_disposed) return;
@@ -120,15 +156,21 @@ class RoomArPreviewViewModel extends ChangeNotifier {
 
     if (outcome is RoomArModelReady && outcome.file != null) {
       _deliverySource = outcome.source;
-      await _channel.setModel(object.mode, outcome.file!.path);
-    } else {
+      await _channel.setModel(nativeMode, outcome.file!.path);
+    } else if (_hasBundledFallback) {
       _deliverySource = RoomArModelSource.bundledFallback;
-      await _channel.setModel(object.mode, null);
+      await _channel.setModel(nativeMode, null);
       if (outcome is RoomArModelOffline) {
         _notice = 'You\'re offline — showing the built-in 3D model.';
-      } else if (outcome is! RoomArModelReady) {
+      } else {
         _notice = 'Showing the built-in 3D model.';
       }
+    } else {
+      // No bundled counterpart exists for this product — trigger the
+      // native renderer's own "failed" event (the existing `_Failed`
+      // screen already explains this honestly) rather than ever rendering
+      // an unrelated placeholder.
+      await _channel.setModel(nativeMode, null);
     }
     _safeNotify();
   }

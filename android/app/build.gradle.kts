@@ -22,7 +22,13 @@ android {
         applicationId = "com.tahafayyaz.twin_ar"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Phase 9.2 R6 — Tier-1 ARCore requires API 24+ (`com.google.ar:core`'s
+        // own manifest declares minSdkVersion 24; Gradle's manifest merge fails
+        // if the app's minSdk is lower). Coerced up from Flutter's own default
+        // rather than silently relying on it — ARCore is declared `optional`
+        // (see AndroidManifest.xml), so a device below API 24 simply never sees
+        // Tier 1, exactly like a device with no camera never sees Tier 2.
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -82,6 +88,16 @@ dependencies {
     implementation("com.google.android.filament:filament-android:$filament")
     implementation("com.google.android.filament:gltfio-android:$filament")
     implementation("com.google.android.filament:filament-utils-android:$filament")
+
+    // Phase 9.2 R6 — Tier-1 markerless ARCore. Google's own SDK, no
+    // third-party AR wrapper (Sceneform is deprecated; the project already
+    // hand-rolls Filament directly for Tier 2/3, so Tier 1 follows the same
+    // pattern: ARCore owns tracking/plane-detection/hit-test/anchors via its
+    // own GLSurfaceView camera passthrough, and the existing Filament
+    // pipeline renders only the transparent product overlay on top, driven
+    // every frame by the ARCore camera + anchor pose — no new rendering
+    // abstraction, no custom Filament material/matc build step).
+    implementation("com.google.ar:core:1.49.0")
 }
 
 kotlin {

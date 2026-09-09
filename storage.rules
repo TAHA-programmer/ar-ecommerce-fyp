@@ -18,10 +18,16 @@ rules_version = '2';
 //  - `categories/{categoryId}/images/{imageId}` (Phase 8.8) - category
 //    thumbnails. Public read, mirroring product images; write restricted to
 //    the `superAdmin` custom claim, same as products.
-//  - `products/{productId}/ar/model-v{version}.glb` (Phase 9.2 R10) - the
-//    versioned Room-AR 3D model for a product. Deliberately NOT public
-//    (unlike product images): only a *signed-in* customer may read it, and
-//    only for one of the four currently-approved products. Writes are
+//  - `products/{productId}/ar/model-v{version}.glb` (Phase 9.2 R10, made
+//    metadata-driven in the §17 follow-up) - the versioned Room-AR 3D model
+//    for a product. Deliberately NOT public (unlike product images): only a
+//    *signed-in* customer may read it, and only when that exact product's
+//    own live Firestore document says it is a published, active, enabled
+//    `roomAr` product with a complete, well-formed `ar*` contract whose
+//    `arModelStoragePath` names this exact object (a cross-service read of
+//    Firestore from within this Storage rule - see `isApprovedArProduct()`
+//    below). No product id is hardcoded; a new Admin-created product becomes
+//    readable the moment its own document qualifies. Writes are
 //    `superAdmin`-only, `.glb`-shaped, size-capped, and content-type gated -
 //    exactly matching what `scripts/upload_ar_models/` sends and what
 //    `RoomArModelService` will accept on the client. No listing, no wildcard.
@@ -84,14 +90,80 @@ service firebase.storage {
           && request.resource.metadata.twinArArModelVersion.matches('[0-9]+');
     }
 
-    // The four products with a validated, physically-approved GLB
-    // (tracker §2.4-2.8 / §4). R15 widens this as more products get an
-    // approved model; until then no other productId has a readable AR object.
-    function isApprovedArProduct(productId) {
-      return productId == 'luna-accent-chair'
-          || productId == 'glass-coffee-table'
-          || productId == 'modern-table-lamp'
-          || productId == 'luna-3-seater-sofa';
+    // Phase 9.2 §17-follow-up — REPLACES the old hardcoded product-id
+    // allowlist with a live, metadata-driven authorization check against the
+    // product's own Firestore document. Cross-service (Storage rules reading
+    // Firestore) — both emulators run from one `firebase.json` locally;
+    // `firestore.get()`/`firestore.exists()` are cached per evaluation, so
+    // this costs one extra Firestore read per Storage read, not two.
+    //
+    // A customer may read `products/{productId}/ar/{modelFile}` only when
+    // ALL of the following hold on the LIVE `products/{productId}` document
+    // (an admin-only-writable document — see firestore.rules `isAdmin()` —
+    // so trusting its fields here carries exactly the same trust boundary
+    // Firestore itself already places on that document):
+    //  - the document exists;
+    //  - it is customer-visible: `publicationStatus == 'published'` and
+    //    `isActive == true` (the exact same pair firestore.rules' own
+    //    `products/{id}` read rule already requires — `showInCatalog` is
+    //    deliberately NOT part of this, matching that rule);
+    //  - `experienceType == 'roomAr'`;
+    //  - `arModelDisabled` is not `true` (absent/false = enabled, matching
+    //    the mapper's "written only when true" convention);
+    //  - its `arModelStoragePath` is EXACTLY this product's own
+    //    `products/{productId}/ar/{modelFile}` path — the defence against a
+    //    cross-product path that `ProductArMetadata.belongsToProduct` also
+    //    enforces client-side (tracker §17.3) is now enforced server-side too;
+    //  - the rest of the `ar*` contract is present and well-formed (format,
+    //    version, a 64-hex sha256, positive bounded dimensions and scale, a
+    //    non-empty scale-contract id) — mirrors
+    //    `ProductArMetadata._issues()`/`isRenderable` so a document that the
+    //    client itself would refuse to render can never be read either.
+    //
+    // No product id is hardcoded anywhere in this function. A brand-new
+    // Admin-created product becomes readable the instant its Firestore
+    // document satisfies these conditions — no rules edit, no redeploy.
+    function arDocPath(productId) {
+      return /databases/(default)/documents/products/$(productId);
+    }
+
+    // Every field is read via `.get(key, default)`, never bare `doc.key` —
+    // the rules language THROWS (not "null") on a genuinely absent map key,
+    // and an uncaught throw denies the whole request anyway, but a mismatched
+    // default (`''`/`0`/`false`) makes a missing field fail its own specific
+    // check cleanly instead of aborting evaluation of the function entirely.
+    // `arModelDisabled` in particular is written only-when-true by the
+    // mapper, so its absence must mean "enabled", not "malformed".
+    function hasRenderableArMetadata(doc, productId, modelFile) {
+      return doc.get('publicationStatus', '') == 'published'
+          && doc.get('isActive', false) == true
+          && doc.get('experienceType', '') == 'roomAr'
+          && doc.get('arModelDisabled', false) != true
+          && doc.get('arModelStoragePath', '')
+              == 'products/' + productId + '/ar/' + modelFile
+          && doc.get('arModelFormat', '') == 'glb'
+          && doc.get('arModelVersion', '') is string
+          && doc.get('arModelVersion', '').size() > 0
+          && doc.get('arModelSha256', '') is string
+          && doc.get('arModelSha256', '').matches('^[0-9a-f]{64}$')
+          && doc.get('arWidthM', 0) is number
+          && doc.get('arWidthM', 0) > 0 && doc.get('arWidthM', 0) <= 100
+          && doc.get('arDepthM', 0) is number
+          && doc.get('arDepthM', 0) > 0 && doc.get('arDepthM', 0) <= 100
+          && doc.get('arHeightM', 0) is number
+          && doc.get('arHeightM', 0) > 0 && doc.get('arHeightM', 0) <= 100
+          && doc.get('arScale', 0) is number
+          && doc.get('arScale', 0) > 0 && doc.get('arScale', 0) <= 10
+          && doc.get('arScaleContract', '') is string
+          && doc.get('arScaleContract', '').size() > 0;
+    }
+
+    function isApprovedArProduct(productId, modelFile) {
+      return firestore.exists(arDocPath(productId))
+          && hasRenderableArMetadata(
+               firestore.get(arDocPath(productId)).data,
+               productId,
+               modelFile);
     }
 
     match /products/{productId}/images/{imageId} {
@@ -140,9 +212,11 @@ service firebase.storage {
     // is ever readable or writable.
     //
     // Read:
-    //  - a customer (signed-in) may read only an APPROVED product's model
-    //    (the four physically-approved products); every other product's AR
-    //    object stays unreadable to customers until it is approved.
+    //  - a customer (signed-in) may read a product's model only when that
+    //    product's own live Firestore document qualifies —
+    //    `isApprovedArProduct()` above, metadata-driven, no hardcoded id
+    //    list. Every product without a complete, matching, enabled `ar*`
+    //    contract on its own document stays unreadable to customers.
     //  - an admin (superAdmin claim) may read ANY product's model - they can
     //    already write it (below), and R16's Admin AR & Media "preview /
     //    re-verify committed model" needs the exact bytes back. This is
@@ -170,7 +244,8 @@ service firebase.storage {
     match /products/{productId}/ar/{modelFile} {
       allow read: if modelFile.matches('model-v[0-9]+[.]glb')
                    && (isAdmin()
-                       || (isSignedIn() && isApprovedArProduct(productId)));
+                       || (isSignedIn()
+                           && isApprovedArProduct(productId, modelFile)));
       allow create, update: if isAdmin()
                              && modelFile.matches('model-v[0-9]+[.]glb')
                              && isValidArModelType()

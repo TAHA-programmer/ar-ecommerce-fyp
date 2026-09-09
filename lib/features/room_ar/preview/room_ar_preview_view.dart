@@ -66,7 +66,7 @@ class _RoomArPreviewViewState extends State<RoomArPreviewView>
               if (vm.renderFailed) return _Failed(title: vm.productTitle);
               return Stack(
                 children: [
-                  Positioned.fill(child: _PreviewStage(mode: vm.object.mode)),
+                  Positioned.fill(child: _PreviewStage(mode: vm.nativeMode)),
                   if (vm.isPreparing)
                     const Positioned.fill(child: _Preparing()),
                   Positioned(

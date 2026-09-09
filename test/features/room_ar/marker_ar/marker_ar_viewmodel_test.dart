@@ -39,7 +39,7 @@ class FakeRoomArMarkerChannel implements RoomArMarkerChannel {
   final _frames = StreamController<MarkerArFrame>.broadcast();
   final List<String> calls = [];
 
-  MarkerArObject? lastObject;
+  String? lastObject;
   double? lastYaw;
   (double, double)? lastOffset;
   double? lastMarkerMm;
@@ -62,20 +62,17 @@ class FakeRoomArMarkerChannel implements RoomArMarkerChannel {
   Future<Uint8List> markerPng({int px = 1400}) async => Uint8List(4);
 
   @override
-  Future<void> setObject(MarkerArObject object) async {
-    calls.add('setObject:${object.name}');
-    lastObject = object;
+  Future<void> setObject(String mode) async {
+    calls.add('setObject:$mode');
+    lastObject = mode;
   }
 
-  (MarkerArObject, String?)? lastExternalModel;
+  (String, String?)? lastExternalModel;
 
   @override
-  Future<void> setExternalModel(
-    MarkerArObject object,
-    String? absolutePath,
-  ) async {
-    calls.add('setExternalModel:${object.name}:${absolutePath ?? 'null'}');
-    lastExternalModel = (object, absolutePath);
+  Future<void> setExternalModel(String mode, String? absolutePath) async {
+    calls.add('setExternalModel:$mode:${absolutePath ?? 'null'}');
+    lastExternalModel = (mode, absolutePath);
   }
 
   @override
@@ -120,6 +117,7 @@ class FakeRoomArMarkerChannel implements RoomArMarkerChannel {
 class _FakeModelService implements RoomArModelService {
   RoomArModelState outcome = const RoomArModelOffline();
   final List<String> resolvedProductIds = [];
+  final List<ProductArMetadata> resolvedMetadata = [];
   final List<String> evictedProductIds = [];
 
   @override
@@ -137,6 +135,7 @@ class _FakeModelService implements RoomArModelService {
     void Function(RoomArModelState state)? onState,
   }) async {
     resolvedProductIds.add(productId);
+    resolvedMetadata.add(metadata);
     onState?.call(const RoomArModelDownloading());
     onState?.call(outcome);
     return outcome;
@@ -205,7 +204,7 @@ void main() {
     test('loads config + calibration and pushes them to the engine', () async {
       await startAndSettle();
       expect(channel.calls, contains('config'));
-      expect(channel.lastObject, MarkerArObject.chair);
+      expect(channel.lastObject, MarkerArObject.chair.mode);
       expect(channel.lastMarkerMm, 160.0);
       expect(channel.lastTrim, 1.0);
       expect(vm.config.openCvOk, isTrue);
@@ -348,7 +347,7 @@ void main() {
       () async {
         await startAndSettle();
         vm.selectObject(MarkerArObject.sofa);
-        expect(channel.lastObject, MarkerArObject.sofa);
+        expect(channel.lastObject, MarkerArObject.sofa.mode);
         final d = vm.currentDimensionsCm;
         expect(d.w, closeTo(265, 1e-6));
         expect(d.d, closeTo(165, 1e-6));
@@ -454,7 +453,7 @@ void main() {
 
         expect(svc.resolvedProductIds, ['glass-coffee-table']);
         expect(channel.lastExternalModel, isNotNull);
-        expect(channel.lastExternalModel!.$1, MarkerArObject.table);
+        expect(channel.lastExternalModel!.$1, MarkerArObject.table.mode);
         expect(channel.lastExternalModel!.$2, contains('model.glb'));
         expect(
           vm2.r10ActiveSourceFor(MarkerArObject.table),
@@ -475,7 +474,7 @@ void main() {
 
         await vm2.r10Resolve(MarkerArObject.sofa);
 
-        expect(channel.lastExternalModel!.$1, MarkerArObject.sofa);
+        expect(channel.lastExternalModel!.$1, MarkerArObject.sofa.mode);
         expect(channel.lastExternalModel!.$2, isNull); // bundled fallback
         expect(
           vm2.r10ActiveSourceFor(MarkerArObject.sofa),
@@ -498,7 +497,7 @@ void main() {
       await vm2.r10Resolve(MarkerArObject.chair);
       await vm2.r10UseBundledModel(MarkerArObject.chair);
 
-      expect(channel.lastExternalModel, (MarkerArObject.chair, null));
+      expect(channel.lastExternalModel, (MarkerArObject.chair.mode, null));
       expect(vm2.r10ActiveSourceFor(MarkerArObject.chair), isNull);
       expect(svc.evictedProductIds, isEmpty); // cache untouched
       vm2.dispose();
@@ -552,6 +551,8 @@ void main() {
       calibrationStore: MarkerCalibrationStore(),
       mode: MarkerArLaunchMode.customerProduct,
       initialObject: object,
+      customerFirestoreProductId: object.firestoreProductId,
+      customerProductTitle: object.displayName,
       customerMetadata: object == MarkerArObject.chair ? chairMeta : null,
       roomArModelService: service,
     );
@@ -581,7 +582,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(svc.resolvedProductIds, ['luna-3-seater-sofa']);
-      expect(channel.lastExternalModel!.$1, MarkerArObject.sofa);
+      expect(channel.lastExternalModel!.$1, MarkerArObject.sofa.mode);
       expect(channel.lastExternalModel!.$2, contains('model.glb'));
       expect(c.deliverySource, RoomArModelSource.verifiedCache);
       c.dispose();
@@ -593,7 +594,7 @@ void main() {
       await c.start();
       await Future<void>.delayed(Duration.zero);
 
-      expect(channel.lastExternalModel, (MarkerArObject.lamp, null));
+      expect(channel.lastExternalModel, (MarkerArObject.lamp.mode, null));
       expect(c.deliverySource, RoomArModelSource.bundledFallback);
       expect(c.flash, contains('built-in'));
       c.dispose();
@@ -635,6 +636,44 @@ void main() {
       await c.start();
       c.dispose();
       expect(channel.lastActive, isFalse);
+    });
+
+    test('resolves using the live Firestore metadata, never a stale '
+        'RoomArProductManifest entry — a customer must see the exact model an '
+        'Admin currently has associated with the product, including right '
+        'after a replacement', () async {
+      final replaced = ProductArMetadata(
+        storagePath: 'products/glass-coffee-table/ar/model-v2.glb',
+        modelVersion: '2',
+        sha256: 'c' * 64,
+        widthM: 1.10,
+        depthM: 1.10,
+        heightM: 0.40,
+      );
+      expect(
+        replaced,
+        isNot(RoomArProductManifest.byProductId['glass-coffee-table']),
+      );
+      final svc = _FakeModelService()
+        ..outcome = RoomArModelReady(
+          source: RoomArModelSource.verifiedCache,
+          file: File('/cache/room_ar_models/x/model-v2.glb'),
+        );
+      final c = MarkerArViewModel(
+        channel: channel,
+        calibrationStore: MarkerCalibrationStore(),
+        mode: MarkerArLaunchMode.customerProduct,
+        initialObject: MarkerArObject.table,
+        customerFirestoreProductId: MarkerArObject.table.firestoreProductId,
+        customerProductTitle: MarkerArObject.table.displayName,
+        customerMetadata: replaced,
+        roomArModelService: svc,
+      );
+      await c.start();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(svc.resolvedMetadata, [replaced]);
+      c.dispose();
     });
   });
 }

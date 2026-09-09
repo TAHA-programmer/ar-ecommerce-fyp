@@ -1,0 +1,12 @@
+{
+  "name": "twin-ar-rollout-ar-coverage-expansion",
+  "private": true,
+  "description": "Developer-only Phase 9.2 tool: rolls out the six developer + supervisor-approved GLB designs to their 26 coverage-expansion product ids (Storage upload + ar* Firestore metadata). Not Flutter app code, not a Cloud Function, not reachable from the mobile app. Never touches the original four products. Dry-run by default; idempotent; backs up before every live write for rollback.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test lib.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
