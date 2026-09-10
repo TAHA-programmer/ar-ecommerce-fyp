@@ -70,6 +70,11 @@ extension ProductModelMappers on ProductModel {
       // Phase 9.2 R16: a model the admin has switched off must not offer a
       // customer launch even though the contract is still valid.
       arModelDisabled: arModelDisabled,
+      // Phase 9.3 Stage 2: carry the typed VTO contract + entry-point switch
+      // through so the later customer Try-On launch reads a first-class
+      // contract (nothing consumes these yet).
+      vtoMetadata: vtoMetadata,
+      vtoDisabled: vtoDisabled,
       subcategory: subcategory,
       gallery: galleryMedia,
       description: description,

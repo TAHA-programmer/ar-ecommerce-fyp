@@ -153,6 +153,12 @@ class _ControllableStorageService implements StorageService {
       throw UnimplementedError('not used by these tests');
 
   @override
+  Future<bool> deleteOwnedProductImage({
+    required String productId,
+    required String downloadUrl,
+  }) => throw UnimplementedError('not used by these tests');
+
+  @override
   Future<String> uploadCategoryImage({
     required String categoryId,
     required String objectName,
@@ -180,6 +186,26 @@ class _ControllableStorageService implements StorageService {
 
   @override
   Future<bool> deleteArModelByPath(String storagePath) =>
+      throw UnimplementedError('not used by these tests');
+
+  @override
+  Future<String> uploadVtoGarment({
+    required String productId,
+    required String objectName,
+    required File file,
+    required String contentType,
+    Map<String, String>? provenance,
+    void Function(double progress)? onProgress,
+  }) => throw UnimplementedError('not used by these tests');
+
+  @override
+  Future<Uint8List> downloadVtoGarmentBytes(
+    String storagePath, {
+    int maxSize = 16 * 1024 * 1024,
+  }) => throw UnimplementedError('not used by these tests');
+
+  @override
+  Future<bool> deleteVtoGarmentByPath(String storagePath) =>
       throw UnimplementedError('not used by these tests');
 }
 

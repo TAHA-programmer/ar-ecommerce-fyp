@@ -71,9 +71,32 @@ class MockStorageService implements StorageService {
     // implementation exactly (it swallows every failure internally and
     // never throws — this mock must not diverge from that, or a caller-side
     // try/catch built against it would test behaviour the real service can
-    // never actually exhibit). See the interface method's own doc comment
-    // for why this is never used to delete a previously *committed* image.
+    // never actually exhibit).
     deletedProductImageUrls.add(downloadUrl);
+  }
+
+  /// URLs actually passed to `deleteOwnedProductImage` AND accepted as owned
+  /// (a not-owned URL is skipped and never recorded here).
+  final List<String> deletedOwnedProductImageUrls = [];
+
+  /// When true, `deleteOwnedProductImage` records an owned URL but returns
+  /// `false` (the object could not be removed) — for the honest partial-failure
+  /// path.
+  bool failDeleteOwnedProductImage = false;
+
+  @override
+  Future<bool> deleteOwnedProductImage({
+    required String productId,
+    required String downloadUrl,
+  }) async {
+    // Mock URLs are `https://mock-storage.test/products/{id}/images/{name}`.
+    // The exact trailing slash after the id prevents a `products/{id}-x/`
+    // false match, mirroring the real service's `fullPath` prefix check.
+    if (!downloadUrl.contains('/products/$productId/images/')) {
+      return true; // not this product's image — deliberately skipped
+    }
+    deletedOwnedProductImageUrls.add(downloadUrl);
+    return !failDeleteOwnedProductImage;
   }
 
   @override
@@ -193,6 +216,85 @@ class MockStorageService implements StorageService {
   Future<bool> deleteArModelByPath(String storagePath) async {
     deletedArModelPaths.add(storagePath);
     return !failDeleteArModel;
+  }
+
+  // ── Phase 9.3 Stage 3 — Admin Virtual Try-On garment image ─────────────
+
+  /// Records `products/{productId}/vto/{objectName}` object paths uploaded.
+  final List<String> uploadedVtoGarmentPaths = [];
+  final List<String> deletedVtoGarmentPaths = [];
+
+  /// When set, every `uploadVtoGarment` call throws this instead of succeeding.
+  Object? failUploadVtoGarmentWith;
+
+  /// When set, only the Nth call (1-indexed) to `uploadVtoGarment` throws
+  /// [failVtoGarmentUploadOnCallWith] — the rest succeed. For testing a partial
+  /// multi-slot save failure + rollback.
+  int? failVtoGarmentUploadOnCallNumber;
+  Object failVtoGarmentUploadOnCallWith = const StorageServiceException(
+    'simulated partial VTO upload failure',
+  );
+
+  /// When set, `downloadVtoGarmentBytes` throws this instead of returning bytes.
+  Object? failDownloadVtoGarmentWith;
+
+  /// When true, `deleteVtoGarmentByPath` records the path but returns `false`
+  /// (the object could not be removed) — for the honest "manual cleanup" note.
+  bool failDeleteVtoGarment = false;
+
+  /// The `provenance`/`contentType` passed to the most recent `uploadVtoGarment`.
+  Map<String, String>? lastVtoGarmentProvenance;
+  String? lastVtoGarmentContentType;
+
+  /// Bytes handed back by `downloadVtoGarmentBytes` (per storagePath, then a
+  /// default) so a viewmodel test can drive the re-verify path deterministically.
+  final Map<String, Uint8List> vtoGarmentBytesByPath = {};
+  Uint8List vtoGarmentBytesDefault = Uint8List.fromList([1, 2, 3, 4]);
+
+  int _vtoGarmentUploadCallCount = 0;
+
+  @override
+  Future<String> uploadVtoGarment({
+    required String productId,
+    required String objectName,
+    required File file,
+    required String contentType,
+    Map<String, String>? provenance,
+    void Function(double progress)? onProgress,
+  }) async {
+    _vtoGarmentUploadCallCount++;
+    if (failUploadVtoGarmentWith != null) throw failUploadVtoGarmentWith!;
+    if (failVtoGarmentUploadOnCallNumber == _vtoGarmentUploadCallCount) {
+      throw failVtoGarmentUploadOnCallWith;
+    }
+    _uploadCallCount++;
+    lastVtoGarmentProvenance = provenance;
+    lastVtoGarmentContentType = contentType;
+    onProgress?.call(0.5);
+    onProgress?.call(1.0);
+    final path = 'products/$productId/vto/$objectName';
+    uploadedVtoGarmentPaths.add(path);
+    try {
+      vtoGarmentBytesByPath[path] = file.readAsBytesSync();
+    } catch (_) {
+      // A test may pass a non-existent file path; leave the default bytes.
+    }
+    return path;
+  }
+
+  @override
+  Future<Uint8List> downloadVtoGarmentBytes(
+    String storagePath, {
+    int maxSize = 16 * 1024 * 1024,
+  }) async {
+    if (failDownloadVtoGarmentWith != null) throw failDownloadVtoGarmentWith!;
+    return vtoGarmentBytesByPath[storagePath] ?? vtoGarmentBytesDefault;
+  }
+
+  @override
+  Future<bool> deleteVtoGarmentByPath(String storagePath) async {
+    deletedVtoGarmentPaths.add(storagePath);
+    return !failDeleteVtoGarment;
   }
 
   /// Total number of successful uploads (product images + avatars)

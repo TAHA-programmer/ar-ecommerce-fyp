@@ -802,7 +802,21 @@ class _AdminProductFormContent extends StatelessWidget {
           ? '${pending.split(RegExp(r'[/\\]')).last} (uploads on save)'
           : committed;
     } else {
-      fileName = viewModel.vtoGarmentAssetPath;
+      final vto = viewModel.vtoMetadata;
+      if (vto == null) {
+        fileName = null;
+      } else {
+        final pending = [
+          ...vto.garmentsByColor.values,
+          if (vto.garmentDefault != null) vto.garmentDefault!,
+        ].where((a) => !a.storagePath.startsWith('products/')).length;
+        final total =
+            vto.garmentsByColor.length + (vto.garmentDefault != null ? 1 : 0);
+        fileName = pending > 0
+            ? '$total garment image(s) · ${vto.garmentCategory} '
+                  '($pending upload on save)'
+            : '$total garment image(s) · ${vto.garmentCategory}';
+      }
     }
     return Container(
       padding: const EdgeInsets.all(12),

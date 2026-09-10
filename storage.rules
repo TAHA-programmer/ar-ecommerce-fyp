@@ -90,6 +90,27 @@ service firebase.storage {
           && request.resource.metadata.twinArArModelVersion.matches('[0-9]+');
     }
 
+    // Phase 9.3 Stage 3 — Virtual Try-On garment reference images. A raster
+    // photo, JPEG or PNG only (the try-on provider and the `VtoGarmentAsset`
+    // contract accept nothing else).
+    function isValidVtoGarmentType() {
+      return request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png';
+    }
+
+    // Phase 9.3 Stage 3 — integrity provenance, mirroring `hasArModelProvenance`.
+    // Every garment-image write MUST carry a 64-hex SHA-256 and a numeric
+    // version in custom metadata, so a bare/anonymous image can never land
+    // under `products/{id}/vto/`. Rules cannot hash the payload — this asserts
+    // the declared shape; the Admin re-download re-verifies the bytes.
+    function hasVtoGarmentProvenance() {
+      return request.resource.metadata != null
+          && request.resource.metadata.twinArVtoSha256 is string
+          && request.resource.metadata.twinArVtoSha256.matches('[0-9a-f]{64}')
+          && request.resource.metadata.twinArVtoVersion is string
+          && request.resource.metadata.twinArVtoVersion.matches('[0-9]+');
+    }
+
     // Phase 9.2 §17-follow-up — REPLACES the old hardcoded product-id
     // allowlist with a live, metadata-driven authorization check against the
     // product's own Firestore document. Cross-service (Storage rules reading
@@ -253,6 +274,56 @@ service firebase.storage {
                              && request.resource.size <= 12 * 1024 * 1024;
       allow delete: if isAdmin()
                      && modelFile.matches('model-v[0-9]+[.]glb');
+    }
+
+    // Phase 9.3 Stage 3 - versioned Virtual Try-On garment images.
+    // `garment-{slot}-v{n}.{jpg|jpeg|png}` only - a single exact final path
+    // segment (`{slot}` is a colour name or the literal `default`), so nothing
+    // else under `products/{id}/vto/**` is ever readable or writable.
+    //
+    // Read: any SIGNED-IN user (developer decision D8 - deliberately tighter
+    // than product images, which are public; a garment reference image is an
+    // authoring asset, not storefront photography). NOT metadata-gated like the
+    // AR model - a garment image carries no customer risk if seen early, and
+    // the customer try-on flow (a later stage) reads it server-side via the
+    // Admin SDK anyway. The Admin uploader sets `Cache-Control: private, ...,
+    // immutable` - consistent with a signed-in-only read (no shared/CDN
+    // caching) and safe because a create-only versioned object never changes.
+    // Write is CREATE-ONLY. Each version has a distinct object name
+    // (`garment-{slot}-v{n}`), so its bytes are immutable under that path: an
+    // `update` (an overwrite of an existing object) would silently diverge the
+    // bytes from the SHA-256 already recorded in the product's Firestore
+    // contract and from any cached copy. `allow update: if false` enforces
+    // that. The Admin flow only ever uploads a NEW version number (or
+    // re-`create`s after a rollback deleted the object), so it never needs
+    // `update`. `create`: superAdmin only, and ALL of -
+    //   * `garment-{slot}-v{n}.{ext}` exact name shape;
+    //   * `isValidVtoGarmentType()` - `image/jpeg` or `image/png`, nothing else;
+    //   * `hasVtoGarmentProvenance()` - 64-hex `twinArVtoSha256` + numeric
+    //     `twinArVtoVersion` in custom metadata;
+    //   * `size < 12 MiB` - the TRANSPORT ceiling. The Admin app caps its own
+    //     uploads at the stricter 8 MiB authoring budget
+    //     (`kVtoGarmentMaxUploadBytes`) client-side.
+    // Delete: superAdmin + the name shape - deliberately nothing more (the
+    // "disable the entry point before you may delete" ordering is enforced in
+    // the ViewModel, not here; a superAdmin with console access can always
+    // delete regardless). Rollback of a just-uploaded object, the "remove VTO
+    // config" flow and the product-delete cleanup all rely on exactly this.
+    match /products/{productId}/vto/{assetFile} {
+      allow read: if isSignedIn();
+      // CREATE-ONLY: `resource == null` means the object does not exist yet, so
+      // an overwrite of an existing version is denied (the Storage emulator
+      // classifies every `putFile` as a write/create regardless of occupancy,
+      // so `allow update: if false` alone does NOT stop an overwrite — the
+      // `resource == null` guard is what enforces immutability).
+      allow create, update: if isAdmin()
+                             && resource == null
+                             && assetFile.matches('garment-[a-zA-Z0-9]+-v[0-9]+[.](jpg|jpeg|png)')
+                             && isValidVtoGarmentType()
+                             && hasVtoGarmentProvenance()
+                             && request.resource.size < 12 * 1024 * 1024;
+      allow delete: if isAdmin()
+                     && assetFile.matches('garment-[a-zA-Z0-9]+-v[0-9]+[.](jpg|jpeg|png)');
     }
 
     match /{allPaths=**} {

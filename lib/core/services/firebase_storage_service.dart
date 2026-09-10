@@ -81,6 +81,38 @@ class FirebaseStorageService implements StorageService {
   }
 
   @override
+  Future<bool> deleteOwnedProductImage({
+    required String productId,
+    required String downloadUrl,
+  }) async {
+    final Reference ref;
+    try {
+      ref = _storage.refFromURL(downloadUrl);
+    } catch (_) {
+      // Not a resolvable Storage URL (an external/asset URL, a data URI, …) —
+      // nothing of this product's to delete.
+      return true;
+    }
+    // Must be an object in THIS bucket, exactly under this product's own
+    // images/ folder. `products/{id}-x/…` cannot false-match because the
+    // prefix demands the trailing slash after the exact id.
+    final expectedPrefix = 'products/$productId/images/';
+    if (ref.bucket != _storage.bucket ||
+        !ref.fullPath.startsWith(expectedPrefix)) {
+      return true;
+    }
+    try {
+      await ref.delete();
+      return true;
+    } on FirebaseException catch (e) {
+      // An object that is already gone is a success for the caller's intent.
+      return e.code == 'object-not-found';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   Future<String> uploadAvatar({
     required String uid,
     required String objectName,
@@ -253,6 +285,88 @@ class FirebaseStorageService implements StorageService {
 
   @override
   Future<bool> deleteArModelByPath(String storagePath) async {
+    try {
+      await _storage.ref(storagePath).delete();
+      return true;
+    } on FirebaseException catch (e) {
+      // An object that is already gone is a success for the caller's intent.
+      return e.code == 'object-not-found';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── Phase 9.3 Stage 3 — Admin Virtual Try-On garment image ─────────────
+
+  @override
+  Future<String> uploadVtoGarment({
+    required String productId,
+    required String objectName,
+    required File file,
+    required String contentType,
+    Map<String, String>? provenance,
+    void Function(double progress)? onProgress,
+  }) async {
+    final path = 'products/$productId/vto/$objectName';
+    final ref = _storage.ref(path);
+    final metadata = SettableMetadata(
+      contentType: contentType,
+      // `private` (not `public`) — the read rule is signed-in-only, so no
+      // shared/CDN cache should hold these bytes. `immutable` + long max-age is
+      // still correct: each version has a distinct object name and the rule is
+      // create-only, so the bytes never change under a path.
+      cacheControl: 'private, max-age=31536000, immutable',
+      customMetadata: provenance,
+    );
+    try {
+      final task = ref.putFile(file, metadata);
+      final progressSub = task.snapshotEvents.listen(
+        (s) {
+          if (onProgress != null && s.totalBytes > 0) {
+            onProgress((s.bytesTransferred / s.totalBytes).clamp(0.0, 1.0));
+          }
+        },
+        onError: (_) {
+          // The awaited task below surfaces the real failure; this listener
+          // only exists for progress and must not throw on its own.
+        },
+      );
+      try {
+        await task;
+      } finally {
+        await progressSub.cancel();
+      }
+      // Deliberately returns the STORAGE OBJECT PATH, never getDownloadURL().
+      return path;
+    } on FirebaseException catch (e) {
+      await _bestEffortDelete(ref);
+      throw StorageServiceException(_mapError(e));
+    } on Exception {
+      await _bestEffortDelete(ref);
+      throw const StorageServiceException(
+        'Could not upload this garment image. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<Uint8List> downloadVtoGarmentBytes(
+    String storagePath, {
+    int maxSize = 16 * 1024 * 1024,
+  }) async {
+    try {
+      final bytes = await _storage.ref(storagePath).getData(maxSize);
+      if (bytes == null) {
+        throw const StorageServiceException('Garment image not found.');
+      }
+      return bytes;
+    } on FirebaseException catch (e) {
+      throw StorageServiceException(_mapError(e));
+    }
+  }
+
+  @override
+  Future<bool> deleteVtoGarmentByPath(String storagePath) async {
     try {
       await _storage.ref(storagePath).delete();
       return true;

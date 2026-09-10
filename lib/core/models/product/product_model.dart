@@ -4,6 +4,7 @@ import 'product_color_option.dart';
 import 'product_experience_type.dart';
 import 'product_size.dart';
 import 'product_specification.dart';
+import 'product_vto_metadata.dart';
 import 'product_vto_model_type.dart';
 import 'product_image_ref.dart';
 import 'product_publication_status.dart';
@@ -106,7 +107,32 @@ class ProductModel {
   /// when it is `true`, so no existing document or seed is disturbed.
   final bool arModelDisabled;
 
+  /// **Legacy Admin AR & Media staging field for Virtual Try-On** — a bare
+  /// garment file name chosen in the pre-9.3 mock admin flow. It is *not* the
+  /// production VTO pointer; the production contract is [vtoMetadata] (Phase
+  /// 9.3 Stage 2). Kept read/write only for backward compatibility with
+  /// existing documents — no production path writes it any more, exactly like
+  /// [arModelAssetPath].
   final String? vtoGarmentAssetPath;
+
+  /// The production Virtual Try-On asset contract (Phase 9.3 Stage 2): garment
+  /// category + one garment reference image per colour (+ an optional
+  /// product-wide default), each with a Storage object path + SHA-256 +
+  /// content type + pixel size + version. `null` for every product with no
+  /// try-on config — the normal case today (no seed carries it; the Admin flow
+  /// that writes it is Phase 9.3 Stage 3). A present-but-incomplete config
+  /// parses as a non-renderable object so admin/diagnostics can see and fix it.
+  final ProductVtoMetadata? vtoMetadata;
+
+  /// Phase 9.3 Stage 2 — the admin has switched the customer Virtual Try-On
+  /// entry point **off** for this product while deliberately keeping
+  /// [vtoMetadata] intact (recoverable with one toggle, never re-uploaded).
+  /// Exact mirror of [arModelDisabled]: distinct from *deleting* the config
+  /// (which clears [vtoMetadata]) and from the product not opting into VTO
+  /// (`experienceType != virtualTryOn`). Absent/false for every product never
+  /// touched by the Stage 3 admin flow — the mapper only writes the key when
+  /// `true`, so no existing document or seed is disturbed.
+  final bool vtoDisabled;
 
   const ProductModel({
     required this.id,
@@ -146,6 +172,8 @@ class ProductModel {
     this.arMetadata,
     this.arModelDisabled = false,
     this.vtoGarmentAssetPath,
+    this.vtoMetadata,
+    this.vtoDisabled = false,
   });
 
   bool get inStock => stockQuantity > 0;
@@ -167,6 +195,48 @@ class ProductModel {
   /// live again (Phase 9.2 R16). Purely an admin-diagnostic distinction.
   bool get hasDisabledArModel =>
       isRoomArEnabled && arModelDisabled && (arMetadata?.isRenderable ?? false);
+
+  /// `true` only when this product opts into Virtual Try-On *and* has a fully
+  /// valid try-on config *and* the admin has not switched the customer entry
+  /// point off *and* every colour the product actually sells resolves to a
+  /// renderable garment asset (its own, or the product-wide default). Use this
+  /// to gate a customer "Try It On" launch (Phase 9.3 Stage 5) — never
+  /// [isVirtualTryOnEnabled] alone.
+  ///
+  /// Nothing reads this yet (Stage 2 is a data contract only). Deliberately
+  /// stricter than [ProductModel.hasRenderableArModel] on two axes:
+  ///  * it requires per-colour coverage (a customer picks a colour before
+  ///    generating; a colour with no renderable asset would dead-end), and
+  ///  * it folds in `assetsBelongToProduct` (via
+  ///    [ProductVtoMetadata.isRenderableForProduct]) so a well-formed but
+  ///    cross-product Storage path can never look launchable — Room AR keeps
+  ///    that ownership check as a *separate* defence layer in its preparation
+  ///    view-model; VTO fails closed here by default.
+  bool get hasRenderableVtoAsset {
+    final vto = vtoMetadata;
+    if (!isVirtualTryOnEnabled || vto == null || vtoDisabled) return false;
+    if (!vto.isRenderableForProduct(id)) return false;
+    if (availableColors.isEmpty) return vto.garmentDefault != null;
+    return availableColors.every((c) => vto.resolveGarment(c.name) != null);
+  }
+
+  /// `true` when a valid try-on config that belongs to this product exists but
+  /// the admin has switched the customer entry point off — retained, one toggle
+  /// from live (Stage 2 mirror of [hasDisabledArModel]). Admin-diagnostic only.
+  /// Does not require per-colour coverage — it describes the *config*, not
+  /// launch-readiness — but does require the paths to be this product's, so a
+  /// cross-product config reads as broken rather than "disabled".
+  bool get hasDisabledVtoAsset =>
+      isVirtualTryOnEnabled &&
+      vtoDisabled &&
+      (vtoMetadata?.isRenderableForProduct(id) ?? false);
+
+  /// The garment reference asset that would be used for [color] (its dedicated
+  /// asset, or the product-wide default). `null` when the product has no
+  /// try-on config or nothing resolves for that colour. Read-only helper for
+  /// the later customer flow / admin preview — no side effects.
+  VtoGarmentAsset? vtoGarmentForColor(ProductColorOption? color) =>
+      vtoMetadata?.resolveGarment(color?.name);
 
   ProductModel copyWith({
     String? id,
@@ -206,11 +276,14 @@ class ProductModel {
     ProductArMetadata? arMetadata,
     bool? arModelDisabled,
     String? vtoGarmentAssetPath,
+    ProductVtoMetadata? vtoMetadata,
+    bool? vtoDisabled,
     bool clearArModelAssetPath = false,
     bool clearArScale = false,
     bool clearArMetadata = false,
     bool clearVtoGarmentAssetPath = false,
     bool clearVtoModelType = false,
+    bool clearVtoMetadata = false,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -260,6 +333,11 @@ class ProductModel {
       vtoGarmentAssetPath: clearVtoGarmentAssetPath
           ? null
           : (vtoGarmentAssetPath ?? this.vtoGarmentAssetPath),
+      vtoMetadata: clearVtoMetadata ? null : (vtoMetadata ?? this.vtoMetadata),
+      // Deleting the try-on config clears the "entry point off" flag with it —
+      // a disabled state only means something while a config is retained
+      // (exact mirror of the arMetadata / arModelDisabled rule above).
+      vtoDisabled: clearVtoMetadata ? false : (vtoDisabled ?? this.vtoDisabled),
     );
   }
 }

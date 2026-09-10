@@ -5,6 +5,7 @@ import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/core/models/category/commerce_category_model.dart';
 import 'package:twin_ar/core/models/product/product_category.dart';
 import 'package:twin_ar/core/models/product/product_image_ref.dart';
+import 'package:twin_ar/core/models/product/product_vto_metadata.dart';
 import 'package:twin_ar/core/services/mock_storage_service.dart';
 import 'package:twin_ar/features/admin/product_management/models/admin_category_config.dart';
 import 'package:twin_ar/features/admin/product_management/models/admin_category_sort_option.dart';
@@ -152,43 +153,199 @@ void main() {
       expect(mockStorageService.deletedArModelPaths, isEmpty);
     });
 
-    // Phase 9.2 closeout — a committed product image must survive product
-    // deletion: a historical `OrderItemModel` snapshot (an already-placed
-    // order's line item) can carry that exact same download URL, and there
-    // is no way to know from here whether one does. Deleting the Storage
-    // object would silently break that order's rendering forever, with no
-    // way to detect or undo it — unlike the AR GLB, which no order field
-    // ever references. Regression guard: an earlier pass on this same
-    // closeout briefly deleted committed images here too (reasoning it
-    // would close the same orphaned-object gap the AR-GLB fix closed) and
-    // reverted it the same pass once this risk was found — this test exists
-    // so that specific mistake can never silently return.
+    testWidgets('Stage 3: deleting a Virtual Try-On product also removes its '
+        'garment images from Storage', (tester) async {
+      final context = await _pumpContext(tester);
+      final shirt = mockDatabase.getProductById('classic-blue-shirt');
+      await mockDatabase.updateProduct(
+        shirt.copyWith(
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {
+              'black': VtoGarmentAsset(
+                storagePath:
+                    'products/classic-blue-shirt/vto/garment-black-v1.png',
+                sha256: 'a' * 64,
+                contentType: 'image/png',
+                byteSize: 100,
+                width: 900,
+                height: 1200,
+              ),
+            },
+          ),
+        ),
+      );
+
+      final result = await viewModel.deleteProduct(
+        context,
+        'classic-blue-shirt',
+      );
+
+      expect(result, isTrue);
+      expect(
+        mockStorageService.deletedVtoGarmentPaths,
+        contains('products/classic-blue-shirt/vto/garment-black-v1.png'),
+      );
+      expect(mockStorageService.deletedProductImageUrls, isEmpty);
+    });
+
+    testWidgets('Stage 3: a failed VTO garment cleanup still deletes the '
+        'product and warns', (tester) async {
+      final context = await _pumpContext(tester);
+      mockStorageService.failDeleteVtoGarment = true;
+      final shirt = mockDatabase.getProductById('classic-blue-shirt');
+      await mockDatabase.updateProduct(
+        shirt.copyWith(
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentDefault: VtoGarmentAsset(
+              storagePath:
+                  'products/classic-blue-shirt/vto/garment-default-v1.png',
+              sha256: 'a' * 64,
+              contentType: 'image/png',
+              byteSize: 100,
+              width: 900,
+              height: 1200,
+            ),
+          ),
+        ),
+      );
+
+      final result = await viewModel.deleteProduct(
+        context,
+        'classic-blue-shirt',
+      );
+
+      expect(result, isTrue);
+      expect(viewModel.arModelCleanupWarning, contains('manual cleanup'));
+      await _settleToast(tester);
+    });
+
+    testWidgets('Stage 3 hardening: a foreign committed garment path is never '
+        'deleted on product delete — only flagged', (tester) async {
+      final context = await _pumpContext(tester);
+      final shirt = mockDatabase.getProductById('classic-blue-shirt');
+      await mockDatabase.updateProduct(
+        shirt.copyWith(
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {
+              'black': VtoGarmentAsset(
+                storagePath:
+                    'products/ANOTHER-PRODUCT/vto/garment-black-v1.png',
+                sha256: 'a' * 64,
+                contentType: 'image/png',
+                byteSize: 100,
+                width: 900,
+                height: 1200,
+              ),
+            },
+          ),
+        ),
+      );
+
+      final result = await viewModel.deleteProduct(
+        context,
+        'classic-blue-shirt',
+      );
+
+      expect(result, isTrue);
+      expect(mockStorageService.deletedVtoGarmentPaths, isEmpty); // untouched
+      expect(
+        viewModel.arModelCleanupWarning,
+        contains('did not belong to this product'),
+      );
+      await _settleToast(tester);
+    });
+
+    // Phase 9.3 physical-test follow-up (developer decision 2026-09-11):
+    // the products-list delete path now removes the product's OWN
+    // `products/{id}/images/**` objects (no orphaned folder), but never an
+    // image URL that resolves to another product / elsewhere.
     testWidgets(
-      'deleting a product never touches its own committed Storage-hosted '
-      'images (protects historical order rendering)',
+      'deleting a product removes its OWN images but never another product\'s',
       (tester) async {
         final context = await _pumpContext(tester);
         final base = mockDatabase.getProductById('luna-accent-chair');
-        const mainUrl = 'https://mock-storage.test/products/x/images/1.jpg';
-        const galleryUrl = 'https://mock-storage.test/products/x/images/2.jpg';
-        final withImages = base.copyWith(
-          mainImage: const ProductImageRef(
-            path: mainUrl,
-            source: ProductImageSource.network,
-          ),
-          galleryMedia: [
-            const ProductImageRef(
-              path: galleryUrl,
+        const ownMain =
+            'https://mock-storage.test/products/luna-accent-chair/images/1.jpg';
+        const ownGallery =
+            'https://mock-storage.test/products/luna-accent-chair/images/2.jpg';
+        const foreign =
+            'https://mock-storage.test/products/another-product/images/9.jpg';
+        await mockDatabase.updateProduct(
+          base.copyWith(
+            mainImage: const ProductImageRef(
+              path: ownMain,
               source: ProductImageSource.network,
             ),
-          ],
+            galleryMedia: const [
+              ProductImageRef(
+                path: ownGallery,
+                source: ProductImageSource.network,
+              ),
+              ProductImageRef(
+                path: foreign,
+                source: ProductImageSource.network,
+              ),
+            ],
+          ),
         );
-        await mockDatabase.updateProduct(withImages);
 
-        final result = await viewModel.deleteProduct(context, withImages.id);
+        final result = await viewModel.deleteProduct(
+          context,
+          'luna-accent-chair',
+        );
 
         expect(result, isTrue);
-        expect(mockStorageService.deletedProductImageUrls, isEmpty);
+        expect(
+          mockStorageService.deletedOwnedProductImageUrls,
+          containsAll(<String>[ownMain, ownGallery]),
+        );
+        expect(
+          mockStorageService.deletedOwnedProductImageUrls,
+          isNot(contains(foreign)),
+        );
+        expect(
+          mockStorageService.deletedProductImageUrls,
+          isEmpty,
+        ); // rollback list untouched
+        expect(viewModel.arModelCleanupWarning, isNull);
+      },
+    );
+
+    testWidgets(
+      'a failed OWN-image cleanup still deletes the product and warns',
+      (tester) async {
+        final context = await _pumpContext(tester);
+        mockStorageService.failDeleteOwnedProductImage = true;
+        final base = mockDatabase.getProductById('luna-accent-chair');
+        await mockDatabase.updateProduct(
+          base.copyWith(
+            mainImage: const ProductImageRef(
+              path:
+                  'https://mock-storage.test/products/luna-accent-chair/images/1.jpg',
+              source: ProductImageSource.network,
+            ),
+            galleryMedia: const [],
+          ),
+        );
+
+        final result = await viewModel.deleteProduct(
+          context,
+          'luna-accent-chair',
+        );
+
+        expect(result, isTrue); // product IS gone from the catalogue
+        expect(
+          mockDatabase.products.any((p) => p.id == 'luna-accent-chair'),
+          isFalse,
+        );
+        expect(
+          viewModel.arModelCleanupWarning,
+          contains('could not be removed'),
+        );
+        await _settleToast(tester);
       },
     );
   });

@@ -7,6 +7,11 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 
+/// Shared chrome for the Admin AR & Media cards. Only the two pieces both the
+/// Room-AR ([AdminRoomArModelCard]) and Virtual Try-On ([AdminVtoGarmentCard])
+/// cards still use live here — the pre-9.3 mock helpers (upload tile, status
+/// pill, configuration status, action row) were removed with the mock VTO card.
+
 class AdminMediaCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -62,170 +67,6 @@ class AdminMediaCard extends StatelessWidget {
   }
 }
 
-class AdminMediaUploadTile extends StatelessWidget {
-  final String? fileName;
-  final String fileSize;
-  final String emptyLabel;
-  final VoidCallback onTap;
-
-  const AdminMediaUploadTile({
-    super.key,
-    required this.fileName,
-    required this.fileSize,
-    required this.emptyLabel,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasFile = fileName != null;
-    return InkWell(
-      key: const Key('admin_media_upload_tile'),
-      onTap: onTap,
-      borderRadius: AppRadii.mediumBorder,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.s),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: AppRadii.mediumBorder,
-          border: Border.all(color: AppColors.neutralMediumLight),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              hasFile
-                  ? Icons.inventory_2_outlined
-                  : Icons.cloud_upload_outlined,
-              color: AppColors.primaryDark,
-              size: AppSizes.iconLarge,
-            ),
-            const SizedBox(width: AppSpacing.s),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fileName ?? emptyLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (hasFile) Text(fileSize, style: AppTypography.bodySmall),
-                ],
-              ),
-            ),
-            Icon(
-              hasFile ? Icons.check_circle : Icons.add_circle_outline,
-              color: AppColors.primary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class AdminMediaStatus extends StatelessWidget {
-  final bool configured;
-
-  const AdminMediaStatus({super.key, required this.configured});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: configured
-            ? AppColors.primaryLight.withValues(alpha: 0.16)
-            : AppColors.neutralLight,
-        borderRadius: AppRadii.pillBorder,
-        border: Border.all(
-          color: configured ? AppColors.primary : AppColors.neutralMedium,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            configured ? Icons.check_circle : Icons.info_outline,
-            size: AppSizes.iconSmall,
-            color: configured ? AppColors.primaryDark : AppColors.neutralDark,
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Flexible(
-            child: Text(
-              configured ? 'Validated' : 'No asset selected',
-              style: AppTypography.caption.copyWith(
-                color: configured
-                    ? AppColors.primaryDark
-                    : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AdminMediaConfigurationStatus extends StatelessWidget {
-  final String label;
-  final bool configured;
-
-  const AdminMediaConfigurationStatus({
-    super.key,
-    required this.label,
-    required this.configured,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.s),
-      decoration: BoxDecoration(
-        color: configured
-            ? AppColors.primaryLight.withValues(alpha: 0.12)
-            : AppColors.neutralLight,
-        borderRadius: AppRadii.mediumBorder,
-        border: Border.all(
-          color: configured ? AppColors.primary : AppColors.neutralMediumLight,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            configured ? Icons.check_circle : Icons.info_outline,
-            color: configured ? AppColors.primaryDark : AppColors.warning,
-          ),
-          const SizedBox(width: AppSpacing.s),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: AppTypography.bodySmall),
-                Text(
-                  configured ? 'Configured' : 'Configuration Required',
-                  style: AppTypography.label.copyWith(
-                    color: configured
-                        ? AppColors.primaryDark
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class AdminMediaPreview extends StatelessWidget {
   final Widget child;
   final String label;
@@ -266,49 +107,6 @@ class AdminMediaPreview extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class AdminMediaActionRow extends StatelessWidget {
-  final String testLabel;
-  final VoidCallback onTest;
-  final VoidCallback? onReplace;
-  final VoidCallback? onRemove;
-
-  const AdminMediaActionRow({
-    super.key,
-    required this.testLabel,
-    required this.onTest,
-    this.onReplace,
-    this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xs,
-      children: [
-        OutlinedButton.icon(
-          onPressed: onTest,
-          icon: const Icon(Icons.science_outlined, size: AppSizes.iconSmall),
-          label: Text(testLabel),
-        ),
-        if (onReplace != null)
-          OutlinedButton.icon(
-            onPressed: onReplace,
-            icon: const Icon(Icons.upload_outlined, size: AppSizes.iconSmall),
-            label: const Text('Replace'),
-          ),
-        if (onRemove != null)
-          OutlinedButton.icon(
-            onPressed: onRemove,
-            icon: const Icon(Icons.delete_outline, size: AppSizes.iconSmall),
-            label: const Text('Remove'),
-            style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
-          ),
-      ],
     );
   }
 }

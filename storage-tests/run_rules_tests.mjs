@@ -62,6 +62,23 @@ const arModelWriteMeta = (contentType = 'model/gltf-binary') => ({
   customMetadata: arModelProvenance,
 });
 
+// Phase 9.3 Stage 3 - the `twinArVto*` provenance every VTO garment-image
+// write must carry (`hasVtoGarmentProvenance()`): a 64-hex SHA-256 + numeric
+// version.
+const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const oversizedVtoGarmentBytes = new Uint8Array(13 * 1024 * 1024); // > 12MB
+const vtoGarmentProvenance = {
+  twinArVtoSha256: 'a'.repeat(64),
+  twinArVtoVersion: '1',
+  twinArVtoWidth: '900',
+  twinArVtoHeight: '1200',
+  twinArVtoContentType: 'image/png',
+};
+const vtoWriteMeta = (contentType = 'image/png') => ({
+  contentType,
+  customMetadata: vtoGarmentProvenance,
+});
+
 let testEnv;
 const results = [];
 
@@ -864,6 +881,166 @@ async function main() {
     await assertFails(
       deleteObject(ref(alice, 'products/luna-3-seater-sofa/ar/model-v1.glb')),
     );
+  });
+
+  console.log('products/{productId}/vto/garment-{slot}-v{n}.{ext} — Phase 9.3 Stage 3');
+
+  await run('a signed-in customer can read a garment image', async () => {
+    await seed('products/oxford/vto/garment-black-v1.png', pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(
+      getBytes(ref(alice, 'products/oxford/vto/garment-black-v1.png')),
+    );
+  });
+
+  await run('an unauthenticated client CANNOT read a garment image (signed-in only, unlike product images)', async () => {
+    await seed('products/oxford/vto/garment-blue-v1.png', pngBytes, 'image/png');
+    const anon = storageFor(null);
+    await assertFails(getBytes(ref(anon, 'products/oxford/vto/garment-blue-v1.png')));
+  });
+
+  await run('a superAdmin can upload a valid garment image (type + provenance + name + size)', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black-v2.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin CANNOT overwrite an existing garment version (create-only, versioned objects are immutable)', async () => {
+    // Seed an object at the exact path first (bypassing rules).
+    await seed('products/oxford/vto/garment-blue-v7.png', pngBytes, 'image/png');
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-blue-v7.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin CAN re-create a garment version after it was deleted (rollback-then-retry)', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await seed('products/oxford/vto/garment-blue-v8.png', pngBytes, 'image/png');
+    await assertSucceeds(deleteObject(ref(admin, 'products/oxford/vto/garment-blue-v8.png')));
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-blue-v8.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin can upload a valid JPEG garment image', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-default-v1.jpg'),
+        jpegBytes,
+        vtoWriteMeta('image/jpeg'),
+      ),
+    );
+  });
+
+  await run('a superAdmin garment upload is rejected with NO twinArVto* provenance', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black-v3.png'),
+        pngBytes,
+        { contentType: 'image/png' },
+      ),
+    );
+  });
+
+  await run('a superAdmin garment upload is rejected for a malformed SHA-256 in provenance', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black-v3.png'),
+        pngBytes,
+        { contentType: 'image/png', customMetadata: { ...vtoGarmentProvenance, twinArVtoSha256: 'NOTHEX' } },
+      ),
+    );
+  });
+
+  await run('a superAdmin garment upload is rejected for a non-image content type', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black-v3.png'),
+        pngBytes,
+        vtoWriteMeta('model/gltf-binary'),
+      ),
+    );
+  });
+
+  await run('a superAdmin garment upload is rejected over the 12MB limit', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black-v3.png'),
+        oversizedVtoGarmentBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin garment upload is rejected for a bad object name (no version)', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/garment-black.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin cannot write under a deeper vto/ sub-path', async () => {
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(
+        ref(admin, 'products/oxford/vto/archive/garment-black-v1.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a customer cannot upload a garment image', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(
+        ref(alice, 'products/oxford/vto/garment-black-v9.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('an unauthenticated client cannot upload a garment image', async () => {
+    const anon = storageFor(null);
+    await assertFails(
+      uploadBytes(
+        ref(anon, 'products/oxford/vto/garment-black-v9.png'),
+        pngBytes,
+        vtoWriteMeta('image/png'),
+      ),
+    );
+  });
+
+  await run('a superAdmin can delete a garment image; a customer cannot', async () => {
+    await seed('products/oxford/vto/garment-gray-v1.png', pngBytes, 'image/png');
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(deleteObject(ref(alice, 'products/oxford/vto/garment-gray-v1.png')));
+    await assertSucceeds(deleteObject(ref(admin, 'products/oxford/vto/garment-gray-v1.png')));
   });
 
   console.log('catch-all');

@@ -3,6 +3,7 @@ import '../../../../core/data/category_repository.dart';
 import '../../../../core/data/commerce_database.dart';
 import '../../../../core/models/product/product_category.dart';
 import '../../../../core/models/product/product_experience_type.dart';
+import '../../../../core/models/product/product_image_ref.dart';
 import '../../../../core/models/product/product_model.dart';
 import '../../../../core/services/firebase_storage_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -121,33 +122,43 @@ class AdminProductManagementViewModel extends ChangeNotifier {
   /// warning (`arModelCleanupWarning` + a toast) and never turns a successful
   /// delete into a failure.
   ///
-  /// Deliberately does **not** delete the product's own Storage-hosted
-  /// images (main/gallery) — a Phase 9.2 closeout audit briefly added that
-  /// (reasoning it would close the same orphaned-object gap the AR-GLB fix
-  /// closed) and then reverted it the same pass: a historical
-  /// `OrderItemModel` snapshot (an already-placed order's line item) can
-  /// still carry that exact download URL by design (see
-  /// `StorageService.deleteProductImageByUrl`'s own interface doc comment —
-  /// "never for deleting a previously committed product image... historical
-  /// `OrderItemModel` snapshots may still reference it" — a pre-existing
-  /// rule this class must not violate), and auto-deleting it here would
-  /// silently break that order's rendering forever with no way to detect or
-  /// undo it. An AR model has no such risk (no order field ever references
-  /// one), which is exactly why only the AR-GLB cleanup is safe to automate.
-  /// A product's committed images are therefore intentionally left in
-  /// Storage on delete — orphaned storage cost, not a correctness bug — same
-  /// as `minimalist-bedroom-set`'s images needing the developer's own manual
-  /// cleanup, which was the *correct* thing to do, not a workaround for a
-  /// defect.
+  /// Also best-effort removes the product's **own product images**
+  /// (`products/{id}/images/**`) so deleting a product never leaves an orphaned
+  /// `products/{id}/` folder. Only URLs that resolve to *this* product's own
+  /// images/ folder are deleted — an image URL that resolves elsewhere (or
+  /// isn't a Storage URL) is left untouched. A historical `OrderItemModel`
+  /// order snapshot may still hold a copy of a deleted image's URL string; that
+  /// line item's thumbnail falls back to `ProductImageView`'s broken-image
+  /// placeholder (no crash). The developer accepted that trade-off.
+  ///
+  /// Returns `true` once the Firestore document is gone (the product IS deleted
+  /// from the catalog, so the dialog closes); returns `false` only when the
+  /// Firestore delete itself failed. Any Storage-cleanup failure is surfaced as
+  /// a **warning** (never a plain "deleted" success) via [arModelCleanupWarning]
+  /// + a toast — the delete is not reported as fully clean.
   Future<bool> deleteProduct(BuildContext context, String productId) async {
     _arModelCleanupWarning = null;
-    // Capture the AR-model path BEFORE the doc is gone.
+    // Snapshot every owned reference BEFORE the doc is gone. Only refs that
+    // provably belong to THIS product are captured — a corrupted/foreign VTO
+    // path or a cross-product image URL is never passed to Storage.
     String? arModelStoragePath;
+    var vtoOwnedPaths = const <String>{};
+    var vtoHadForeignPath = false;
+    var imageUrls = const <String>{};
     try {
-      arModelStoragePath = _database
-          .getProductById(productId)
-          .arMetadata
-          ?.storagePath;
+      final product = _database.getProductById(productId);
+      arModelStoragePath = product.arMetadata?.storagePath;
+      final vto = product.vtoMetadata;
+      if (vto != null) {
+        vtoOwnedPaths = vto.ownedAssetPaths(productId);
+        vtoHadForeignPath = vto.hasForeignAssetPath(productId);
+      }
+      imageUrls = {
+        if (product.mainImage.source == ProductImageSource.network)
+          product.mainImage.path,
+        for (final img in product.galleryMedia)
+          if (img.source == ProductImageSource.network) img.path,
+      };
     } catch (_) {
       // Product not in the local cache - nothing to clean up.
     }
@@ -161,16 +172,34 @@ class AdminProductManagementViewModel extends ChangeNotifier {
       return false;
     }
 
-    if (arModelStoragePath != null) {
-      final removed = await storageService.deleteArModelByPath(
-        arModelStoragePath,
-      );
-      if (!removed) {
-        _arModelCleanupWarning =
-            'Product deleted — its 3D model file could not be removed from '
-            'storage and may need manual cleanup in the Firebase console.';
-        if (context.mounted) AppToast.warning(context, _arModelCleanupWarning!);
+    var cleanupFailed = false;
+    if (arModelStoragePath != null &&
+        !await storageService.deleteArModelByPath(arModelStoragePath)) {
+      cleanupFailed = true;
+    }
+    for (final path in vtoOwnedPaths) {
+      if (!await storageService.deleteVtoGarmentByPath(path)) cleanupFailed = true;
+    }
+    for (final url in imageUrls) {
+      if (!await storageService.deleteOwnedProductImage(
+        productId: productId,
+        downloadUrl: url,
+      )) {
+        cleanupFailed = true;
       }
+    }
+
+    if (cleanupFailed || vtoHadForeignPath) {
+      _arModelCleanupWarning = [
+        'Product deleted —',
+        if (cleanupFailed)
+          'one or more of its Storage objects could not be removed',
+        if (vtoHadForeignPath)
+          '${cleanupFailed ? 'and' : ''} one or more stored garment paths did '
+              'not belong to this product and were left untouched',
+        '— manual cleanup in the Firebase console may be needed.',
+      ].join(' ');
+      if (context.mounted) AppToast.warning(context, _arModelCleanupWarning!);
     }
     return true;
   }
