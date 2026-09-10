@@ -13,6 +13,7 @@ import 'package:twin_ar/core/models/product/product_experience_type.dart';
 import 'package:twin_ar/core/models/product/product_publication_status.dart';
 import 'package:twin_ar/features/admin/product_management/viewmodels/admin_product_form_viewmodel.dart';
 import 'package:twin_ar/features/admin/product_management/views/admin_product_form_view.dart';
+import 'package:twin_ar/core/data/product_firestore_mapper.dart';
 import 'package:twin_ar/core/models/product/product_model.dart';
 import 'package:twin_ar/core/models/product/product_image_ref.dart';
 import 'package:twin_ar/core/models/product/product_vto_model_type.dart';
@@ -151,6 +152,112 @@ void main() {
       final built = vm.buildArConfigurationPreview();
       expect(built.isFeatured, isTrue);
       expect(built.featuredRank, 2);
+    });
+
+    test('Dynamic Home Stage 4 — turning the switch OFF builds an un-featured '
+        'model whose map omits both keys', () async {
+      final seeded = db.getProductById('luna-accent-chair');
+      await db.updateProduct(
+        seeded.copyWith(isFeatured: true, featuredRank: 2),
+      );
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+        initialProductId: 'luna-accent-chair',
+      );
+      expect(vm.isFeatured, isTrue);
+
+      vm.setIsFeatured(false);
+      final built = vm.buildArConfigurationPreview();
+      expect(built.isFeatured, isFalse);
+      final map = built.toFirestoreMap();
+      expect(map.containsKey('isFeatured'), isFalse);
+      expect(map.containsKey('featuredRank'), isFalse);
+    });
+
+    test('Dynamic Home Stage 4 — "Feature order" of 0 is coerced to the '
+        'neutral default and flagged as invalid for save', () {
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+      );
+      expect(vm.hasInvalidFeaturedRank, isFalse); // not featured
+
+      vm.setIsFeatured(true);
+      expect(vm.hasInvalidFeaturedRank, isFalse); // blank → default is fine
+
+      vm.featuredRankController.text = '0';
+      expect(vm.hasInvalidFeaturedRank, isTrue);
+      expect(
+        vm.buildArConfigurationPreview().featuredRank,
+        ProductModel.defaultFeaturedRank,
+      );
+
+      vm.featuredRankController.text = '5';
+      expect(vm.hasInvalidFeaturedRank, isFalse);
+      expect(vm.buildArConfigurationPreview().featuredRank, 5);
+
+      // A non-positive value never blocks the save once the switch is off.
+      vm.setIsFeatured(false);
+      vm.featuredRankController.text = '0';
+      expect(vm.hasInvalidFeaturedRank, isFalse);
+    });
+
+    testWidgets('Dynamic Home Stage 4 — featuring a product on Save writes '
+        'isFeatured/featuredRank and preserves every other field (images, AR '
+        'metadata, stock, addedDate)', (tester) async {
+      final original = db.getProductById('luna-accent-chair');
+      // seed a product that carries AR metadata + a gallery + a real date
+      await db.updateProduct(
+        original.copyWith(
+          arMetadata: const ProductArMetadata(
+            storagePath: 'products/luna-accent-chair/ar/model-v1.glb',
+            modelVersion: '1',
+            sha256:
+                'd67c68f823d06881ec1aabf7f8ca6f0128f1016483ea0307f5c2ecef66b3cf94',
+            widthM: 0.7,
+            depthM: 0.72,
+            heightM: 0.82,
+          ),
+        ),
+      );
+      final seeded = db.getProductById('luna-accent-chair');
+
+      final ctx = await _unmountedContext(tester);
+      final vm = AdminProductFormViewModel(
+        database: db,
+        categoryRepository: categoryRepo,
+        storageService: storage,
+        initialProductId: 'luna-accent-chair',
+      );
+      addTearDown(vm.dispose);
+
+      vm.setIsFeatured(true);
+      vm.featuredRankController.text = '10';
+      expect(await vm.updateProduct(ctx), isTrue);
+
+      final saved = db.getProductById('luna-accent-chair');
+      expect(saved.isFeatured, isTrue);
+      expect(saved.featuredRank, 10);
+      // nothing else moved
+      expect(saved.arMetadata?.storagePath, seeded.arMetadata?.storagePath);
+      expect(saved.galleryMedia.length, seeded.galleryMedia.length);
+      expect(saved.mainImage.path, seeded.mainImage.path);
+      expect(saved.stockQuantity, seeded.stockQuantity);
+      expect(saved.addedDate, seeded.addedDate);
+      expect(saved.publicationStatus, seeded.publicationStatus);
+      expect(saved.experienceType, seeded.experienceType);
+
+      // …and un-featuring on the next save clears the fields, still no data loss
+      vm.setIsFeatured(false);
+      expect(await vm.updateProduct(ctx), isTrue);
+      final unfeatured = db.getProductById('luna-accent-chair');
+      expect(unfeatured.isFeatured, isFalse);
+      expect(
+        unfeatured.arMetadata?.storagePath,
+        seeded.arMetadata?.storagePath,
+      );
+      expect(unfeatured.stockQuantity, seeded.stockQuantity);
     });
 
     test('AR Type filtering by category', () {
@@ -599,6 +706,41 @@ void main() {
       expect(find.text('Publish'), findsOneWidget);
       expect(find.text('Delete'), findsNothing);
       expect(find.text('Update'), findsNothing);
+    });
+
+    testWidgets('Dynamic Home Stage 4 — the "Feature on Home" switch renders '
+        'and toggling it reveals/hides the "Feature order" field', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final featureRow = find.text('Feature on Home');
+      await tester.scrollUntilVisible(
+        featureRow,
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(featureRow, findsOneWidget);
+      expect(find.textContaining('Feature order'), findsNothing);
+
+      // the switch adjacent to the "Feature on Home" label
+      final featureSwitch = find.descendant(
+        of: find.ancestor(of: featureRow, matching: find.byType(Row)).first,
+        matching: find.byType(Switch),
+      );
+      await tester.tap(featureSwitch);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Feature order'), findsOneWidget);
+
+      await tester.tap(featureSwitch);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Feature order'), findsNothing);
     });
 
     testWidgets(

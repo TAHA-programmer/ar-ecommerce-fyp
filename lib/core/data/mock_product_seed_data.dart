@@ -141,8 +141,9 @@ final Map<String, ProductArMetadata> kRoomArProductMetadata = {
     ),
 };
 
-/// The canonical mock product catalog (51 products total; ~36 of them are
-/// Explore-visible - see `showInCatalog` on each), as a plain
+/// The canonical mock product catalog (50 products total; `minimalist-bedroom-set`
+/// was permanently removed 2026-09-09 — see `18_ROOM_AR_PRODUCT_COVERAGE_MATRIX.md`,
+/// which still cites the pre-removal count of 51), as a plain
 /// data-construction function with zero Flutter/Firestore imports (only
 /// [ProductModel] and its own plain-Dart dependencies).
 ///

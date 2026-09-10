@@ -982,6 +982,35 @@ async function main() {
     );
   });
 
+  // ── Phase 9.3 "Dynamic Home Content" — isFeatured / featuredRank ────────
+  await run('an admin can set isFeatured / featuredRank on a product; a '
+      + 'customer cannot', async () => {
+    await testEnv.clearFirestore();
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    // products write is `isAdmin()` with no field-shape rule — the two new
+    // fields are just ordinary keys on the doc.
+    await assertSucceeds(
+      setDoc(doc(admin.firestore(), 'products/p1'), {
+        ...publishedActiveProduct(),
+        isFeatured: true,
+        featuredRank: 10,
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(admin.firestore(), 'products/p1'), {
+        isFeatured: false,
+        featuredRank: 1000,
+      }),
+    );
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'products/p1'), { isFeatured: true }),
+    );
+  });
+
   console.log('products/{id} - stock / lastStockUpdatedAt writes (Phase 8.11 / 8.12)');
 
   await run('a signed-in customer cannot decrement a product\'s stockQuantity (Phase 8.11: no customer product-stock write exists)', async () => {

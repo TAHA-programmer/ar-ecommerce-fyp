@@ -316,10 +316,26 @@ class AdminProductFormViewModel extends ChangeNotifier {
 
   void _onFeaturedRankChanged() {
     final parsed = int.tryParse(featuredRankController.text.trim());
-    _featuredRank = (parsed == null || parsed < 0)
+    // A blank / non-numeric / non-positive entry resolves to the neutral
+    // default (a featured product with no explicit rank sorts after every
+    // explicitly-ranked one). Save-time validation (`_validateCoreFields`)
+    // additionally *blocks* a non-blank non-positive entry so the Admin sees
+    // the mistake rather than a silent coercion.
+    _featuredRank = (parsed == null || parsed <= 0)
         ? ProductModel.defaultFeaturedRank
         : parsed;
     _markDirty();
+  }
+
+  /// `true` when "Feature on Home" is on but the "Feature order" field holds
+  /// a non-blank value that isn't a positive whole number. Blank is fine (it
+  /// means "use the default rank"). Save is blocked while this is `true`.
+  bool get hasInvalidFeaturedRank {
+    if (!_isFeatured) return false;
+    final text = featuredRankController.text.trim();
+    if (text.isEmpty) return false;
+    final parsed = int.tryParse(text);
+    return parsed == null || parsed <= 0;
   }
 
   void _markDirty() {
@@ -749,6 +765,14 @@ class AdminProductFormViewModel extends ChangeNotifier {
     final stock = int.tryParse(stockController.text);
     if (stock == null || stock < 0) {
       AppToast.error(context, 'Valid Stock Quantity is required.');
+      return false;
+    }
+    if (hasInvalidFeaturedRank) {
+      AppToast.error(
+        context,
+        'Feature order must be a positive whole number '
+        '(or leave it blank for the default).',
+      );
       return false;
     }
     return true;

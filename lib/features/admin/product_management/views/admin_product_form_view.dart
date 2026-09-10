@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:twin_ar/app/routes/route_names.dart';
@@ -373,9 +374,14 @@ class _AdminProductFormContent extends StatelessWidget {
               if (viewModel.isFeatured) ...[
                 const SizedBox(height: 4),
                 _buildTextField(
-                  'Feature order (lower shows first)',
+                  'Feature order (positive number, lower shows first — '
+                  'blank uses the default)',
                   viewModel.featuredRankController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
                 ),
                 const SizedBox(height: 8),
               ],
@@ -1058,6 +1064,7 @@ class _AdminProductFormContent extends StatelessWidget {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
     void Function(String)? onChanged,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1072,6 +1079,7 @@ class _AdminProductFormContent extends StatelessWidget {
           maxLines: maxLines,
           keyboardType: keyboardType,
           onChanged: onChanged,
+          inputFormatters: inputFormatters,
           style: AppTypography.bodyMedium,
           decoration: InputDecoration(
             border: OutlineInputBorder(
