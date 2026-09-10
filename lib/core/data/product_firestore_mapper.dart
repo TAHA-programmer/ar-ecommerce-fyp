@@ -8,6 +8,7 @@ import '../models/product/product_model.dart';
 import '../models/product/product_publication_status.dart';
 import '../models/product/product_size.dart';
 import '../models/product/product_specification.dart';
+import '../models/product/product_vto_metadata.dart';
 import '../models/product/product_vto_model_type.dart';
 
 // Firestore <-> ProductModel mapping for `products/{productId}`.
@@ -91,7 +92,30 @@ ProductModel productModelFromFirestore(String id, Map<String, dynamic> data) {
     // while keeping the model. Absent on every pre-R16 document => `false`.
     arModelDisabled: data['arModelDisabled'] as bool? ?? false,
     vtoGarmentAssetPath: data['vtoGarmentAssetPath'] as String?,
+    // Phase 9.3 Stage 2 production Virtual Try-On contract. `null` when the doc
+    // carries no `vto*` signal (every product today); a present-but-incomplete
+    // config still parses (as a non-renderable object) so admin/diagnostics can
+    // see and fix it — same discipline as `arMetadata`.
+    vtoMetadata: ProductVtoMetadata.fromProductData(data),
+    // Phase 9.3 Stage 2 — admin has switched the customer VTO entry point off
+    // while keeping the config. Absent on every pre-Stage-3 document => `false`.
+    // Defensive read: a non-boolean value (corrupt / hand-edited doc) must not
+    // throw — and it fails CLOSED (treated as disabled) so a corrupt flag can
+    // never leave a customer-visible try-on button live.
+    vtoDisabled: _vtoDisabledFromData(data),
   );
+}
+
+/// `false` when the key is absent (backward compatible with every pre-Stage-3
+/// document); the boolean itself when it is a real `bool`; **`true`** when the
+/// key is present but not a `bool` (corrupt data — fail closed, hide the entry
+/// point). Never throws.
+bool _vtoDisabledFromData(Map<String, dynamic> data) {
+  final key = ProductVtoMetadata.disabledFirestoreKey;
+  if (!data.containsKey(key)) return false;
+  final raw = data[key];
+  if (raw is bool) return raw;
+  return true;
 }
 
 extension ProductModelFirestoreMapper on ProductModel {
@@ -163,6 +187,16 @@ extension ProductModelFirestoreMapper on ProductModel {
     // `lastStockUpdatedAt`, so a full `.set()` never adds a noise key to an
     // untouched product or churns the seed export.
     if (arModelDisabled) map['arModelDisabled'] = true;
+    // Phase 9.3 Stage 2: when the product has a production VTO contract, write
+    // its flat `vto*` fields (`vtoGarmentCategory` / `vtoContract` /
+    // `vtoGarments` / `vtoGarmentDefault`). Omitted entirely when
+    // `vtoMetadata == null`, so existing/non-VTO documents are unaffected. The
+    // legacy `vtoGarmentAssetPath` string above is left as-is (inert), exactly
+    // like `arModelAssetPath`.
+    final vto = vtoMetadata;
+    if (vto != null) map.addAll(vto.toFirestoreFields());
+    // Same "omit when false" discipline as `arModelDisabled`.
+    if (vtoDisabled) map[ProductVtoMetadata.disabledFirestoreKey] = true;
     return map;
   }
 }

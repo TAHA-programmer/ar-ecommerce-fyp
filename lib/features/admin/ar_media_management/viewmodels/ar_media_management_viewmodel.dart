@@ -5,40 +5,71 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/data/commerce_database.dart';
 import '../../../../core/models/product/product_ar_metadata.dart';
-import '../../../../core/models/product/product_color_option.dart';
 import '../../../../core/models/product/product_experience_type.dart';
 import '../../../../core/models/product/product_model.dart';
 import '../../../../core/models/product/product_publication_status.dart';
-import '../../../../core/models/product/product_size.dart';
+import '../../../../core/models/product/product_vto_metadata.dart';
 import '../../../../core/models/product/product_vto_model_type.dart';
 import '../../../../core/services/firebase_storage_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../room_ar/model_delivery/glb_inspector.dart';
 import '../models/admin_ar_model_candidate.dart';
+import '../models/admin_vto_garment_candidate.dart';
 import '../services/ar_model_file_picker.dart';
+import '../services/vto_garment_file_picker.dart';
 import '../utils/admin_glb_validator.dart';
-
-/// A mock media asset — **Virtual Try-On only** now. Room AR moved to real
-/// GLB upload / validation / versioning in Phase 9.2 R16; VTO stays mock
-/// until Phase 9.3+.
-class MockMediaAsset {
-  final String fileName;
-  final String fileSize;
-
-  const MockMediaAsset(this.fileName, this.fileSize);
-}
-
-enum MockBodyArea { upperBody, lowerBody, fullBody }
-
-extension MockBodyAreaX on MockBodyArea {
-  String get label => switch (this) {
-    MockBodyArea.upperBody => 'Upper Body',
-    MockBodyArea.lowerBody => 'Lower Body',
-    MockBodyArea.fullBody => 'Full Body',
-  };
-}
+import '../utils/admin_vto_garment_validator.dart';
 
 enum ArMediaManagementMode { general, productScoped }
+
+/// The Virtual Try-On garment-asset workflow state for the selected product,
+/// derived from the working product plus any staged change (Phase 9.3 Stage 3).
+/// Exact mirror of [AdminRoomArModelStatus].
+enum AdminVtoAssetStatus {
+  /// The product opts into Virtual Try-On but has no garment config at all.
+  noAsset,
+
+  /// A committed, renderable config; the customer entry point is ON and the
+  /// product is customer-visible.
+  live,
+
+  /// A committed, renderable config; the admin has switched the entry point
+  /// OFF (assets retained, one toggle from live).
+  disabled,
+
+  /// A committed config that is present but not renderable — it needs a fix
+  /// (re-upload / corrected metadata / missing per-colour asset). Never
+  /// customer-visible.
+  broken,
+
+  /// A committed, renderable config with the entry point ON — **but this
+  /// product is not customer-visible yet** (unpublished / inactive / a colour
+  /// still uncovered). Shown honestly, never as "Live".
+  readyNotApproved,
+
+  /// One or more validated garment images (or a category change) are staged,
+  /// awaiting Save.
+  stagedUpload,
+
+  /// A pending enable/disable of the entry point is staged, awaiting Save.
+  stagedToggle,
+
+  /// A pending permanent deletion of the whole VTO config is staged, awaiting
+  /// Save.
+  stagedDeletion,
+}
+
+/// The literal slot key for the single optional product-wide garment asset.
+const String kVtoDefaultSlot = 'default';
+
+/// Ordered garment categories for the admin dropdown — the same closed set as
+/// [ProductVtoMetadata.supportedGarmentCategories], with a stable display order.
+const List<String> kVtoGarmentCategoryOptions = [
+  'top',
+  'outerwear',
+  'dress',
+  'bottom',
+];
 
 /// The Room-AR model workflow state for the selected product, derived from the
 /// working product plus any staged change (Phase 9.2 R16).
@@ -87,6 +118,7 @@ class ArMediaManagementViewModel extends ChangeNotifier {
   final ArMediaManagementMode mode;
   final StorageService _storage;
   final ArModelFilePicker _picker;
+  final VtoGarmentFilePicker _vtoPicker;
   final GlbInspector _inspector;
 
   /// Product-scoped mode only: the product exactly as it was handed in — the
@@ -97,11 +129,13 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     CommerceDatabase database, {
     StorageService? storageService,
     ArModelFilePicker? filePicker,
+    VtoGarmentFilePicker? vtoFilePicker,
     GlbInspector inspector = const GlbInspector(),
   }) : this.general(
          database,
          storageService: storageService,
          filePicker: filePicker,
+         vtoFilePicker: vtoFilePicker,
          inspector: inspector,
        );
 
@@ -109,10 +143,12 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     CommerceDatabase database, {
     StorageService? storageService,
     ArModelFilePicker? filePicker,
+    VtoGarmentFilePicker? vtoFilePicker,
     this._inspector = const GlbInspector(),
   }) : _database = database,
        _storage = storageService ?? FirebaseStorageService(),
        _picker = filePicker ?? const FilePickerArModelFilePicker(),
+       _vtoPicker = vtoFilePicker ?? const FilePickerVtoGarmentFilePicker(),
        _initialProduct = null,
        mode = ArMediaManagementMode.general {
     database.addListener(_onDatabaseChanged);
@@ -123,20 +159,16 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     ProductModel product, {
     StorageService? storageService,
     ArModelFilePicker? filePicker,
+    VtoGarmentFilePicker? vtoFilePicker,
     this._inspector = const GlbInspector(),
   }) : _database = null,
        _storage = storageService ?? FirebaseStorageService(),
        _picker = filePicker ?? const FilePickerArModelFilePicker(),
+       _vtoPicker = vtoFilePicker ?? const FilePickerVtoGarmentFilePicker(),
        _initialProduct = product,
        mode = ArMediaManagementMode.productScoped {
     _loadProduct(product);
   }
-
-  static const vtoAssetOptions = [
-    MockMediaAsset('male_jacket.glb', '9.1 MB'),
-    MockMediaAsset('female_hoodie.glb', '8.7 MB'),
-    MockMediaAsset('shirt_overlay.glb', '5.4 MB'),
-  ];
 
   ProductModel? _workingProduct;
   String? _selectedProductId;
@@ -146,19 +178,6 @@ class ArMediaManagementViewModel extends ChangeNotifier {
   ProductModel? get selectedProduct => _workingProduct;
   bool get isProductScoped => mode == ArMediaManagementMode.productScoped;
   bool get hasUnsavedChanges => _hasUnsavedChanges;
-
-  // ── VTO mock state (unchanged) ─────────────────────────────────────────
-  String _garmentType = 'Top';
-  String get garmentType => _garmentType;
-
-  MockBodyArea _bodyArea = MockBodyArea.upperBody;
-  MockBodyArea get bodyArea => _bodyArea;
-
-  ProductColorOption? _associatedColor;
-  ProductColorOption? get associatedColor => _associatedColor;
-
-  ProductSize? _associatedSize;
-  ProductSize? get associatedSize => _associatedSize;
 
   // ── Room-AR production state (R16) ─────────────────────────────────────
   AdminArModelCandidate? _candidate;
@@ -225,13 +244,15 @@ class ArMediaManagementViewModel extends ChangeNotifier {
       committedArMetadata != null ||
       _workingProduct?.arModelDisabled == true;
 
-  bool get isVtoConfigured => selectedProduct?.vtoGarmentAssetPath != null;
-
-  String? get vtoAssetFileName =>
-      _fileNameFromPath(selectedProduct?.vtoGarmentAssetPath);
-
-  String get vtoAssetFileSize =>
-      _sizeFor(selectedProduct?.vtoGarmentAssetPath, vtoAssetOptions);
+  /// "There is something to configure/save" for the Virtual Try-On side — a
+  /// committed config, staged garment candidates, a category change, or a
+  /// staged toggle/deletion.
+  bool get isVtoConfigured =>
+      _vtoCandidates.isNotEmpty ||
+      _stagedVtoDeletion ||
+      committedVtoMetadata != null ||
+      _workingProduct?.vtoDisabled == true ||
+      _vtoCategoryChanged;
 
   /// `true` when the selected product actually meets every condition
   /// `storage.rules`' now-dynamic, metadata-driven `isApprovedArProduct()`
@@ -283,6 +304,163 @@ class ArMediaManagementViewModel extends ChangeNotifier {
       (!productIsCustomerApproved ||
           (_workingProduct?.arModelDisabled ?? false));
 
+  // ── Virtual Try-On production state (Phase 9.3 Stage 3) ────────────────
+  //
+  // Exact mirror of the Room-AR side above, adapted for a 2-D image with one
+  // asset per product colour (+ an optional product-wide `default`).
+
+  /// Slot key (`'default'` or a `ProductColorOption.name`) -> a validated,
+  /// staged-but-not-uploaded garment image.
+  final Map<String, AdminVtoGarmentCandidate> _vtoCandidates = {};
+
+  /// The staged garment category (`null` = unchanged from the committed config
+  /// / not yet set). Read through [vtoGarmentCategory].
+  String? _vtoGarmentCategory;
+
+  /// Staged intent to permanently delete the whole VTO config on Save.
+  bool _stagedVtoDeletion = false;
+
+  bool _isValidatingGarment = false;
+  String? _validatingGarmentSlot;
+  String? _garmentValidationError;
+  bool _isUploadingGarment = false;
+  double _garmentUploadProgress = 0;
+  String? _vtoWorkflowNote;
+
+  Map<String, AdminVtoGarmentCandidate> get stagedVtoCandidates =>
+      Map.unmodifiable(_vtoCandidates);
+  bool get isValidatingGarment => _isValidatingGarment;
+  String? get validatingGarmentSlot => _validatingGarmentSlot;
+  String? get garmentValidationError => _garmentValidationError;
+  bool get isUploadingGarment => _isUploadingGarment;
+  double get garmentUploadProgress => _garmentUploadProgress;
+
+  /// Set when a save / delete's Firestore write **succeeded** but the
+  /// best-effort Storage cleanup of a superseded / removed garment object
+  /// failed. Honest UI note; the (correct) Firestore write is never undone.
+  String? get vtoWorkflowNote => _vtoWorkflowNote;
+
+  /// The committed VTO contract on the working product (may be non-renderable).
+  ProductVtoMetadata? get committedVtoMetadata => _workingProduct?.vtoMetadata;
+
+  /// The effective garment category to show — staged value, else the committed
+  /// value, else the first supported category.
+  String get vtoGarmentCategory =>
+      _vtoGarmentCategory ??
+      committedVtoMetadata?.garmentCategory ??
+      kVtoGarmentCategoryOptions.first;
+
+  /// `true` only when the admin has picked a category that differs from the
+  /// committed one. A category-only edit is savable when a committed config
+  /// already exists; it is meaningless with no config (nothing to write).
+  bool get _vtoCategoryChanged {
+    final committed = committedVtoMetadata?.garmentCategory;
+    if (_vtoGarmentCategory == null || committed == null) return false;
+    return _vtoGarmentCategory != committed;
+  }
+
+  /// Honest per-field reasons the committed VTO config is not renderable — for
+  /// the admin "needs a fix" state. Empty when renderable or absent.
+  List<String> get committedVtoIssues {
+    final vto = _workingProduct?.vtoMetadata;
+    if (vto == null || vto.isRenderable) return const [];
+    return vto.issues;
+  }
+
+  /// The garment slots to configure for the selected product: one per available
+  /// colour (its `ProductColorOption.name`), then the optional `default` slot.
+  List<String> get vtoSlots {
+    final product = _workingProduct;
+    if (product == null) return const [];
+    return [...product.availableColors.map((c) => c.name), kVtoDefaultSlot];
+  }
+
+  AdminVtoGarmentCandidate? vtoCandidateForSlot(String slot) =>
+      _vtoCandidates[slot];
+
+  /// The committed asset for [slot] (if any) — a `ProductColorOption.name` or
+  /// `default`.
+  VtoGarmentAsset? committedVtoAssetForSlot(String slot) {
+    final vto = committedVtoMetadata;
+    if (vto == null) return null;
+    return slot == kVtoDefaultSlot
+        ? vto.garmentDefault
+        : vto.garmentsByColor[slot];
+  }
+
+  /// `true` when a committed asset exists for [slot] but its stored Storage
+  /// path is **not** exactly this product's own expected path for the slot
+  /// (cross-product / hand-edited / wrong-version). Such an asset is never
+  /// previewed, never trusted, and must be replaced. Distinct from
+  /// [canPreviewCommittedGarment] (which is also `false` mid-deletion).
+  bool committedGarmentPathIsForeign(String slot) {
+    final asset = committedVtoAssetForSlot(slot);
+    final product = _workingProduct;
+    if (asset == null || product == null) return false;
+    return !asset.matchesExpectedPath(product.id, slot);
+  }
+
+  /// The staged value of the customer Virtual Try-On entry point.
+  bool get vtoEntryPointEnabled =>
+      _workingProduct != null && !_workingProduct!.vtoDisabled;
+
+  /// `true` when the product actually meets every condition for a customer
+  /// launch: a renderable, owned config, every colour covered, entry point on,
+  /// and the product itself published + active. Mirrors
+  /// [productIsCustomerApproved].
+  bool get vtoProductIsCustomerApproved {
+    final product = _workingProduct;
+    return product != null &&
+        product.hasRenderableVtoAsset &&
+        product.isActive &&
+        product.publicationStatus == ProductPublicationStatus.published;
+  }
+
+  AdminVtoAssetStatus get vtoAssetStatus {
+    if (_stagedVtoDeletion) return AdminVtoAssetStatus.stagedDeletion;
+    if (_vtoCandidates.isNotEmpty || _vtoCategoryChanged) {
+      return AdminVtoAssetStatus.stagedUpload;
+    }
+    final product = _workingProduct;
+    final vto = product?.vtoMetadata;
+    if (product == null || vto == null) return AdminVtoAssetStatus.noAsset;
+    if (!vto.isRenderableForProduct(product.id)) {
+      return AdminVtoAssetStatus.broken;
+    }
+    final committedDisabled = _baselineProduct?.vtoDisabled ?? false;
+    if (product.vtoDisabled != committedDisabled) {
+      return AdminVtoAssetStatus.stagedToggle;
+    }
+    if (product.vtoDisabled) return AdminVtoAssetStatus.disabled;
+    return vtoProductIsCustomerApproved
+        ? AdminVtoAssetStatus.live
+        : AdminVtoAssetStatus.readyNotApproved;
+  }
+
+  /// `true` when a delete would strand a live customer experience — the UI
+  /// forces "disable first". A product not customer-approved has nothing to
+  /// strand, so the gate does not apply there.
+  bool get canStageVtoDeletion =>
+      committedVtoMetadata != null &&
+      !_stagedVtoDeletion &&
+      (!vtoProductIsCustomerApproved ||
+          (_workingProduct?.vtoDisabled ?? false));
+
+  /// `true` when the admin can inline-preview a committed asset for [slot]
+  /// (downloaded through Storage) — a staged candidate previews from its local
+  /// file always. Requires the stored path to be **exactly this product's own**
+  /// expected path for the slot ([VtoGarmentAsset.matchesExpectedPath]): a
+  /// well-formed but cross-product / hand-edited path is never downloaded.
+  bool canPreviewCommittedGarment(String slot) {
+    final asset = committedVtoAssetForSlot(slot);
+    final product = _workingProduct;
+    return asset != null &&
+        product != null &&
+        asset.isRenderable &&
+        asset.matchesExpectedPath(product.id, slot) &&
+        !_stagedVtoDeletion;
+  }
+
   /// The product as it was before any staged change — the database's copy in
   /// general mode, the handed-in product in product-scoped mode.
   ProductModel? get _baselineProduct => _committedProduct ?? _initialProduct;
@@ -308,6 +486,7 @@ class ArMediaManagementViewModel extends ChangeNotifier {
       _selectedProductId = null;
       _hasUnsavedChanges = false;
       _resetRoomArStaging();
+      _resetVtoStaging();
       return;
     }
     _loadProduct(products.first);
@@ -342,16 +521,9 @@ class ArMediaManagementViewModel extends ChangeNotifier {
   void _loadProduct(ProductModel product) {
     _workingProduct = product;
     _selectedProductId = product.id;
-    _garmentType = 'Top';
-    _bodyArea = MockBodyArea.upperBody;
-    _associatedColor = product.availableColors.isEmpty
-        ? null
-        : product.availableColors.first;
-    _associatedSize = product.availableSizes.isEmpty
-        ? null
-        : product.availableSizes.first;
     _hasUnsavedChanges = false;
     _resetRoomArStaging();
+    _resetVtoStaging();
   }
 
   void _resetRoomArStaging() {
@@ -362,6 +534,18 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     _isUploadingModel = false;
     _modelUploadProgress = 0;
     _modelWorkflowNote = null;
+  }
+
+  void _resetVtoStaging() {
+    _vtoCandidates.clear();
+    _vtoGarmentCategory = null;
+    _stagedVtoDeletion = false;
+    _isValidatingGarment = false;
+    _validatingGarmentSlot = null;
+    _garmentValidationError = null;
+    _isUploadingGarment = false;
+    _garmentUploadProgress = 0;
+    _vtoWorkflowNote = null;
   }
 
   void _stage(ProductModel product) {
@@ -518,11 +702,13 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     _hasUnsavedChanges =
         _candidate != null ||
         _stagedModelDeletion ||
+        _vtoCandidates.isNotEmpty ||
+        _stagedVtoDeletion ||
+        _vtoCategoryChanged ||
         (baseline != null &&
             _workingProduct != null &&
             (baseline.arModelDisabled != _workingProduct!.arModelDisabled ||
-                baseline.vtoGarmentAssetPath !=
-                    _workingProduct!.vtoGarmentAssetPath ||
+                baseline.vtoDisabled != _workingProduct!.vtoDisabled ||
                 baseline.vtoModelType != _workingProduct!.vtoModelType));
   }
 
@@ -582,51 +768,7 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     return null;
   }
 
-  // ── VTO (unchanged mock behaviour) ────────────────────────────────────
-  void selectVtoAsset(MockMediaAsset asset) {
-    final product = selectedProduct;
-    if (product == null || !isVirtualTryOn) return;
-    _stage(product.copyWith(vtoGarmentAssetPath: asset.fileName));
-  }
-
-  void removeVtoAsset() {
-    final product = selectedProduct;
-    if (product == null ||
-        !isVirtualTryOn ||
-        product.vtoGarmentAssetPath == null) {
-      return;
-    }
-    _stage(product.copyWith(clearVtoGarmentAssetPath: true));
-  }
-
-  void setGarmentType(String value) {
-    if (_garmentType == value) return;
-    _garmentType = value;
-    _markFeatureStateDirty();
-  }
-
-  void setBodyArea(MockBodyArea value) {
-    if (_bodyArea == value) return;
-    _bodyArea = value;
-    _markFeatureStateDirty();
-  }
-
-  void setAssociatedColor(ProductColorOption? value) {
-    if (_associatedColor == value) return;
-    _associatedColor = value;
-    _markFeatureStateDirty();
-  }
-
-  void setAssociatedSize(ProductSize? value) {
-    if (_associatedSize == value) return;
-    _associatedSize = value;
-    _markFeatureStateDirty();
-  }
-
-  void _markFeatureStateDirty() {
-    _hasUnsavedChanges = true;
-    notifyListeners();
-  }
+  // ── Virtual Try-On: production garment pipeline (Phase 9.3 Stage 3) ────
 
   void setVtoModelType(ProductVtoModelType value) {
     final product = selectedProduct;
@@ -634,6 +776,134 @@ class ArMediaManagementViewModel extends ChangeNotifier {
       return;
     }
     _stage(product.copyWith(vtoModelType: value));
+  }
+
+  /// Stage a garment category. Rejected (silently) when it is not one of
+  /// [ProductVtoMetadata.supportedGarmentCategories].
+  void setVtoGarmentCategory(String value) {
+    if (!isVirtualTryOn) return;
+    if (!ProductVtoMetadata.supportedGarmentCategories.contains(value)) return;
+    if (vtoGarmentCategory == value) return;
+    _vtoGarmentCategory = value;
+    _recomputeDirty();
+    notifyListeners();
+  }
+
+  /// Opens the platform picker for [slot] (`'default'` or a
+  /// `ProductColorOption.name`), validates the picked JPEG/PNG from its bytes
+  /// (signature + dimensions + SHA-256), and stages it as an
+  /// [AdminVtoGarmentCandidate]. Any failure lands in [garmentValidationError]
+  /// and nothing is staged.
+  Future<void> pickAndValidateGarment(String slot) async {
+    if (!isVirtualTryOn || _isValidatingGarment) return;
+    if (!vtoSlots.contains(slot)) return;
+    final File? file;
+    try {
+      file = await _vtoPicker.pickImage();
+    } on VtoGarmentFilePickException catch (e) {
+      _garmentValidationError = e.message;
+      notifyListeners();
+      return;
+    }
+    if (file == null) return; // cancelled
+    await validateGarmentFile(slot, file);
+  }
+
+  /// Validate a specific file for [slot] (the seam the picker calls; also
+  /// directly callable from tests).
+  Future<void> validateGarmentFile(String slot, File file) async {
+    if (!isVirtualTryOn || !vtoSlots.contains(slot)) return;
+    _isValidatingGarment = true;
+    _validatingGarmentSlot = slot;
+    _garmentValidationError = null;
+    notifyListeners();
+    try {
+      final inspection = await inspectVtoGarmentFile(file);
+      _vtoCandidates[slot] = AdminVtoGarmentCandidate(
+        file: file,
+        slot: slot,
+        sizeBytes: inspection.sizeBytes,
+        sha256: inspection.sha256,
+        contentType: inspection.contentType,
+        width: inspection.width,
+        height: inspection.height,
+        targetVersion: _nextGarmentVersion(slot),
+      );
+      _stagedVtoDeletion = false;
+      _vtoWorkflowNote = null;
+      _hasUnsavedChanges = true;
+    } on GarmentValidationException catch (e) {
+      _garmentValidationError = e.message;
+    } catch (_) {
+      _garmentValidationError = 'This image could not be validated.';
+    } finally {
+      _isValidatingGarment = false;
+      _validatingGarmentSlot = null;
+      notifyListeners();
+    }
+  }
+
+  void discardStagedGarment(String slot) {
+    if (_vtoCandidates.remove(slot) == null) return;
+    _garmentValidationError = null;
+    _vtoWorkflowNote = null;
+    _recomputeDirty();
+    notifyListeners();
+  }
+
+  /// Stage switching the customer VTO entry point on/off. Only meaningful when
+  /// a committed config exists.
+  void setVtoEntryPointEnabled(bool enabled) {
+    final product = _workingProduct;
+    if (product == null || product.vtoMetadata == null) return;
+    if (product.vtoDisabled == !enabled) return;
+    _stage(product.copyWith(vtoDisabled: !enabled));
+  }
+
+  /// Stage a permanent deletion of the whole VTO config on Save. Guarded: the
+  /// entry point must already be disabled when the product is customer-approved
+  /// (see [canStageVtoDeletion]).
+  void stageVtoDeletion() {
+    if (!canStageVtoDeletion) return;
+    _stagedVtoDeletion = true;
+    _vtoCandidates.clear();
+    _vtoGarmentCategory = null;
+    _vtoWorkflowNote = null;
+    _hasUnsavedChanges = true;
+    notifyListeners();
+  }
+
+  void cancelStagedVtoDeletion() {
+    if (!_stagedVtoDeletion) return;
+    _stagedVtoDeletion = false;
+    _recomputeDirty();
+    notifyListeners();
+  }
+
+  int _nextGarmentVersion(String slot) {
+    final committed = committedVtoAssetForSlot(slot);
+    if (committed == null) return 1;
+    return (committed.version < 1 ? 1 : committed.version) + 1;
+  }
+
+  /// The exact bytes of the committed garment asset for [slot], for the inline
+  /// admin preview (`Image.memory`). Refuses (throws, never a Storage call)
+  /// unless the stored path is **exactly this product's own** expected path for
+  /// the slot — a well-formed but cross-product / hand-edited path is never
+  /// downloaded.
+  Future<Uint8List> downloadCommittedGarmentBytes(String slot) async {
+    final asset = committedVtoAssetForSlot(slot);
+    final product = _workingProduct;
+    if (asset == null || product == null) {
+      throw StateError('No committed garment image for "$slot".');
+    }
+    if (!asset.matchesExpectedPath(product.id, slot)) {
+      throw StateError(
+        'The stored garment path for "$slot" does not belong to this product — '
+        'it will not be downloaded. Re-upload the image for this colour.',
+      );
+    }
+    return _storage.downloadVtoGarmentBytes(asset.storagePath);
   }
 
   // ── save ──────────────────────────────────────────────────────────────
@@ -646,6 +916,8 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     final database = _database;
     final product = selectedProduct;
     if (database == null || product == null) return false;
+
+    if (isVirtualTryOn) return _saveVtoChanges(database, product);
 
     final candidate = _candidate;
     // Snapshot the previous committed model BEFORE the write — after
@@ -791,6 +1063,251 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     }
   }
 
+  /// General mode — Virtual Try-On branch. Uploads every staged garment image,
+  /// re-downloads and re-verifies each (SHA-256 + signature + dimensions),
+  /// writes the merged [ProductVtoMetadata] to the database, then best-effort
+  /// cleans up superseded objects. Rolls back every object uploaded this save
+  /// on any failure; the staged candidates are kept for retry.
+  Future<bool> _saveVtoChanges(
+    CommerceDatabase database,
+    ProductModel product,
+  ) async {
+    // Snapshot the committed config BEFORE the write — after `updateProduct`
+    // the database no longer holds it and we still need its Storage paths.
+    final previousVto = _committedProduct?.vtoMetadata ?? committedVtoMetadata;
+    final uploaded = <String>[];
+    try {
+      if (_stagedVtoDeletion) {
+        final modelToSave = product.copyWith(clearVtoMetadata: true);
+        await database.updateProduct(modelToSave);
+        final note = await _deleteAllVtoObjects(previousVto, product.id);
+        _workingProduct = modelToSave;
+        _resetVtoStaging();
+        _vtoWorkflowNote = note;
+        _hasUnsavedChanges = false;
+        notifyListeners();
+        return true;
+      }
+
+      final candidates = _vtoCandidates.values.toList();
+      // A committed config whose slots no longer match `vtoSlots` (a colour was
+      // removed) or whose paths look foreign needs reconciliation even when the
+      // admin only toggled the entry point — fall through to the merge path so
+      // stale metadata + orphaned owned objects are cleaned. A truly clean
+      // toggle stays storage-free.
+      final needsReconcile =
+          previousVto != null &&
+          _vtoMetadataNeedsReconcile(previousVto, product);
+      if (candidates.isEmpty && !_vtoCategoryChanged && !needsReconcile) {
+        await database.updateProduct(product);
+        _workingProduct = product;
+        _resetVtoStaging();
+        _hasUnsavedChanges = false;
+        notifyListeners();
+        return true;
+      }
+
+      if (candidates.isNotEmpty) {
+        _isUploadingGarment = true;
+        _garmentUploadProgress = 0;
+        _garmentValidationError = null;
+        notifyListeners();
+      }
+
+      // Carry forward a committed slot ONLY when it is still an offered slot
+      // (`vtoSlots`) AND its stored path is exactly this product's own path for
+      // that slot. A removed-colour slot, a typo'd key, or a cross-product path
+      // is pruned here (and its owned object cleaned after the write).
+      final validSlots = vtoSlots.toSet();
+      final newByColor = <String, VtoGarmentAsset>{};
+      for (final e in (previousVto?.garmentsByColor ?? const {}).entries) {
+        if (validSlots.contains(e.key) &&
+            e.value.matchesExpectedPath(product.id, e.key)) {
+          newByColor[e.key] = e.value;
+        }
+      }
+      final prevDefault = previousVto?.garmentDefault;
+      VtoGarmentAsset? newDefault =
+          (prevDefault != null &&
+              prevDefault.matchesExpectedPath(product.id, kVtoDefaultSlot))
+          ? prevDefault
+          : null;
+
+      for (final c in candidates) {
+        final objectName =
+            'garment-${c.slot}-v${c.targetVersion}.${c.fileExtension}';
+        final path = await _storage.uploadVtoGarment(
+          productId: product.id,
+          objectName: objectName,
+          file: c.file,
+          contentType: c.contentType,
+          provenance: c.provenance(),
+          onProgress: (p) {
+            _garmentUploadProgress = p;
+            notifyListeners();
+          },
+        );
+        uploaded.add(path);
+        await _verifyCommittedGarmentBytes(path, c);
+        final asset = c.toAsset(storagePath: path);
+        if (c.isDefaultSlot) {
+          newDefault = asset;
+        } else {
+          newByColor[c.slot] = asset;
+        }
+      }
+
+      _isUploadingGarment = false;
+      notifyListeners();
+
+      final merged = ProductVtoMetadata(
+        garmentCategory: vtoGarmentCategory,
+        garmentsByColor: Map.unmodifiable(newByColor),
+        garmentDefault: newDefault,
+      );
+      final modelToSave = product.copyWith(
+        vtoMetadata: merged,
+        vtoDisabled: false,
+      );
+
+      await database.updateProduct(modelToSave);
+
+      // Clean only objects that are provably this product's own and are no
+      // longer referenced (removed colour, superseded version). Foreign paths
+      // in the previous config are never touched — only flagged.
+      final note = await _deleteSupersededVtoObjects(
+        previousVto,
+        product.id,
+        merged.ownedAssetPaths(product.id),
+      );
+
+      _workingProduct = modelToSave;
+      _resetVtoStaging();
+      _vtoWorkflowNote = note;
+      _hasUnsavedChanges = false;
+      notifyListeners();
+      return true;
+    } on GarmentValidationException catch (e) {
+      await _rollbackVtoUploads(uploaded);
+      _isUploadingGarment = false;
+      _garmentValidationError =
+          'A garment image failed verification after upload (${e.message}). '
+          'Nothing was changed.';
+      notifyListeners();
+      return false;
+    } catch (_) {
+      await _rollbackVtoUploads(uploaded);
+      _isUploadingGarment = false;
+      _vtoWorkflowNote =
+          'Could not save Virtual Try-On changes. Please try again.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Re-verify the exact bytes now in Storage against the candidate that was
+  /// validated locally — SHA-256 parity, signature, and pixel dimensions.
+  Future<void> _verifyCommittedGarmentBytes(
+    String storagePath,
+    AdminVtoGarmentCandidate candidate,
+  ) async {
+    final bytes = await _storage.downloadVtoGarmentBytes(storagePath);
+    if (_sha256Hex(bytes) != candidate.sha256) {
+      throw const GarmentValidationException('checksum mismatch after upload');
+    }
+    final sniff = sniffVtoImageContentType(bytes);
+    if (sniff == null || sniff != candidate.contentType) {
+      throw const GarmentValidationException(
+        'image format changed after upload',
+      );
+    }
+    final dims = readVtoImageDimensions(bytes, sniff);
+    if (dims == null ||
+        dims.$1 != candidate.width ||
+        dims.$2 != candidate.height) {
+      throw const GarmentValidationException(
+        'image dimensions changed after upload',
+      );
+    }
+  }
+
+  /// `true` when [previous] carries a slot that is no longer offered by
+  /// [product] (a removed colour) or a path that does not belong to [product] —
+  /// i.e. a save must rebuild + clean it even if the admin only toggled.
+  bool _vtoMetadataNeedsReconcile(
+    ProductVtoMetadata previous,
+    ProductModel product,
+  ) {
+    final valid = vtoSlots.toSet();
+    for (final e in previous.garmentsByColor.entries) {
+      if (!valid.contains(e.key) ||
+          !e.value.matchesExpectedPath(product.id, e.key)) {
+        return true;
+      }
+    }
+    final d = previous.garmentDefault;
+    if (d != null && !d.matchesExpectedPath(product.id, kVtoDefaultSlot)) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Best-effort delete every **owned** ([ProductVtoMetadata.ownedAssetPaths])
+  /// object in [previous] that [keepPaths] does not retain. A foreign path is
+  /// never passed to Storage — it is only surfaced in the returned note.
+  Future<String?> _deleteSupersededVtoObjects(
+    ProductVtoMetadata? previous,
+    String productId,
+    Set<String> keepPaths,
+  ) async {
+    if (previous == null) return null;
+    var anyFailed = false;
+    for (final path in previous.ownedAssetPaths(productId)) {
+      if (keepPaths.contains(path)) continue;
+      if (!await _storage.deleteVtoGarmentByPath(path)) anyFailed = true;
+    }
+    final foreign = previous.hasForeignAssetPath(productId);
+    if (!anyFailed && !foreign) return null;
+    return 'The Virtual Try-On config was saved'
+        '${anyFailed ? ', but a superseded garment image could not be removed '
+                  'from Storage' : ''}'
+        '${foreign ? '${anyFailed ? '; also' : ', but'} one or more stored '
+                  'paths did not belong to this product and were left untouched' : ''}'
+        ' — manual cleanup in the Firebase console may be needed.';
+  }
+
+  /// Best-effort delete every **owned** object in [previous]. Foreign paths are
+  /// never touched, only flagged.
+  Future<String?> _deleteAllVtoObjects(
+    ProductVtoMetadata? previous,
+    String productId,
+  ) async {
+    if (previous == null) return null;
+    var anyFailed = false;
+    for (final path in previous.ownedAssetPaths(productId)) {
+      if (!await _storage.deleteVtoGarmentByPath(path)) anyFailed = true;
+    }
+    final foreign = previous.hasForeignAssetPath(productId);
+    if (!anyFailed && !foreign) return null;
+    return 'The Virtual Try-On metadata was removed and customers can no longer '
+        'use try-on, but '
+        '${anyFailed ? 'one or more garment image files could not be deleted '
+                  'from Storage' : ''}'
+        '${foreign ? '${anyFailed ? ' and ' : ''}one or more stored paths did '
+                  'not belong to this product and were left untouched' : ''}'
+        ' — manual cleanup in the Firebase console may be needed.';
+  }
+
+  Future<void> _rollbackVtoUploads(List<String> paths) async {
+    for (final path in paths) {
+      try {
+        await _storage.deleteVtoGarmentByPath(path);
+      } catch (_) {
+        // Best-effort only.
+      }
+    }
+  }
+
   /// Product-scoped mode — returns the working product carrying the staged
   /// change. A staged GLB rides along as `arModelAssetPath` = its local path
   /// (the "pending upload" channel, mirroring `ProductImageSource.file`) plus
@@ -802,6 +1319,11 @@ class ArMediaManagementViewModel extends ChangeNotifier {
       throw StateError('No product is available for AR configuration.');
     }
     _hasUnsavedChanges = false;
+    if (isVirtualTryOn) {
+      final staged = _stageVtoConfiguration(product);
+      notifyListeners();
+      return staged;
+    }
     final candidate = _candidate;
     if (candidate != null) {
       // Placeholder storage path — the form recomputes it from the real id +
@@ -832,10 +1354,60 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     return product;
   }
 
+  /// Product-scoped Virtual Try-On: bundle the staged changes onto the working
+  /// product for `AdminProductFormViewModel` to persist. Each staged garment
+  /// candidate rides along as a placeholder [VtoGarmentAsset] whose
+  /// `storagePath` is its **local file path** (the "pending upload" channel);
+  /// the form uploads and finalises them on Save once the real product id
+  /// exists. A committed slot rides through ONLY when it is still an offered
+  /// slot and its path belongs to this product — a removed colour / foreign
+  /// path is not propagated (the form's own reconcile is the second layer).
+  ProductModel _stageVtoConfiguration(ProductModel product) {
+    if (_stagedVtoDeletion) {
+      return product.copyWith(clearVtoMetadata: true);
+    }
+    if (_vtoCandidates.isEmpty && !_vtoCategoryChanged) {
+      // Only a toggle (already on `product` via `_stage`) or nothing.
+      return product;
+    }
+    final base = committedVtoMetadata;
+    final validSlots = vtoSlots.toSet();
+    final byColor = <String, VtoGarmentAsset>{};
+    for (final e in (base?.garmentsByColor ?? const {}).entries) {
+      if (validSlots.contains(e.key) &&
+          e.value.matchesExpectedPath(product.id, e.key)) {
+        byColor[e.key] = e.value;
+      }
+    }
+    final baseDefault = base?.garmentDefault;
+    VtoGarmentAsset? def =
+        (baseDefault != null &&
+            baseDefault.matchesExpectedPath(product.id, kVtoDefaultSlot))
+        ? baseDefault
+        : null;
+    for (final c in _vtoCandidates.values) {
+      final placeholder = c.toAsset(storagePath: c.file.path);
+      if (c.isDefaultSlot) {
+        def = placeholder;
+      } else {
+        byColor[c.slot] = placeholder;
+      }
+    }
+    return product.copyWith(
+      vtoMetadata: ProductVtoMetadata(
+        garmentCategory: vtoGarmentCategory,
+        garmentsByColor: Map.unmodifiable(byColor),
+        garmentDefault: def,
+      ),
+      vtoDisabled: false,
+    );
+  }
+
   void discardChanges() {
     if (isProductScoped) {
       _hasUnsavedChanges = false;
       _resetRoomArStaging();
+      _resetVtoStaging();
       notifyListeners();
       return;
     }
@@ -843,20 +1415,6 @@ class ArMediaManagementViewModel extends ChangeNotifier {
     if (database == null || _selectedProductId == null) return;
     _loadProduct(database.getProductById(_selectedProductId!));
     notifyListeners();
-  }
-
-  String _sizeFor(String? path, List<MockMediaAsset> options) {
-    final name = _fileNameFromPath(path);
-    if (name == null) return '';
-    for (final option in options) {
-      if (option.fileName == name) return option.fileSize;
-    }
-    return 'Mock local asset';
-  }
-
-  String? _fileNameFromPath(String? path) {
-    if (path == null || path.trim().isEmpty) return null;
-    return path.split(RegExp(r'[/\\]')).last;
   }
 
   @override

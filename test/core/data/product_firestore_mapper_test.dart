@@ -139,6 +139,12 @@ void main() {
           original.vtoGarmentAssetPath,
           reason: original.id,
         );
+        // Phase 9.3 Stage 2 — no seed product carries a VTO contract yet, so
+        // this asserts the mapper leaves `null`/`false` untouched for every
+        // real product (regression guard against the new `vto*` write path
+        // adding noise keys).
+        expect(restored.vtoMetadata, original.vtoMetadata, reason: original.id);
+        expect(restored.vtoDisabled, original.vtoDisabled, reason: original.id);
       }
     });
 

@@ -16,6 +16,7 @@ import 'package:twin_ar/features/admin/product_management/views/admin_product_fo
 import 'package:twin_ar/core/data/product_firestore_mapper.dart';
 import 'package:twin_ar/core/models/product/product_model.dart';
 import 'package:twin_ar/core/models/product/product_image_ref.dart';
+import 'package:twin_ar/core/models/product/product_vto_metadata.dart';
 import 'package:twin_ar/core/models/product/product_vto_model_type.dart';
 import 'package:twin_ar/app/routes/app_router.dart';
 import 'package:twin_ar/core/models/product/product_ar_metadata.dart';
@@ -509,36 +510,42 @@ void main() {
       expect(vm.arModelCleanupWarning, isNotNull);
     });
 
-    // Phase 9.2 closeout — a committed product image must survive product
-    // deletion: a historical `OrderItemModel` snapshot (an already-placed
-    // order's line item) can carry that exact same download URL, and there
-    // is no way to know from here whether one does. Deleting the Storage
-    // object would silently break that order's rendering forever, with no
-    // way to detect or undo it — unlike the AR GLB, which no order field
-    // ever references. Regression guard: an earlier pass on this same
-    // closeout briefly deleted committed images here too (reasoning it
-    // would close the same orphaned-object gap the AR-GLB fix closed) and
-    // reverted it the same pass once this risk was found — this test exists
-    // so that specific mistake can never silently return.
+    // Phase 9.3 physical-test follow-up (developer decision 2026-09-11):
+    // deleting a product now DOES remove its own `products/{id}/images/**`
+    // objects so no orphaned `products/{id}/` folder is left behind. A
+    // historical `OrderItemModel` order snapshot that copied one of those
+    // image URLs falls back to `ProductImageView`'s broken-image placeholder
+    // (no crash). Only the product's OWN images are touched — an image URL
+    // that resolves to another product / elsewhere is left alone.
     testWidgets(
-      'deleting a product never touches its own committed Storage-hosted '
-      'images (protects historical order rendering)',
+      'deleting a product removes its OWN images but never another product\'s',
       (tester) async {
-        const mainUrl = 'https://mock-storage.test/products/x/images/1.jpg';
-        const galleryUrl = 'https://mock-storage.test/products/x/images/2.jpg';
+        const ownMain =
+            'https://mock-storage.test/products/luna-accent-chair/images/1.jpg';
+        const ownGallery =
+            'https://mock-storage.test/products/luna-accent-chair/images/2.jpg';
+        const foreign =
+            'https://mock-storage.test/products/some-other-product/images/9.jpg';
         db.updateProduct(
           db
               .getProductById('luna-accent-chair')
               .copyWith(
                 mainImage: const ProductImageRef(
-                  path: mainUrl,
+                  path: ownMain,
                   source: ProductImageSource.network,
                 ),
-                galleryMedia: [
-                  const ProductImageRef(
-                    path: galleryUrl,
+                galleryMedia: const [
+                  ProductImageRef(
+                    path: ownGallery,
                     source: ProductImageSource.network,
                   ),
+                  // deliberately a foreign URL on this product's gallery
+                  ProductImageRef(
+                    path: foreign,
+                    source: ProductImageSource.network,
+                  ),
+                  // an asset ref is not in Storage — must be skipped silently
+                  ProductImageRef(path: 'assets/images/logo.png'),
                 ],
               ),
         );
@@ -554,7 +561,12 @@ void main() {
         await vm.deleteProduct(ctx);
 
         expect(db.products.any((p) => p.id == 'luna-accent-chair'), isFalse);
-        expect(storage.deletedProductImageUrls, isEmpty);
+        expect(
+          storage.deletedOwnedProductImageUrls,
+          containsAll(<String>[ownMain, ownGallery]),
+        );
+        expect(storage.deletedOwnedProductImageUrls, isNot(contains(foreign)));
+        expect(vm.imageCleanupWarning, isNull);
       },
     );
 
@@ -595,12 +607,24 @@ void main() {
       vm.setVtoModelType(ProductVtoModelType.male);
       vm.applyArMediaConfiguration(
         vm.buildArConfigurationPreview().copyWith(
-          vtoGarmentAssetPath: 'male_jacket.glb',
+          vtoMetadata: const ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentDefault: VtoGarmentAsset(
+              storagePath: '/tmp/pick.png',
+              sha256:
+                  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              contentType: 'image/png',
+              byteSize: 100,
+              width: 900,
+              height: 1200,
+            ),
+          ),
         ),
       );
 
       expect(vm.vtoModelType, ProductVtoModelType.male);
-      expect(vm.vtoGarmentAssetPath, 'male_jacket.glb');
+      expect(vm.vtoMetadata, isNotNull);
+      expect(vm.isCurrentArConfigured, isTrue);
 
       vm.setVtoModelType(ProductVtoModelType.female);
       expect(vm.vtoModelType, ProductVtoModelType.female);

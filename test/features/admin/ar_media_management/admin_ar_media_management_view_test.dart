@@ -13,14 +13,16 @@ import 'package:twin_ar/features/admin/ar_media_management/viewmodels/ar_media_m
 import 'package:twin_ar/features/admin/ar_media_management/views/admin_ar_media_management_view.dart';
 import 'package:twin_ar/features/admin/ar_media_management/widgets/admin_media_product_selector.dart';
 import 'package:twin_ar/features/admin/ar_media_management/widgets/admin_room_ar_model_card.dart';
-import 'package:twin_ar/features/admin/ar_media_management/widgets/admin_vto_configuration_card.dart';
+import 'package:twin_ar/features/admin/ar_media_management/widgets/admin_vto_garment_card.dart';
 
 import 'ar_glb_test_support.dart';
+import 'vto_garment_test_support.dart';
 
 void main() {
   late MockCommerceDatabase database;
   late MockStorageService storage;
   late FakeArModelFilePicker picker;
+  late FakeVtoGarmentFilePicker vtoPicker;
   late ArMediaManagementViewModel viewModel;
   late Directory tmp;
 
@@ -28,11 +30,13 @@ void main() {
     database = MockCommerceDatabase();
     storage = MockStorageService();
     picker = FakeArModelFilePicker();
+    vtoPicker = FakeVtoGarmentFilePicker();
     tmp = Directory.systemTemp.createTempSync('ar_media_view_test');
     viewModel = ArMediaManagementViewModel.general(
       database,
       storageService: storage,
       filePicker: picker,
+      vtoFilePicker: vtoPicker,
     );
   });
 
@@ -111,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AdminRoomArModelCard), findsOneWidget);
-    expect(find.byType(AdminVtoConfigurationCard), findsNothing);
+    expect(find.byType(AdminVtoGarmentCard), findsNothing);
     // seeded chair carries a committed renderable model
     expect(find.text('Live · customers can view in AR'), findsOneWidget);
     expect(find.byKey(const Key('room_ar_entry_point_toggle')), findsOneWidget);
@@ -155,17 +159,42 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('VTO selection shows only the VTO card (unchanged)', (
+  testWidgets('VTO selection shows only the garment card, one row per colour', (
     tester,
   ) async {
-    viewModel.selectProduct('mens-oxford-shirt');
-    await tester.binding.setSurfaceSize(const Size(360, 900));
+    viewModel.selectProduct('classic-blue-shirt'); // single colour: black
+    await tester.binding.setSurfaceSize(const Size(390, 1400));
     await tester.pumpWidget(buildApp());
     await tester.pumpAndSettle();
 
-    expect(find.byType(AdminVtoConfigurationCard), findsOneWidget);
+    expect(find.byType(AdminVtoGarmentCard), findsOneWidget);
     expect(find.byType(AdminRoomArModelCard), findsNothing);
+    expect(find.text('No garment images uploaded'), findsOneWidget);
+    // one colour slot ("Black") + the default slot, each with an "Add image".
+    expect(find.byKey(const Key('vto_add_black')), findsOneWidget);
+    expect(find.byKey(const Key('vto_add_default')), findsOneWidget);
 
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('picking a valid garment stages it and shows staged state', (
+    tester,
+  ) async {
+    viewModel.selectProduct('classic-blue-shirt');
+    vtoPicker.next = writePng(tmp, 'black.png', width: 900, height: 1200);
+    await tester.binding.setSurfaceSize(const Size(390, 1600));
+    await tester.pumpWidget(buildApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('vto_add_black')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(viewModel.vtoCandidateForSlot('black'), isNotNull);
+    expect(find.text('Changes staged · save to upload'), findsOneWidget);
+    expect(find.byKey(const Key('vto_discard_black')), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4)); // drain AppToast timer
     await tester.binding.setSurfaceSize(null);
   });
 }

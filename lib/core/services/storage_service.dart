@@ -23,10 +23,32 @@ abstract class StorageService {
   /// Deletes a product image previously uploaded by [uploadProductImage],
   /// identified by the exact download URL it returned. Used ONLY for
   /// same-save rollback of a just-uploaded file when the following Firestore
-  /// write fails - never for deleting a previously committed product image
-  /// (historical `OrderItemModel` snapshots may still reference it; see
-  /// `AdminProductFormViewModel`'s doc comment on this).
+  /// write fails (best-effort, no result, no ownership check). For the
+  /// product-deletion cleanup path use [deleteOwnedProductImage].
   Future<void> deleteProductImageByUrl(String downloadUrl);
+
+  /// Deletes the product-image object that [downloadUrl] resolves to, but ONLY
+  /// when that object's Storage path is exactly under
+  /// `products/{productId}/images/` in this app's own bucket. A URL that
+  /// resolves to another product, an unrelated path, a different bucket, or is
+  /// not a resolvable Storage URL is left completely untouched.
+  ///
+  /// This is the **product-deletion** cleanup path: when a product's Firestore
+  /// document is deleted, its own image objects are no longer referenced by
+  /// anything except, possibly, a historical `OrderItemModel` order snapshot —
+  /// which holds a *copy of the URL string*, not the object. That snapshot's
+  /// thumbnail will fall back to `ProductImageView`'s broken-image placeholder
+  /// (no crash); the developer accepted this trade-off in exchange for never
+  /// leaving an orphaned `products/{id}/` folder behind.
+  ///
+  /// Returns `true` when the owned object is gone (deleted, already absent) OR
+  /// when the URL was deliberately skipped as not-owned / unresolvable (there
+  /// was nothing of this product's to clean up). Returns `false` ONLY when a
+  /// delete of a genuinely-owned object failed and it may still exist.
+  Future<bool> deleteOwnedProductImage({
+    required String productId,
+    required String downloadUrl,
+  });
 
   /// Uploads [file] to `users/{uid}/profile/{objectName}` and returns the
   /// Storage OBJECT PATH (e.g. `users/abc123/profile/171234_ab12.jpg`) -
@@ -127,6 +149,56 @@ abstract class StorageService {
   /// surfaces an honest "file could not be removed — may need manual cleanup"
   /// note when it is `false`.
   Future<bool> deleteArModelByPath(String storagePath);
+
+  // ── Phase 9.3 Stage 3 — Admin Virtual Try-On garment image ─────────────
+
+  /// Uploads a Virtual Try-On garment reference image [file] to
+  /// `products/{productId}/vto/{objectName}` and returns the Storage **object
+  /// path** (e.g. `products/mens-oxford-shirt/vto/garment-black-v1.jpg`) —
+  /// deliberately NEVER a download URL, matching [VtoGarmentAsset.storagePath]
+  /// and the owner-scoped, signed-in-only read policy (`storage.rules`).
+  /// [objectName] MUST be `garment-{slot}-v{n}.{jpg|png}`; the caller owns slot
+  /// + version selection. [contentType] is `image/jpeg` or `image/png` (decided
+  /// from the file signature, never the extension) and is set on the object; an
+  /// immutable cache-control is applied (every version has a distinct object
+  /// name, so the bytes never change under a path). [onProgress] receives
+  /// 0.0–1.0.
+  ///
+  /// [provenance] — the `twinArVto*` custom-metadata (SHA-256 / version /
+  /// dimensions / content type), shape-parallel to the Room-AR `twinArAr*` set,
+  /// so `storage.rules` can require it on every VTO-object write.
+  ///
+  /// On any failure throws [StorageServiceException] with clean text; a
+  /// half-written object left by a mid-transfer failure is best-effort deleted
+  /// before the throw, so a failed upload never orphans bytes.
+  Future<String> uploadVtoGarment({
+    required String productId,
+    required String objectName,
+    required File file,
+    required String contentType,
+    Map<String, String>? provenance,
+    void Function(double progress)? onProgress,
+  });
+
+  /// Reads the exact bytes of the committed garment image at [storagePath]
+  /// through an authenticated Storage call (`ref.getData(maxSize)`). Used to
+  /// re-verify an already-committed asset (SHA-256 + signature + dimensions)
+  /// and to feed the inline admin preview. [maxSize] guards against loading an
+  /// unexpectedly huge object into memory; it need not match the write-time
+  /// ceiling.
+  Future<Uint8List> downloadVtoGarmentBytes(String storagePath, {int maxSize});
+
+  /// Deletes the garment image object at [storagePath]. Callers: best-effort
+  /// rollback of a just-uploaded object when the subsequent Firestore write
+  /// fails; the explicit, confirmed admin "remove Virtual Try-On config"
+  /// workflow; and best-effort cleanup of a superseded version after a verified
+  /// replace. A previously-committed asset a *live* customer experience still
+  /// points at is never passed here — the admin flow disables the entry point
+  /// first.
+  ///
+  /// Returns `true` when the object is gone (deleted, or was already absent),
+  /// `false` when the delete genuinely failed and the object may still exist.
+  Future<bool> deleteVtoGarmentByPath(String storagePath);
 }
 
 /// Thrown by [StorageService] implementations for user-facing failure

@@ -14,7 +14,7 @@ import '../viewmodels/admin_ar_model_preview_viewmodel.dart';
 import '../viewmodels/ar_media_management_viewmodel.dart';
 import '../widgets/admin_media_product_selector.dart';
 import '../widgets/admin_room_ar_model_card.dart';
-import '../widgets/admin_vto_configuration_card.dart';
+import '../widgets/admin_vto_garment_card.dart';
 
 class AdminArMediaManagementView extends StatelessWidget {
   const AdminArMediaManagementView({super.key});
@@ -93,7 +93,8 @@ class AdminArMediaManagementView extends StatelessWidget {
             Text('AR & Media Asset Management', style: AppTypography.title),
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              'Configure mock media for products with an AR experience.',
+              'Manage the 3D model (Room AR) and garment images (Virtual '
+              'Try-On) for products with an AR experience.',
               style: AppTypography.bodySmall,
             ),
             const SizedBox(height: AppSpacing.m),
@@ -116,19 +117,9 @@ class AdminArMediaManagementView extends StatelessWidget {
               onPreview: () => _openPreview(context, viewModel),
             )
           else if (viewModel.isVirtualTryOn)
-            AdminVtoConfigurationCard(
+            AdminVtoGarmentCard(
               key: const Key('vto_configuration_card'),
-              product: product,
               viewModel: viewModel,
-              onChooseAsset: () =>
-                  _showAssetSelector(context, viewModel, isReplacement: false),
-              onReplace: () =>
-                  _showAssetSelector(context, viewModel, isReplacement: true),
-              onRemove: () => _confirmRemove(context, viewModel),
-              onTest: () => AppToast.info(
-                context,
-                'Virtual Try-On testing will be available after VTO integration.',
-              ),
             ),
           const SizedBox(height: AppSpacing.l),
           ElevatedButton.icon(
@@ -155,13 +146,16 @@ class AdminArMediaManagementView extends StatelessWidget {
   ) async {
     final configured = viewModel.isRoomAr
         ? (viewModel.isRoomArConfigured || viewModel.hasUnsavedChanges)
-        : viewModel.isVtoConfigured;
+        : (viewModel.isVtoConfigured || viewModel.hasUnsavedChanges);
     if (!configured) {
-      AppToast.error(context, 'Select an asset before saving configuration.');
+      AppToast.error(context, 'Configure something before saving.');
       return;
     }
-    if (viewModel.isRoomAr && viewModel.modelValidationError != null) {
-      AppToast.error(context, viewModel.modelValidationError!);
+    final validationError = viewModel.isRoomAr
+        ? viewModel.modelValidationError
+        : viewModel.garmentValidationError;
+    if (validationError != null) {
+      AppToast.error(context, validationError);
       return;
     }
     if (viewModel.isProductScoped) {
@@ -171,11 +165,13 @@ class AdminArMediaManagementView extends StatelessWidget {
     }
     final saved = await viewModel.saveChanges();
     if (!context.mounted) return;
+    final note = viewModel.isRoomAr
+        ? viewModel.modelWorkflowNote
+        : viewModel.vtoWorkflowNote;
     if (saved) {
       // A save can succeed (metadata written) yet leave a Storage-side note —
       // e.g. an explicit delete whose file could not be removed. Surface it
       // honestly instead of a bare "saved".
-      final note = viewModel.modelWorkflowNote;
       if (note != null) {
         AppToast.warning(context, note);
       } else {
@@ -184,8 +180,8 @@ class AdminArMediaManagementView extends StatelessWidget {
     } else {
       AppToast.error(
         context,
-        viewModel.modelValidationError ??
-            viewModel.modelWorkflowNote ??
+        validationError ??
+            note ??
             'Could not save AR & Media changes. Please try again.',
       );
     }
@@ -329,102 +325,5 @@ class AdminArMediaManagementView extends StatelessWidget {
         heightM: spec.h,
       ),
     );
-  }
-
-  /// VTO-only mock asset selector (Room AR moved to real GLB upload in R16).
-  Future<void> _showAssetSelector(
-    BuildContext context,
-    ArMediaManagementViewModel viewModel, {
-    required bool isReplacement,
-  }) async {
-    const options = ArMediaManagementViewModel.vtoAssetOptions;
-    final selected = await showModalBottomSheet<MockMediaAsset>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Choose Mock Garment Asset', style: AppTypography.title),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Frontend metadata only. No device file or binary is selected.',
-                style: AppTypography.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.s),
-              ...options.map(
-                (asset) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppRadii.mediumBorder,
-                      side: const BorderSide(color: AppColors.primary),
-                    ),
-                    leading: const Icon(
-                      Icons.checkroom_outlined,
-                      color: AppColors.primaryDark,
-                    ),
-                    title: Text(asset.fileName),
-                    subtitle: Text(asset.fileSize),
-                    trailing: const Icon(
-                      Icons.add_circle_outline,
-                      color: AppColors.primary,
-                    ),
-                    onTap: () => Navigator.pop(sheetContext, asset),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (selected == null || !context.mounted) return;
-    viewModel.selectVtoAsset(selected);
-    AppToast.success(
-      context,
-      isReplacement ? 'Replacement selected' : 'Asset selected',
-    );
-  }
-
-  Future<void> _confirmRemove(
-    BuildContext context,
-    ArMediaManagementViewModel viewModel,
-  ) async {
-    final shouldRemove = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.largeBorder,
-          side: const BorderSide(color: AppColors.primary),
-        ),
-        title: const Text('Remove Asset?'),
-        content: const Text(
-          'Remove the Virtual Try-On garment asset from this configuration?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              'Remove',
-              style: AppTypography.label.copyWith(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (shouldRemove != true || !context.mounted) return;
-    viewModel.removeVtoAsset();
-    AppToast.success(context, 'Asset removed from configuration');
   }
 }

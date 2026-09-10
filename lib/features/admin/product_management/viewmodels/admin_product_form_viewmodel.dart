@@ -13,6 +13,7 @@ import '../../../../core/models/product/product_model.dart';
 import '../../../../core/models/product/product_publication_status.dart';
 import '../../../../core/models/product/product_size.dart';
 import '../../../../core/models/product/product_specification.dart';
+import '../../../../core/models/product/product_vto_metadata.dart';
 import '../../../../core/models/product/product_vto_model_type.dart';
 import '../../../../core/services/firebase_storage_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -20,6 +21,7 @@ import '../../../../core/utils/image_upload_validator.dart';
 import '../../../../core/utils/unique_object_name.dart';
 import '../../../room_ar/model_delivery/glb_inspector.dart';
 import '../../ar_media_management/utils/admin_glb_validator.dart';
+import '../../ar_media_management/utils/admin_vto_garment_validator.dart';
 import '../../../../core/widgets/feedback/app_toast.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -244,10 +246,38 @@ class AdminProductFormViewModel extends ChangeNotifier {
   String? _vtoGarmentAssetPath;
   String? get vtoGarmentAssetPath => _vtoGarmentAssetPath;
 
+  /// Phase 9.3 Stage 3 — the production Virtual Try-On contract staged by the
+  /// AR & Media screen (product-scoped mode). Garment assets whose
+  /// `storagePath` is still a local file path are pending uploads that
+  /// [_persist] finalises once the real product id exists — mirrors
+  /// [_pendingArModelFilePath]. Preserved verbatim on an unrelated edit so a
+  /// title-only save never drops the VTO config (the latent bug class R16
+  /// fixed for `ar*`).
+  ProductVtoMetadata? _vtoMetadata;
+  ProductVtoMetadata? get vtoMetadata => _vtoMetadata;
+
+  bool _vtoDisabled = false;
+  bool get vtoDisabled => _vtoDisabled;
+
+  /// Storage object paths uploaded during the current save, for rollback if the
+  /// following Firestore write fails.
+  final List<String> _uploadedVtoGarmentPathsThisSave = [];
+
+  /// Set when a save / product-delete's Firestore write **succeeded** but the
+  /// best-effort cleanup of a superseded / removed VTO garment object failed.
+  String? _vtoCleanupWarning;
+  String? get vtoCleanupWarning => _vtoCleanupWarning;
+
+  /// Set when a product-delete's Firestore delete **succeeded** but one or more
+  /// of the product's own image objects could not be removed from Storage.
+  /// Cleared at the start of [deleteProduct].
+  String? _imageCleanupWarning;
+  String? get imageCleanupWarning => _imageCleanupWarning;
+
   bool get isCurrentArConfigured => switch (_experienceType) {
     ProductExperienceType.roomAr =>
       _arMetadata != null || _pendingArModelFilePath != null,
-    ProductExperienceType.virtualTryOn => _vtoGarmentAssetPath != null,
+    ProductExperienceType.virtualTryOn => _vtoMetadata != null,
     ProductExperienceType.none => false,
   };
 
@@ -405,6 +435,8 @@ class AdminProductFormViewModel extends ChangeNotifier {
     _arModelDisabled = product.arModelDisabled;
     _pendingArModelFilePath = null;
     _vtoGarmentAssetPath = product.vtoGarmentAssetPath;
+    _vtoMetadata = product.vtoMetadata;
+    _vtoDisabled = product.vtoDisabled;
 
     // Parse specifications
     for (var spec in product.specifications) {
@@ -661,6 +693,8 @@ class AdminProductFormViewModel extends ChangeNotifier {
     } else if (type == ProductExperienceType.virtualTryOn) {
       _vtoGarmentAssetPath = null;
       _vtoModelType = null;
+      _vtoMetadata = null;
+      _vtoDisabled = false;
     }
   }
 
@@ -691,7 +725,12 @@ class AdminProductFormViewModel extends ChangeNotifier {
           ? maybePath
           : null;
     } else if (_experienceType == ProductExperienceType.virtualTryOn) {
-      _vtoGarmentAssetPath = configuredProduct.vtoGarmentAssetPath;
+      // Phase 9.3 Stage 3: the AR & Media screen returns a production
+      // `vtoMetadata` contract (+ `vtoDisabled`). A staged-but-not-yet-uploaded
+      // garment rides along as a `VtoGarmentAsset` whose `storagePath` is a
+      // local file path; `_persist` uploads it once the real product id exists.
+      _vtoMetadata = configuredProduct.vtoMetadata;
+      _vtoDisabled = configuredProduct.vtoDisabled;
       _vtoModelType = configuredProduct.vtoModelType;
     }
     _markDirty();
@@ -705,6 +744,18 @@ class AdminProductFormViewModel extends ChangeNotifier {
     if (path.startsWith('products/')) return false;
     if (path.startsWith('http://') || path.startsWith('https://')) return false;
     return path.toLowerCase().endsWith('.glb');
+  }
+
+  /// A pending-upload local garment image path — never a Storage object path
+  /// (`products/…`) or a URL.
+  static bool _looksLikeLocalGarmentPath(String path) {
+    if (path.isEmpty) return false;
+    if (path.startsWith('products/')) return false;
+    if (path.startsWith('http://') || path.startsWith('https://')) return false;
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
   }
 
   // Sections
@@ -953,6 +1004,43 @@ class AdminProductFormViewModel extends ChangeNotifier {
       vtoGarmentAssetPath: _experienceType == ProductExperienceType.virtualTryOn
           ? _vtoGarmentAssetPath
           : null,
+      // Phase 9.3 Stage 3 — the production Virtual Try-On contract + entry-point
+      // switch. Preserved through an unrelated edit; RECONCILED against the
+      // product's current colours + ownership (drops a removed-colour slot, a
+      // typo'd key, or a foreign committed path — [_reconciledVtoMetadata]);
+      // cleared when the product is not Virtual Try-On.
+      vtoMetadata: _experienceType == ProductExperienceType.virtualTryOn
+          ? _reconciledVtoMetadata(idToUse)
+          : null,
+      vtoDisabled:
+          _experienceType == ProductExperienceType.virtualTryOn && _vtoDisabled,
+    );
+  }
+
+  /// Reconcile [_vtoMetadata] against the product being saved: keep only
+  /// garment slots that are BOTH still an offered colour (or `default`) AND
+  /// either own their Storage path for [productId] OR are a pending local
+  /// upload. A removed colour, a typo'd key, or a foreign committed path is
+  /// pruned. Returns `null` when nothing valid remains.
+  ProductVtoMetadata? _reconciledVtoMetadata(String productId) {
+    final vto = _vtoMetadata;
+    if (vto == null) return null;
+    final known = <String>{for (final c in _availableColors) c.name, 'default'};
+    bool keep(String slot, VtoGarmentAsset a) =>
+        known.contains(slot) &&
+        (a.matchesExpectedPath(productId, slot) ||
+            _looksLikeLocalGarmentPath(a.storagePath));
+    final byColor = <String, VtoGarmentAsset>{
+      for (final e in vto.garmentsByColor.entries)
+        if (keep(e.key, e.value)) e.key: e.value,
+    };
+    final d = vto.garmentDefault;
+    final keepDefault = d != null && keep('default', d);
+    if (byColor.isEmpty && !keepDefault) return null;
+    return ProductVtoMetadata(
+      garmentCategory: vto.garmentCategory,
+      garmentsByColor: Map.unmodifiable(byColor),
+      garmentDefault: keepDefault ? d : null,
     );
   }
 
@@ -1022,12 +1110,28 @@ class AdminProductFormViewModel extends ChangeNotifier {
 
     final uploadedUrlsThisSave = <String>[];
     _uploadedArModelPathThisSave = null;
+    _uploadedVtoGarmentPathsThisSave.clear();
     _arModelCleanupWarning = null;
+    _vtoCleanupWarning = null;
     // The committed AR-model object this save may supersede or remove (edit
     // mode only) — captured before the write so we can clean it up after.
     final priorArModelStoragePath = isEditMode
         ? _originalProduct?.arMetadata?.storagePath
         : null;
+    // Only paths that provably belong to THIS product — a corrupted/foreign
+    // path in the old contract is never passed to Storage, only flagged.
+    final priorVtoOwnedPaths = isEditMode
+        ? (_originalProduct?.vtoMetadata?.ownedAssetPaths(
+                _originalProduct!.id,
+              ) ??
+              const <String>{})
+        : const <String>{};
+    final priorVtoHadForeignPath =
+        isEditMode &&
+        (_originalProduct?.vtoMetadata?.hasForeignAssetPath(
+              _originalProduct!.id,
+            ) ??
+            false);
     try {
       final model = buildModel();
       final uploaded = await _uploadPendingImages(
@@ -1041,6 +1145,14 @@ class AdminProductFormViewModel extends ChangeNotifier {
       // is trusted. Any failure aborts the save with nothing written.
       final uploadedArMetadata = await _uploadPendingArModel(model.id);
 
+      // Phase 9.3 Stage 3 — the same for staged Virtual Try-On garment images.
+      // Operates on the RECONCILED contract (`model.vtoMetadata`), so a pending
+      // upload for a colour the admin just removed is never uploaded.
+      final uploadedVtoMetadata = await _uploadPendingVtoGarments(
+        model.id,
+        model.vtoMetadata,
+      );
+
       var finalModel = uploaded == null
           ? model
           : model.copyWith(
@@ -1053,6 +1165,14 @@ class AdminProductFormViewModel extends ChangeNotifier {
           arModelDisabled: false,
         );
       }
+      if (uploadedVtoMetadata != null) {
+        finalModel = finalModel.copyWith(
+          vtoMetadata: uploadedVtoMetadata,
+          vtoDisabled: false,
+        );
+      }
+      // Note: when reconcile pruned every slot, `model.vtoMetadata` is already
+      // `null` and rides through — no extra clear needed.
 
       if (isEditMode) {
         await database.updateProduct(finalModel);
@@ -1070,6 +1190,11 @@ class AdminProductFormViewModel extends ChangeNotifier {
       if (uploadedArMetadata != null) {
         _arMetadata = uploadedArMetadata;
         _pendingArModelFilePath = null;
+      }
+      // Reflect the reconciled + verified contract back into staged state so a
+      // later save is idempotent and the summary is honest.
+      if (_experienceType == ProductExperienceType.virtualTryOn) {
+        _vtoMetadata = uploadedVtoMetadata ?? finalModel.vtoMetadata;
       }
 
       // Phase 9.2 R16 — the AR model was replaced (new versioned object) or
@@ -1092,11 +1217,44 @@ class AdminProductFormViewModel extends ChangeNotifier {
         }
       }
 
+      // Phase 9.3 Stage 3 — same for superseded VTO garment objects: any prior
+      // OWNED garment path the new (reconciled) contract no longer references
+      // (a removed colour, a superseded version). Foreign paths are never
+      // touched — only surfaced.
+      final newVtoOwnedPaths =
+          finalModel.vtoMetadata?.ownedAssetPaths(finalModel.id) ??
+          const <String>{};
+      final supersededVto = priorVtoOwnedPaths.difference(newVtoOwnedPaths);
+      var vtoCleanupFailed = false;
+      for (final path in supersededVto) {
+        if (!await storageService.deleteVtoGarmentByPath(path)) {
+          vtoCleanupFailed = true;
+        }
+      }
+      if (vtoCleanupFailed || priorVtoHadForeignPath) {
+        _vtoCleanupWarning = [
+          if (vtoCleanupFailed)
+            'a previous garment image could not be removed from storage',
+          if (priorVtoHadForeignPath)
+            'one or more stored garment paths did not belong to this product '
+                'and were left untouched',
+        ].join('; ');
+        _vtoCleanupWarning =
+            '$_vtoCleanupWarning — manual cleanup in the Firebase console may '
+            'be needed';
+      }
+
       _hasUnsavedChanges = false;
       if (context.mounted) {
-        final warning = _arModelCleanupWarning;
-        if (warning != null) {
-          AppToast.warning(context, '$successMessage — $warning.');
+        final warnings = [
+          _arModelCleanupWarning,
+          _vtoCleanupWarning,
+        ].whereType<String>().toList();
+        if (warnings.isNotEmpty) {
+          AppToast.warning(
+            context,
+            '$successMessage — ${warnings.join('; ')}.',
+          );
         } else {
           AppToast.success(context, successMessage);
         }
@@ -1105,14 +1263,135 @@ class AdminProductFormViewModel extends ChangeNotifier {
     } catch (e) {
       await _rollbackUploadedImages(uploadedUrlsThisSave);
       await _rollbackUploadedArModel();
+      await _rollbackUploadedVtoGarments();
       if (context.mounted) AppToast.error(context, _writeErrorMessage(e));
       return false;
     } finally {
       _isLoading = false;
       _isUploadingImages = false;
       _isUploadingArModel = false;
+      _isUploadingVtoGarments = false;
       notifyListeners();
     }
+  }
+
+  bool _isUploadingVtoGarments = false;
+  bool get isUploadingVtoGarments => _isUploadingVtoGarments;
+
+  /// Uploads every staged garment image in [staged] (an asset whose
+  /// `storagePath` is still a local file path) to
+  /// `products/{productId}/vto/garment-{slot}-v{n}.{jpg|png}`, re-downloads and
+  /// re-verifies each (SHA-256 + signature + dimensions), and returns [staged]
+  /// with those locals swapped for the verified real assets. Returns `null`
+  /// when [staged] is `null` or carries nothing pending. Throws on any
+  /// validation / upload / verification failure so [_persist] aborts + rolls
+  /// back. Iterates the RECONCILED contract, never the raw `_vtoMetadata`, so a
+  /// pending upload for a colour the admin removed is never uploaded.
+  Future<ProductVtoMetadata?> _uploadPendingVtoGarments(
+    String productId,
+    ProductVtoMetadata? staged,
+  ) async {
+    if (staged == null) return null;
+
+    // A local-path slot key MUST be a safe single segment (`storage.rules`
+    // rejects anything else anyway; this fails fast before any network call).
+    final safeSlot = RegExp(r'^[a-zA-Z0-9]+$');
+
+    final pendingByColor = <String, VtoGarmentAsset>{};
+    for (final e in staged.garmentsByColor.entries) {
+      if (_looksLikeLocalGarmentPath(e.value.storagePath)) {
+        if (!safeSlot.hasMatch(e.key)) {
+          throw GarmentValidationException(
+            'The colour key "${e.key}" is not a valid garment slot.',
+          );
+        }
+        pendingByColor[e.key] = e.value;
+      }
+    }
+    final defaultAsset = staged.garmentDefault;
+    final defaultPending =
+        defaultAsset != null &&
+        _looksLikeLocalGarmentPath(defaultAsset.storagePath);
+    if (pendingByColor.isEmpty && !defaultPending) return null;
+
+    _isUploadingVtoGarments = true;
+    notifyListeners();
+
+    Future<VtoGarmentAsset> uploadOne(
+      String slot,
+      VtoGarmentAsset placeholder,
+    ) async {
+      final file = File(placeholder.storagePath);
+      final inspection = await inspectVtoGarmentFile(file);
+      final version = placeholder.version < 1 ? 1 : placeholder.version;
+      final objectName = 'garment-$slot-v$version.${inspection.fileExtension}';
+      final path = await storageService.uploadVtoGarment(
+        productId: productId,
+        objectName: objectName,
+        file: file,
+        contentType: inspection.contentType,
+        provenance: {
+          'twinArVtoSha256': inspection.sha256,
+          'twinArVtoVersion': '$version',
+          'twinArVtoWidth': '${inspection.width}',
+          'twinArVtoHeight': '${inspection.height}',
+          'twinArVtoContentType': inspection.contentType,
+        },
+      );
+      _uploadedVtoGarmentPathsThisSave.add(path);
+
+      final bytes = await storageService.downloadVtoGarmentBytes(path);
+      if (sha256.convert(bytes).toString() != inspection.sha256) {
+        throw const GarmentValidationException(
+          'uploaded garment image checksum did not match',
+        );
+      }
+      final sniff = sniffVtoImageContentType(bytes);
+      final dims = sniff == null ? null : readVtoImageDimensions(bytes, sniff);
+      if (sniff != inspection.contentType ||
+          dims == null ||
+          dims.$1 != inspection.width ||
+          dims.$2 != inspection.height) {
+        throw const GarmentValidationException(
+          'uploaded garment image failed verification',
+        );
+      }
+      return VtoGarmentAsset(
+        storagePath: path,
+        sha256: inspection.sha256,
+        contentType: inspection.contentType,
+        byteSize: inspection.sizeBytes,
+        width: inspection.width,
+        height: inspection.height,
+        version: version,
+      );
+    }
+
+    final newByColor = <String, VtoGarmentAsset>{...staged.garmentsByColor};
+    for (final e in pendingByColor.entries) {
+      newByColor[e.key] = await uploadOne(e.key, e.value);
+    }
+    VtoGarmentAsset? newDefault = staged.garmentDefault;
+    if (defaultPending) {
+      newDefault = await uploadOne('default', defaultAsset);
+    }
+
+    return ProductVtoMetadata(
+      garmentCategory: staged.garmentCategory,
+      garmentsByColor: Map.unmodifiable(newByColor),
+      garmentDefault: newDefault,
+    );
+  }
+
+  Future<void> _rollbackUploadedVtoGarments() async {
+    for (final path in _uploadedVtoGarmentPathsThisSave) {
+      try {
+        await storageService.deleteVtoGarmentByPath(path);
+      } catch (_) {
+        // Best-effort only - matches the image / AR-model rollback contract.
+      }
+    }
+    _uploadedVtoGarmentPathsThisSave.clear();
   }
 
   bool _isUploadingArModel = false;
@@ -1292,51 +1571,109 @@ class AdminProductFormViewModel extends ChangeNotifier {
     }
   }
 
+  /// Deletes the product (Firestore first — authoritative), then best-effort
+  /// removes **every Storage object this exact product owns**: its Room-AR GLB,
+  /// its Virtual Try-On garment images, and its own product images
+  /// (`products/{id}/images/**`). Nothing outside `products/{id}/` is ever
+  /// touched — a cross-product / hand-edited VTO path or an image URL that
+  /// resolves elsewhere is left alone and flagged.
+  ///
+  /// Order: snapshot owned refs → Firestore delete (abort on failure, touch no
+  /// Storage) → AR → VTO → images. Any owned-object deletion failure is
+  /// surfaced as a **warning** (never a plain "deleted" success) naming exactly
+  /// what could not be removed; the Firestore delete is not undone.
+  ///
+  /// Product images: a historical `OrderItemModel` order snapshot may still
+  /// hold a copy of a deleted image's URL string — that line item's thumbnail
+  /// then falls back to `ProductImageView`'s broken-image placeholder (no
+  /// crash). The developer accepted this in exchange for never leaving an
+  /// orphaned `products/{id}/` folder behind.
   Future<void> deleteProduct(BuildContext context) async {
     if (!isEditMode || _originalProduct == null) return;
     _arModelCleanupWarning = null;
+    _vtoCleanupWarning = null;
+    _imageCleanupWarning = null;
+
+    final product = _originalProduct!;
+    final id = product.id;
+    // Snapshot every owned reference BEFORE the doc is gone. Only paths/URLs
+    // that provably belong to THIS product are collected.
+    final arModelPath = product.arMetadata?.storagePath;
+    final vtoOwnedPaths =
+        product.vtoMetadata?.ownedAssetPaths(id) ?? const <String>{};
+    final vtoHadForeignPath =
+        product.vtoMetadata?.hasForeignAssetPath(id) ?? false;
+    final imageUrls = _networkImageUrlsOf(product);
+
     try {
-      await database.deleteProduct(_originalProduct!.id);
-      // Phase 9.2 R16 — the whole product is gone; best-effort remove its
-      // Room-AR GLB so deleting a product never orphans a Storage object. The
-      // product doc (the only thing that referenced it) is already deleted —
-      // a cleanup failure is not undone, but it is reported honestly.
-      //
-      // Deliberately does NOT also delete the product's own Storage-hosted
-      // images. A Phase 9.2 closeout audit briefly added that (reasoning it
-      // would close the same kind of orphaned-object gap) and reverted it
-      // the same pass: a historical `OrderItemModel` snapshot can still
-      // carry that exact download URL by design (see
-      // `StorageService.deleteProductImageByUrl`'s own interface doc
-      // comment — "never for deleting a previously committed product
-      // image... historical `OrderItemModel` snapshots may still reference
-      // it", a pre-existing rule) — auto-deleting it here would silently
-      // break that order's rendering forever. An AR model has no such risk
-      // (no order field ever references one), which is exactly why only
-      // this cleanup is safe to automate. A committed image is intentionally
-      // left in Storage on product delete — orphaned storage cost, not a
-      // correctness bug.
-      final arModelPath = _originalProduct!.arMetadata?.storagePath;
-      if (arModelPath != null) {
-        final removed = await storageService.deleteArModelByPath(arModelPath);
-        if (!removed) {
-          _arModelCleanupWarning =
-              'its 3D model file could not be removed from storage and may '
-              'need manual cleanup';
-        }
-      }
-      if (context.mounted) {
-        final warning = _arModelCleanupWarning;
-        if (warning != null) {
-          AppToast.warning(context, 'Product deleted — $warning.');
-        } else {
-          AppToast.success(context, 'Product deleted');
-        }
-      }
+      await database.deleteProduct(id);
     } catch (e) {
       if (context.mounted) AppToast.error(context, _writeErrorMessage(e));
+      return; // Firestore delete failed — no Storage object touched.
+    }
+
+    // ── best-effort Storage cleanup (product doc already gone) ──────────────
+    if (arModelPath != null &&
+        !await storageService.deleteArModelByPath(arModelPath)) {
+      _arModelCleanupWarning =
+          'its 3D model file could not be removed from storage';
+    }
+
+    var vtoCleanupFailed = false;
+    for (final path in vtoOwnedPaths) {
+      if (!await storageService.deleteVtoGarmentByPath(path)) {
+        vtoCleanupFailed = true;
+      }
+    }
+    if (vtoCleanupFailed || vtoHadForeignPath) {
+      _vtoCleanupWarning = [
+        if (vtoCleanupFailed) 'a garment image could not be removed from storage',
+        if (vtoHadForeignPath)
+          'one or more stored garment paths did not belong to this product '
+              'and were left untouched',
+      ].join('; ');
+    }
+
+    var imageCleanupFailed = false;
+    for (final url in imageUrls) {
+      if (!await storageService.deleteOwnedProductImage(
+        productId: id,
+        downloadUrl: url,
+      )) {
+        imageCleanupFailed = true;
+      }
+    }
+    if (imageCleanupFailed) {
+      _imageCleanupWarning =
+          'one or more product images could not be removed from storage';
+    }
+
+    if (context.mounted) {
+      final warnings = [
+        _arModelCleanupWarning,
+        _vtoCleanupWarning,
+        _imageCleanupWarning,
+      ].whereType<String>().toList();
+      if (warnings.isNotEmpty) {
+        AppToast.warning(
+          context,
+          'Product deleted — ${warnings.join('; ')} — manual cleanup in the '
+          'Firebase console may be needed.',
+        );
+      } else {
+        AppToast.success(context, 'Product deleted');
+      }
     }
   }
+
+  /// The download URLs of a product's `.network`-sourced images (main +
+  /// gallery, de-duplicated). `.asset` / `.file` refs are not in Storage.
+  static Set<String> _networkImageUrlsOf(ProductModel product) => {
+    if (product.mainImage.source == ProductImageSource.network)
+      product.mainImage.path,
+    for (final img in product.galleryMedia)
+      if (img.source == ProductImageSource.network) img.path,
+  };
 
   /// Never surfaces raw exception text (matches the project's established
   /// `FirebaseAuthRepository._mapAuthError` convention). A [StateError] from
@@ -1351,6 +1688,7 @@ class AdminProductFormViewModel extends ChangeNotifier {
     if (error is StateError) return error.message;
     if (error is ImageValidationException) return error.message;
     if (error is GlbValidationException) return error.message;
+    if (error is GarmentValidationException) return error.message;
     if (error is StorageServiceException) return error.message;
     return 'Something went wrong. Please try again.';
   }

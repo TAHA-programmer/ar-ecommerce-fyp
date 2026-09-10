@@ -6,6 +6,7 @@ import '../../../core/models/product/product_color_option.dart';
 import '../../../core/models/product/product_size.dart';
 import '../../../core/models/product/product_image_ref.dart';
 import '../../../core/models/product/product_specification.dart';
+import '../../../core/models/product/product_vto_metadata.dart';
 import '../../../core/models/product/product_vto_model_type.dart';
 
 class ProductDetailModel {
@@ -38,6 +39,18 @@ class ProductDetailModel {
   /// never offers a customer launch.
   final bool arModelDisabled;
 
+  /// The production Virtual Try-On asset contract (Phase 9.3 Stage 2), or
+  /// `null` when the product has no try-on config. Carried through from
+  /// [ProductModel] so the later customer "Try It On" launch (Stage 5) reads a
+  /// first-class typed contract. Gate that launch on [hasRenderableVtoAsset],
+  /// never on `experienceType` alone. Nothing reads this yet.
+  final ProductVtoMetadata? vtoMetadata;
+
+  /// Phase 9.3 Stage 2 mirror of [arModelDisabled] — the admin has switched the
+  /// customer Virtual Try-On entry point off while keeping [vtoMetadata].
+  /// `false` for every product not touched by the Stage 3 admin flow.
+  final bool vtoDisabled;
+
   // Breadcrumb hierarchy
   final String subcategory; // e.g. "Accent Chairs", "Shirts"
 
@@ -69,6 +82,8 @@ class ProductDetailModel {
     this.vtoModelType,
     this.arMetadata,
     this.arModelDisabled = false,
+    this.vtoMetadata,
+    this.vtoDisabled = false,
     required this.subcategory,
     required this.gallery,
     required this.description,
@@ -89,4 +104,34 @@ class ProductDetailModel {
       isRoomArEnabled &&
       !arModelDisabled &&
       (arMetadata?.isRenderable ?? false);
+
+  bool get isVirtualTryOnEnabled =>
+      experienceType == ProductExperienceType.virtualTryOn;
+
+  /// `true` only when the product opts into Virtual Try-On *and* has a fully
+  /// valid config that belongs to this product (`isRenderableForProduct`) *and*
+  /// the admin has not switched it off *and* every [availableColors] entry
+  /// resolves to a renderable garment asset — the gate for a customer "Try It
+  /// On" launch (Phase 9.3 Stage 5). Exact mirror of
+  /// [ProductModel.hasRenderableVtoAsset]. Nothing reads it yet.
+  bool get hasRenderableVtoAsset {
+    final vto = vtoMetadata;
+    if (!isVirtualTryOnEnabled || vto == null || vtoDisabled) return false;
+    if (!vto.isRenderableForProduct(summary.id)) return false;
+    if (availableColors.isEmpty) return vto.garmentDefault != null;
+    return availableColors.every((c) => vto.resolveGarment(c.name) != null);
+  }
+
+  /// `true` when a valid try-on config that belongs to this product exists but
+  /// the admin switched the entry point off — admin-diagnostic only (mirror of
+  /// [ProductModel.hasDisabledVtoAsset]).
+  bool get hasDisabledVtoAsset =>
+      isVirtualTryOnEnabled &&
+      vtoDisabled &&
+      (vtoMetadata?.isRenderableForProduct(summary.id) ?? false);
+
+  /// The garment reference asset that would be used for [color] — its dedicated
+  /// asset or the product-wide default. `null` when nothing resolves.
+  VtoGarmentAsset? vtoGarmentForColor(ProductColorOption? color) =>
+      vtoMetadata?.resolveGarment(color?.name);
 }
