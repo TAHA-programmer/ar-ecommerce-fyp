@@ -220,8 +220,10 @@ void main() {
       }
       expect(find.text('Best Sellers'), findsNothing);
       expect(find.text('Popular Furniture & Decor'), findsNothing);
-      // No recorded views in this fixture.
+      // No recorded views in this fixture; no product is `isFeatured` in the
+      // stock mock catalogue (matches live — Featured is Admin-set).
       expect(find.text('Recently Viewed'), findsNothing);
+      expect(find.text('Featured Products'), findsNothing);
 
       expect(find.byType(CustomerBottomNavigation), findsOneWidget);
     });
@@ -275,6 +277,115 @@ void main() {
         scrollable: scrollable,
       );
       expect(find.text('Popular Furniture & Decor'), findsOneWidget);
+    });
+
+    testWidgets('a favourited CLOTHING product does NOT flip Popular Furniture '
+        '& Decor — the section is furniture/decor-scoped by design, so it '
+        'stays on the "Top Rated Furniture & Decor" rating fallback', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final db = MockCommerceDatabase();
+      final firstClothing = db.products.firstWhere(
+        (p) => p.categoryKind.name == 'clothing',
+      );
+      final profileState = CustomerProfileState(
+        MockUserProfileRepository(seed: const {}),
+      );
+      final addressState = CustomerAddressState(MockAddressRepository());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: homeProviders(
+              db,
+              profileState: profileState,
+              addressState: addressState,
+              // Genuine favourite signal, but on a clothing product only.
+              stats: MockProductStatsRepository(
+                unitsSold: {firstClothing.id: 5},
+                favoriteCount: {firstClothing.id: 9},
+              ),
+            ),
+            child: const HomeView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).first;
+      // Best Sellers DOES flip (units-sold is catalogue-wide).
+      await tester.scrollUntilVisible(
+        find.text('Best Sellers'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Best Sellers'), findsOneWidget);
+      // Popular stays on the honest rating fallback title — a clothing
+      // favourite never counts toward the furniture/decor section.
+      await tester.scrollUntilVisible(
+        find.text('Top Rated Furniture & Decor'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Top Rated Furniture & Decor'), findsOneWidget);
+      expect(find.text('Popular Furniture & Decor'), findsNothing);
+    });
+
+    testWidgets('the Featured Products section renders once a product is '
+        'featured and hides again when it is un-featured', (tester) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final db = MockCommerceDatabase();
+      final profileState = CustomerProfileState(
+        MockUserProfileRepository(seed: const {}),
+      );
+      final addressState = CustomerAddressState(MockAddressRepository());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: homeProviders(
+              db,
+              profileState: profileState,
+              addressState: addressState,
+            ),
+            child: const HomeView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Featured Products'), findsNothing); // none featured
+
+      // Admin features a product → section appears (via _onDbChanged).
+      await db.updateProduct(
+        db
+            .getProductById('marble-side-table')
+            .copyWith(isFeatured: true, featuredRank: 10),
+      );
+      await tester.pumpAndSettle();
+      final scrollable = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+        find.text('Featured Products'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Featured Products'), findsOneWidget);
+
+      // Un-feature → section gone again.
+      await db.updateProduct(
+        db.getProductById('marble-side-table').copyWith(isFeatured: false),
+      );
+      await tester.pump(const Duration(milliseconds: 600)); // drain repo delays
+      await tester.pumpAndSettle();
+      expect(find.text('Featured Products'), findsNothing);
     });
 
     testWidgets('delivery-address row shows the default address and is '

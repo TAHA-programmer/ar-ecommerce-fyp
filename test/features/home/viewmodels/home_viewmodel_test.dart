@@ -478,6 +478,57 @@ void main() {
       await vm.loadHomeData();
       expect(vm.featuredProducts.map((p) => p.id).toList(), ['new', 'old']);
     });
+
+    test('an inactive featured product never appears on Home', () async {
+      final db = _EmptyCommerceDatabase();
+      await db.addProduct(
+        _product('feat-active', isFeatured: true, featuredRank: 10),
+      );
+      await db.addProduct(
+        _product(
+          'feat-inactive',
+          isFeatured: true,
+          featuredRank: 1,
+          isActive: false,
+        ),
+      );
+      final vm = _vm(db);
+      await vm.loadHomeData();
+      expect(vm.featuredProducts.map((p) => p.id).toList(), ['feat-active']);
+    });
+
+    test(
+      'unfeaturing / unpublishing a product reactively removes it from '
+      'Featured (via _onDbChanged), section hides when the last one goes',
+      () async {
+        final db = MockCommerceDatabase();
+        await db.addProduct(
+          _product('only-featured', isFeatured: true, featuredRank: 10),
+        );
+        final vm = _vm(db);
+        await vm.loadHomeData();
+        expect(vm.featuredProducts.single.id, 'only-featured');
+
+        // unfeature — same product, isFeatured flipped off
+        await db.updateProduct(
+          db.getProductById('only-featured').copyWith(isFeatured: false),
+        );
+        expect(vm.featuredProducts, isEmpty);
+        expect(vm.featuredStatus, HomeSectionStatus.empty);
+
+        // re-feature, then unpublish → also gone
+        await db.updateProduct(
+          db.getProductById('only-featured').copyWith(isFeatured: true),
+        );
+        expect(vm.featuredProducts.single.id, 'only-featured');
+        await db.updateProduct(
+          db
+              .getProductById('only-featured')
+              .copyWith(publicationStatus: ProductPublicationStatus.draft),
+        );
+        expect(vm.featuredProducts, isEmpty);
+      },
+    );
   });
 
   group('HomeViewModel — Recently Viewed', () {

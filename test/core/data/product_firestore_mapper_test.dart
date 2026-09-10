@@ -489,6 +489,31 @@ void main() {
         expect(restored.featuredRank, 3);
         expect(restored.toFirestoreMap().containsKey('featuredRank'), isFalse);
       });
+
+      test('a featured product with no explicit rank persists the neutral '
+          'default (both keys present, round-trips)', () {
+        final map = base(isFeatured: true).toFirestoreMap();
+        expect(map['isFeatured'], true);
+        expect(map['featuredRank'], ProductModel.defaultFeaturedRank);
+        final restored = productModelFromFirestore('p', map);
+        expect(restored.isFeatured, true);
+        expect(restored.featuredRank, ProductModel.defaultFeaturedRank);
+      });
+
+      test('featuring then un-featuring a product removes both keys again — '
+          'nothing else in the map changes', () {
+        final featured = base(isFeatured: true, featuredRank: 7);
+        final featuredMap = featured.toFirestoreMap();
+        expect(featuredMap['featuredRank'], 7);
+
+        final unfeatured = featured.copyWith(isFeatured: false);
+        final map = unfeatured.toFirestoreMap();
+        expect(map.containsKey('isFeatured'), isFalse);
+        expect(map.containsKey('featuredRank'), isFalse);
+        // every other key is identical to the never-featured baseline
+        final baseline = base().toFirestoreMap();
+        expect(map.keys.toSet(), baseline.keys.toSet());
+      });
     });
   });
 }
