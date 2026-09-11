@@ -9,9 +9,16 @@
 process.env.GCLOUD_PROJECT ||= "demo-twin-ar-fns";
 process.env.GOOGLE_CLOUD_PROJECT ||= process.env.GCLOUD_PROJECT;
 process.env.FIRESTORE_EMULATOR_HOST ||= "127.0.0.1:8080";
+// Phase 9.3 Stage 4 - the Virtual Try-On emulator tests also need Storage
+// (person-photo upload, garment asset, generated result). Harmless for every
+// pre-existing Firestore-only test in this directory.
+process.env.FIREBASE_STORAGE_EMULATOR_HOST ||= "127.0.0.1:9199";
+
+import { createHash } from "node:crypto";
 
 import { getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import Stripe from "stripe";
 
 import { createPaymentIntentHandler } from "../../src/createPaymentIntent";
@@ -20,10 +27,11 @@ import type { StripePaymentApi, StripePaymentIntentLike } from "../../src/lib/st
 const PROJECT_ID = process.env.GCLOUD_PROJECT as string;
 
 if (getApps().length === 0) {
-  initializeApp({ projectId: PROJECT_ID });
+  initializeApp({ projectId: PROJECT_ID, storageBucket: `${PROJECT_ID}.appspot.com` });
 }
 
 export const testDb = getFirestore();
+export const testBucket = getStorage().bucket();
 
 export async function clearFirestore(): Promise<void> {
   const host = process.env.FIRESTORE_EMULATOR_HOST as string;
@@ -356,6 +364,147 @@ export async function reserveViaHandler(
     piId: session!.stripePaymentIntentId as string,
     amountMinor: result.amount,
     totals: result.totals as unknown as Record<string, number>,
+  };
+}
+
+// ---- Storage helpers (Phase 9.3 Stage 4 - Virtual Try-On) ----------------
+
+export async function uploadTestObject(
+  path: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  await testBucket.file(path).save(bytes, { contentType, resumable: false });
+}
+
+export async function storageObjectExists(path: string): Promise<boolean> {
+  const [exists] = await testBucket.file(path).exists();
+  return exists;
+}
+
+export async function readStorageObjectBytes(path: string): Promise<Buffer | null> {
+  const file = testBucket.file(path);
+  const [exists] = await file.exists();
+  if (!exists) return null;
+  const [bytes] = await file.download();
+  return bytes;
+}
+
+// ---- Virtual Try-On helpers (Phase 9.3 Stage 4) ---------------------------
+
+// A real, valid JPEG signature (FFD8FF...) - long enough to also satisfy the
+// hardening pass's byte-signature re-verification (`imageSniff.ts`), not
+// just the storage.rules content-type gate.
+const JPEG_BYTES = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 1, 2, 3, 4, 5, 6, 7, 8,
+]);
+const JPEG_SHA256 = createHash("sha256").update(JPEG_BYTES).digest("hex");
+// A real, valid PNG signature - the default fake-provider "generated" result,
+// so the generation-time provider-output signature re-verification
+// (`imageSniff.ts`) passes for a normal, honest success-path test.
+export const PNG_RESULT_BYTES = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4,
+]);
+
+/** A well-formed garment-asset map entry, matching `ProductVtoMetadata`'s
+ *  Firestore shape and `resolveEligibleGarment`'s ownership-path check. The
+ *  default `sha256`/`byteSize` are the REAL hash/length of the bytes
+ *  `seedVtoProduct` actually uploads, so the generation-time integrity
+ *  re-verification (2026-09-11 hardening) passes for a normal, honest test
+ *  fixture - pass explicit overrides to deliberately test a mismatch. */
+export function vtoGarmentAsset(
+  productId: string,
+  slot: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    storagePath: `products/${productId}/vto/garment-${slot}-v1.jpg`,
+    sha256: JPEG_SHA256,
+    contentType: "image/jpeg",
+    byteSize: JPEG_BYTES.length,
+    width: 900,
+    height: 1200,
+    version: 1,
+    ...overrides,
+  };
+}
+
+/** `productData()` overrides for a fully VTO-eligible product with one
+ *  garment asset under `colorKey`. Also uploads the garment bytes to Storage
+ *  (bypassing storage.rules, same as every other Admin-SDK test seed).
+ *  `garmentOverrides` customizes the garment-asset map entry itself (e.g. a
+ *  malformed sha256 or a foreign storagePath); `productOverrides` customizes
+ *  the rest of the product document (e.g. `vtoDisabled: true`). */
+export async function seedVtoProduct(
+  productId: string,
+  colorKey: string,
+  productOverrides: Record<string, unknown> = {},
+  garmentOverrides: Record<string, unknown> = {},
+): Promise<void> {
+  const garment = vtoGarmentAsset(productId, colorKey, garmentOverrides);
+  const { skipGarmentUpload, ...docOverrides } = productOverrides as { skipGarmentUpload?: boolean } & Record<
+    string,
+    unknown
+  >;
+  await seedProduct(productId, {
+    experienceType: "virtualTryOn",
+    vtoModelType: "female",
+    availableColors: [colorKey],
+    availableSizes: ["S", "M", "L"],
+    defaultColor: colorKey,
+    defaultSize: "M",
+    vtoGarmentCategory: "top",
+    vtoContract: "twin-ar/vto-contract-9.3",
+    vtoGarments: { [colorKey]: garment },
+    vtoDisabled: false,
+    ...docOverrides,
+  });
+  if (!skipGarmentUpload) {
+    await uploadTestObject(garment.storagePath as string, JPEG_BYTES, garment.contentType as string);
+  }
+}
+
+export async function seedPersonPhoto(uid: string, sessionId: string): Promise<string> {
+  const path = `users/${uid}/tryOnUploads/${sessionId}.jpg`;
+  await uploadTestObject(path, JPEG_BYTES, "image/jpeg");
+  return path;
+}
+
+export async function readTryOnSession(sessionId: string): Promise<Record<string, unknown> | undefined> {
+  return (await testDb.doc(`tryOnSessions/${sessionId}`).get()).data();
+}
+
+export async function readTryOnUserQuota(uid: string): Promise<Record<string, unknown> | undefined> {
+  return (await testDb.doc(`tryOnQuota/${uid}`).get()).data();
+}
+
+export async function readTryOnGlobalQuota(): Promise<Record<string, unknown> | undefined> {
+  return (await testDb.doc("tryOnQuota/_global").get()).data();
+}
+
+export interface FakeVtoProviderOptions {
+  resultBytes?: Buffer;
+  resultContentType?: string;
+  /** Thrown by `generate()` on every call, e.g. a `VtoProviderError`. */
+  failWith?: unknown;
+}
+
+/** A stateful fake `VtoProvider` - tracks every call, never touches the network. */
+export function makeFakeVtoProvider(opts: FakeVtoProviderOptions = {}) {
+  const calls: unknown[] = [];
+  return {
+    calls,
+    provider: {
+      name: "fake",
+      async generate(input: unknown) {
+        calls.push(input);
+        if (opts.failWith !== undefined) throw opts.failWith;
+        return {
+          imageBytes: opts.resultBytes ?? PNG_RESULT_BYTES,
+          contentType: opts.resultContentType ?? "image/png",
+        };
+      },
+    },
   };
 }
 

@@ -45,3 +45,12 @@ export { releaseExpiredReservations } from "./releaseExpiredReservations";
 // exactly idempotent. NOT deployed yet.
 export { adjustStatsOnOrderCancel } from "./adjustStatsOnOrderCancel";
 export { adjustFavoriteCount } from "./adjustFavoriteCount";
+
+// Phase 9.3 "Virtual Try-On" Stage 4 - server-side generation behind a
+// provider abstraction (LOCKED to Gemini `gemini-2.5-flash-image`, D2), with
+// per-user + global rate limiting (D9), unconditional person-photo deletion
+// (D4), a 24h result-media TTL safety sweep, and Auth-deletion cleanup. NOT
+// deployed yet - local implementation + test pass only.
+export { generateTryOn } from "./generateTryOn";
+export { cleanupExpiredTryOnMedia } from "./cleanupExpiredTryOnMedia";
+export { cleanupUserTryOnData } from "./cleanupUserTryOnData";

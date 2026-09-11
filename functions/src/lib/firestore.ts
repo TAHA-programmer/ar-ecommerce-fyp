@@ -25,7 +25,13 @@ export const COLLECTIONS = {
   // Phase 9.3 "Dynamic Home Content" Stage 2.
   productStats: "productStats",
   statsAdjustments: "statsAdjustments",
+  // Phase 9.3 "Virtual Try-On" Stage 4.
+  tryOnSessions: "tryOnSessions",
+  tryOnQuota: "tryOnQuota",
 } as const;
+
+/** The single server-owned document id used for the D9 global daily cap. */
+export const TRY_ON_GLOBAL_QUOTA_DOC_ID = "_global";
 
 /** The private per-(user,product) idempotency-guard subcollection under a
  *  `productStats/{productId}` document. Server-internal; `firestore.rules`
@@ -93,6 +99,25 @@ export function statsAdjustmentDoc(orderId: string) {
 /** `users/{uid}/addresses/{addressId}` - reading it under the caller's own uid IS the ownership check. */
 export function userAddressDoc(uid: string, addressId: string) {
   return db().doc(`users/${uid}/addresses/${addressId}`);
+}
+
+/** `tryOnSessions/{sessionId}` - server-owned Virtual Try-On session (Stage 4). */
+export function tryOnSessionsRef() {
+  return db().collection(COLLECTIONS.tryOnSessions);
+}
+
+export function tryOnSessionDoc(sessionId: string) {
+  return tryOnSessionsRef().doc(sessionId);
+}
+
+/** `tryOnQuota/{uid}` - the per-user D9 rate-limit counters. */
+export function tryOnUserQuotaDoc(uid: string) {
+  return db().collection(COLLECTIONS.tryOnQuota).doc(uid);
+}
+
+/** `tryOnQuota/_global` - the D9 server-enforced daily cost circuit breaker. */
+export function tryOnGlobalQuotaDoc() {
+  return db().collection(COLLECTIONS.tryOnQuota).doc(TRY_ON_GLOBAL_QUOTA_DOC_ID);
 }
 
 /** `users/{uid}/addressDefault/pointer` - the single authoritative default-address pointer. */

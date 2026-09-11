@@ -3301,6 +3301,166 @@ async function main() {
     );
   });
 
+  console.log('tryOnSessions / tryOnQuota - Phase 9.3 Stage 4 (Virtual Try-On)');
+
+  async function seedTryOnSession(sessionId, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `tryOnSessions/${sessionId}`), {
+        userId: ALICE,
+        status: 'succeeded',
+        productId: 'p1',
+        colorKey: 'blue',
+        size: null,
+        garmentStoragePath: 'products/p1/vto/garment-blue-v1.jpg',
+        garmentCategory: 'top',
+        failureReason: null,
+        resultPath: `users/${ALICE}/tryOnResults/${sessionId}.jpg`,
+        provider: 'gemini',
+        providerModel: 'gemini-2.5-flash-image',
+        idempotencyKey: 'k',
+        ...data,
+      });
+    });
+  }
+
+  await run('the owner can read their own tryOnSession', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnSession('s1', {});
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), 'tryOnSessions/s1')));
+  });
+
+  await run('a different signed-in customer cannot read someone else\'s tryOnSession', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnSession('s1', {});
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), 'tryOnSessions/s1')));
+  });
+
+  await run('an unauthenticated client cannot read a tryOnSession', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnSession('s1', {});
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(getDoc(doc(anon.firestore(), 'tryOnSessions/s1')));
+  });
+
+  await run('a superAdmin can read any tryOnSession (support/debugging)', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnSession('s1', {});
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(getDoc(doc(admin.firestore(), 'tryOnSessions/s1')));
+  });
+
+  await run('the owner cannot write (create/update/delete) their own tryOnSession - Cloud Function only', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), 'tryOnSessions/s2'), {
+        userId: ALICE,
+        status: 'pending',
+      }),
+    );
+    await seedTryOnSession('s3', {});
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'tryOnSessions/s3'), { status: 'failed' }),
+    );
+    await assertFails(deleteDoc(doc(alice.firestore(), 'tryOnSessions/s3')));
+  });
+
+  await run('a superAdmin also cannot write a tryOnSession - no client write path at all, ever', async () => {
+    await testEnv.clearFirestore();
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(
+      setDoc(doc(admin.firestore(), 'tryOnSessions/s4'), { userId: ALICE, status: 'pending' }),
+    );
+  });
+
+  async function seedTryOnQuota(docId, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `tryOnQuota/${docId}`), data);
+    });
+  }
+
+  await run('the owner can read their own tryOnQuota document (doc id == their own uid)', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnQuota(ALICE, { hourCount: 1, dayCount: 1 });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), `tryOnQuota/${ALICE}`)));
+  });
+
+  await run('a different signed-in customer cannot read someone else\'s tryOnQuota document', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnQuota(ALICE, { hourCount: 1, dayCount: 1 });
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `tryOnQuota/${ALICE}`)));
+  });
+
+  await run('no customer can read the global daily quota document (tryOnQuota/_global)', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnQuota('_global', { dayCount: 12 });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(getDoc(doc(alice.firestore(), 'tryOnQuota/_global')));
+  });
+
+  await run('a superAdmin can read any tryOnQuota document, including the global one', async () => {
+    await testEnv.clearFirestore();
+    await seedTryOnQuota(ALICE, { hourCount: 1, dayCount: 1 });
+    await seedTryOnQuota('_global', { dayCount: 12 });
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(getDoc(doc(admin.firestore(), `tryOnQuota/${ALICE}`)));
+    await assertSucceeds(getDoc(doc(admin.firestore(), 'tryOnQuota/_global')));
+  });
+
+  await run('the owner cannot write their own tryOnQuota document - the generateTryOn transaction only', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), `tryOnQuota/${ALICE}`), { hourCount: 0, dayCount: 0 }),
+    );
+  });
+
+  await run('a superAdmin also cannot write a tryOnQuota document - no client write path, ever', async () => {
+    await testEnv.clearFirestore();
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(
+      setDoc(doc(admin.firestore(), 'tryOnQuota/_global'), { dayCount: 0 }),
+    );
+  });
+
+  await run('products/{id} write stays isAdmin()-only with the new vto* fields (regression)', async () => {
+    await testEnv.clearFirestore();
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(
+      setDoc(doc(admin.firestore(), 'products/p1'), {
+        ...publishedActiveProduct(),
+        experienceType: 'virtualTryOn',
+        vtoGarmentCategory: 'top',
+        vtoContract: 'twin-ar/vto-contract-9.3',
+        vtoGarments: {},
+        vtoDisabled: false,
+      }),
+    );
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'products/p1'), { vtoDisabled: true }),
+    );
+  });
+
   console.log('catch-all - other collections');
 
   await run('any other collection is denied by the catch-all rule', async () => {

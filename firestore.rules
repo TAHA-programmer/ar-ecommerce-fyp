@@ -651,6 +651,31 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Phase 9.3 "Virtual Try-On" Stage 4 - the server-owned generation
+    // session. Written EXCLUSIVELY by the `generateTryOn` callable and the
+    // `cleanupExpiredTryOnMedia` / `cleanupUserTryOnData` Cloud Functions via
+    // the Admin SDK (which bypasses these rules entirely) - there is NO
+    // client write path, now or later, mirroring `checkoutSessions` exactly.
+    // READ: the owning customer may read their own session (to drive a
+    // future Stage 5 result screen); an admin may read any session for
+    // support/debugging.
+    match /tryOnSessions/{sessionId} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    // Phase 9.3 "Virtual Try-On" Stage 4 - the D9 rate-limit counters.
+    // `tryOnQuota/{uid}` holds one user's own hour/day windows; the single
+    // document `tryOnQuota/_global` holds the server-enforced daily circuit
+    // breaker (no uid can ever equal the literal id `_global`, so it stays
+    // unreadable to every customer and only an admin can inspect it).
+    // Written EXCLUSIVELY by the `generateTryOn` transaction via the Admin
+    // SDK - no client write path, now or later.
+    match /tryOnQuota/{docId} {
+      allow read: if isAdmin() || isOwner(docId);
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
