@@ -15,6 +15,15 @@ class ProductDetailsBottomActions extends StatelessWidget {
   /// customer can still view an out-of-stock item in their room / try it on.
   final bool isOutOfStock;
 
+  /// Phase 9.3 Stage 5 — the real customer launch gate for "Try It On":
+  /// `ProductDetailModel.hasRenderableVtoAsset`, never `experienceType`
+  /// alone. A `virtualTryOn` product with no renderable asset (not yet
+  /// configured, or the admin disabled it) shows NO "Try It On" button, the
+  /// same honest "no dead button" treatment Room AR uses for an ineligible
+  /// product. Defaults to `true` so the previous behaviour is preserved for
+  /// any caller not yet passing this explicitly.
+  final bool hasRenderableVtoAsset;
+
   const ProductDetailsBottomActions({
     super.key,
     required this.experienceType,
@@ -23,6 +32,7 @@ class ProductDetailsBottomActions extends StatelessWidget {
     required this.onViewInRoom,
     required this.onTryItOn,
     this.isOutOfStock = false,
+    this.hasRenderableVtoAsset = true,
   });
 
   @override
@@ -49,7 +59,8 @@ class ProductDetailsBottomActions extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (experienceType == ProductExperienceType.virtualTryOn) ...[
+          if (experienceType == ProductExperienceType.virtualTryOn &&
+              hasRenderableVtoAsset) ...[
             Expanded(
               child: SizedBox(
                 height: 48,

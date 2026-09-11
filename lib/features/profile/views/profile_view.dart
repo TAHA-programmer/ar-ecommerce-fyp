@@ -8,6 +8,7 @@ import '../../../app/viewmodels/customer_profile_state.dart';
 import '../../../app/viewmodels/auth_session_state.dart';
 import '../../../features/auth/repositories/auth_repository.dart';
 import '../../../core/services/device_image_picker_service.dart';
+import '../../virtual_try_on/services/virtual_try_on_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/app_radii.dart';
@@ -147,6 +148,85 @@ class ProfileView extends StatelessWidget {
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
+    }
+  }
+
+  /// Phase 9.3 Stage 5 (tracker §5.2 step 10 / D4) — removes every Virtual
+  /// Try-On Storage object (person-photo uploads + generated previews) this
+  /// customer owns. `tryOnSessions` activity records (which colour/product/
+  /// timestamp — no photos) are NOT client-deletable (`firestore.rules`) and
+  /// are left in place; only the media is deleted here. Shows truthful
+  /// success / partial-failure / failure feedback based on
+  /// [VirtualTryOnDataDeletionResult] — never claims success when the
+  /// underlying query or a Storage delete genuinely failed.
+  Future<void> _confirmDeleteTryOnData(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.mediumBorder,
+          side: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        title: Text('Delete My Try-On Data?', style: AppTypography.title),
+        content: Text(
+          'This removes any saved Virtual Try-On photos and previews from '
+          'your account. This cannot be undone. A record that you used '
+          'Virtual Try-On (with no photos) may still be kept briefly for '
+          'your account activity.',
+          style: AppTypography.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.primaryDark,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final uid = context.read<AuthSessionState>().userId;
+    if (uid == null) return;
+
+    final result = await context.read<VirtualTryOnService>().deleteAllTryOnData(
+      uid: uid,
+    );
+
+    if (!context.mounted) return;
+    switch (result.outcome) {
+      case VirtualTryOnDataDeletionOutcome.success:
+        AppToast.success(
+          context,
+          result.sessionsFound == 0
+              ? 'No saved Virtual Try-On photos or previews were found.'
+              : 'Your Virtual Try-On photos and previews have been deleted.',
+        );
+      case VirtualTryOnDataDeletionOutcome.partial:
+        AppToast.warning(
+          context,
+          'Some Virtual Try-On data could not be deleted. Please try again '
+          'later.',
+        );
+      case VirtualTryOnDataDeletionOutcome.failed:
+        AppToast.error(
+          context,
+          "We couldn't delete your Virtual Try-On data right now. Please "
+          "check your connection and try again.",
+        );
     }
   }
 
@@ -418,6 +498,11 @@ class ProfileView extends StatelessWidget {
                               context,
                               RouteNames.virtualTryOnInfo,
                             ),
+                          ),
+                          ProfileMenuItem(
+                            icon: Icons.delete_outline,
+                            title: 'Delete My Try-On Data',
+                            onTap: () => _confirmDeleteTryOnData(context),
                           ),
                           ProfileMenuItem(
                             icon: Icons.shield_outlined,

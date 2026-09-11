@@ -38,6 +38,12 @@ import '../../features/room_ar/tier1_arcore/viewmodels/room_arcore_viewmodel.dar
 import '../../features/room_ar/tier1_arcore/views/room_arcore_view.dart';
 import '../../features/virtual_try_on/viewmodels/virtual_try_on_setup_viewmodel.dart';
 import '../../features/virtual_try_on/views/virtual_try_on_setup_view.dart';
+import '../../features/virtual_try_on/models/virtual_try_on_setup_args.dart';
+import '../../features/virtual_try_on/models/virtual_try_on_session_args.dart';
+import '../../features/virtual_try_on/viewmodels/virtual_try_on_session_viewmodel.dart';
+import '../../features/virtual_try_on/views/virtual_try_on_session_view.dart';
+import '../../features/virtual_try_on/services/virtual_try_on_service.dart';
+import '../../features/virtual_try_on/services/virtual_try_on_photo_picker_service.dart';
 import '../../features/cart/viewmodels/cart_viewmodel.dart';
 import '../../features/cart/views/shopping_cart_view.dart';
 import '../../features/checkout/views/checkout_payment_view.dart';
@@ -341,15 +347,49 @@ class AppRouter {
           ),
         );
       case RouteNames.virtualTryOnSetup:
-        final productId = settings.arguments as String?;
-        if (productId == null) return _errorRoute('Product ID is required');
+        final vtoSetupArgs = settings.arguments;
+        final String? vtoProductId = switch (vtoSetupArgs) {
+          VirtualTryOnSetupArgs a => a.productId,
+          String s => s, // defensive back-compat for a raw productId string
+          _ => null,
+        };
+        if (vtoProductId == null) return _errorRoute('Product ID is required');
+        final vtoInitialColorKey = vtoSetupArgs is VirtualTryOnSetupArgs
+            ? vtoSetupArgs.initialColorKey
+            : null;
+        final vtoInitialSize = vtoSetupArgs is VirtualTryOnSetupArgs
+            ? vtoSetupArgs.initialSize
+            : null;
         return MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider(
             create: (context) => VirtualTryOnSetupViewModel(
               repository: context.read(),
-              productId: productId,
+              productId: vtoProductId,
+              initialColorKey: vtoInitialColorKey,
+              initialSize: vtoInitialSize,
             ),
             child: const VirtualTryOnSetupView(),
+          ),
+        );
+      case RouteNames.virtualTryOnSession:
+        final sessionArgs = settings.arguments;
+        if (sessionArgs is! VirtualTryOnSessionArgs) {
+          return _errorRoute('Virtual Try-On session arguments are required');
+        }
+        return MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (context) => VirtualTryOnSessionViewModel(
+              repository: context.read(),
+              service: context.read<VirtualTryOnService>(),
+              photoPicker: context.read<VirtualTryOnPhotoPickerService>(),
+              shoppingState: context.read<CustomerShoppingState>(),
+              authSessionState: context.read<AuthSessionState>(),
+              productId: sessionArgs.productId,
+              colorKey: sessionArgs.colorKey,
+              size: sessionArgs.size,
+              idempotencyKey: sessionArgs.idempotencyKey,
+            ),
+            child: const VirtualTryOnSessionView(),
           ),
         );
       case RouteNames.deliveryAddress:

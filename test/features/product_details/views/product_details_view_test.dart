@@ -116,8 +116,14 @@ void main() {
       expect(find.textContaining('Secure'), findsOneWidget);
       expect(find.textContaining('Free Shipping'), findsOneWidget);
 
-      // Actions
-      expect(find.text('Try It On'), findsOneWidget);
+      // Actions — Phase 9.3 Stage 5: "Try It On" is now gated on
+      // `hasRenderableVtoAsset`, not `experienceType` alone. The mock
+      // catalogue deliberately carries no VTO garment contract for ANY seed
+      // product yet (see `product_model_vto_test.dart`'s "existing catalogue
+      // is undisturbed" regression test), so this virtualTryOn-enabled
+      // product is correctly NOT yet launchable — exactly the same honest
+      // "no dead button" treatment as an unconfigured Room AR product.
+      expect(find.text('Try It On'), findsNothing);
       expect(find.textContaining('Add to Cart'), findsOneWidget);
 
       // Room AR should NOT be present

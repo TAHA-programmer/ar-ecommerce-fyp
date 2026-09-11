@@ -52,6 +52,11 @@ dependencies:
   crypto: ^3.0.6
   flutter_stripe: ^14.0.0
   cloud_functions: ^6.4.0
+  # Phase 9.3 Stage 5 — Virtual Try-On person-photo re-encoding. Already
+  # resolved transitively (pinned here at the same version) - deterministic
+  # decode + re-encode to JPEG so every upload matches the server's
+  # `.jpg`-only Storage rule regardless of the source file's original format.
+  image: ^4.9.2
 
   # Phase 9.2 R5 — Tier-2 Marker-AR (Room AR on non-ARCore Android). Ported from
   # the physically-approved `_marker_ar_poc`; versions match that PoC.

@@ -38,6 +38,10 @@ import '../features/room_ar/capability/room_ar_capability_service.dart';
 import '../features/checkout/services/checkout_payment_service.dart';
 import '../features/checkout/services/stripe_checkout_payment_service.dart';
 import '../features/checkout/services/checkout_cart_reconciler.dart';
+import '../features/virtual_try_on/services/virtual_try_on_service.dart';
+import '../features/virtual_try_on/services/firebase_virtual_try_on_service.dart';
+import '../features/virtual_try_on/services/virtual_try_on_photo_picker_service.dart';
+import '../features/virtual_try_on/services/device_virtual_try_on_photo_picker_service.dart';
 import '../features/admin/dashboard/viewmodels/admin_dashboard_viewmodel.dart';
 
 class AppProviders {
@@ -60,6 +64,8 @@ class AppProviders {
     FavoritesRepository? favoritesRepository,
     CartRepository? cartRepository,
     CheckoutPaymentService? checkoutPaymentService,
+    VirtualTryOnService? virtualTryOnService,
+    VirtualTryOnPhotoPickerService? virtualTryOnPhotoPickerService,
   }) => [
     // AuthRepository/AuthSessionState are registered before
     // CommerceDatabase because FirestoreCommerceDatabase (Phase 8.5) needs
@@ -152,6 +158,17 @@ class AppProviders {
     // like the repositories above.
     Provider<CheckoutPaymentService>(
       create: (_) => checkoutPaymentService ?? StripeCheckoutPaymentService(),
+    ),
+    // Phase 9.3 Stage 5 — the `generateTryOn` callable + Storage seam, and
+    // the rear-camera/gallery photo picker. Optional test-injection seams,
+    // like the checkout service above.
+    Provider<VirtualTryOnService>(
+      create: (_) => virtualTryOnService ?? FirebaseVirtualTryOnService(),
+    ),
+    Provider<VirtualTryOnPhotoPickerService>(
+      create: (_) =>
+          virtualTryOnPhotoPickerService ??
+          DeviceVirtualTryOnPhotoPickerService(),
     ),
     Provider<HomeRepository>(create: (_) => FirestoreHomeRepository()),
     // Dynamic Home Content Stage 3 — read-only ordering signals for Home's

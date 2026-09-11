@@ -1,1 +1,0 @@
-enum VirtualTryOnCameraType { front, rear }

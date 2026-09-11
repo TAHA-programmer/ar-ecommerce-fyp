@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../app/viewmodels/auth_session_state.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/models/product/product_vto_model_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/feedback/app_toast.dart';
 import '../../../app/routes/route_names.dart';
+import '../models/virtual_try_on_session_args.dart';
 import '../viewmodels/virtual_try_on_setup_viewmodel.dart';
-import '../widgets/vto_camera_option_card.dart';
-import '../models/virtual_try_on_camera_type.dart';
 import '../widgets/vto_product_summary_card.dart';
 import '../widgets/vto_positioning_section.dart';
-import '../widgets/vto_privacy_card.dart';
+import '../widgets/vto_consent_card.dart';
 import '../widgets/vto_compatibility_card.dart';
 
+/// Virtual Try-On setup/consent screen (Phase 9.3 Stage 5) — product +
+/// variant selection, accurate "how it works" / positioning / consent /
+/// compatibility guidance, and the gate into the capture/generate/result
+/// screen ([RouteNames.virtualTryOnSession]).
 class VirtualTryOnSetupView extends StatelessWidget {
   const VirtualTryOnSetupView({super.key});
 
@@ -22,6 +25,13 @@ class VirtualTryOnSetupView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        foregroundColor: AppColors.textPrimary,
+        title: Image.asset(AppAssets.headerLogo, height: 28),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Consumer<VirtualTryOnSetupViewModel>(
           builder: (context, viewModel, _) {
@@ -32,22 +42,17 @@ class VirtualTryOnSetupView extends StatelessWidget {
             }
 
             if (viewModel.error != null || viewModel.product == null) {
-              return Center(
-                child: Text(
-                  viewModel.error ?? 'Failed to load product',
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.error,
-                  ),
-                ),
+              return _ErrorState(
+                message: viewModel.error ?? 'Product not found.',
               );
             }
 
             final product = viewModel.product!;
-            final isFemale = product.vtoModelType == ProductVtoModelType.female;
+            final isFemaleModel =
+                product.vtoModelType == ProductVtoModelType.female;
 
             return Column(
               children: [
-                _buildHeader(context, isFemale),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
@@ -57,96 +62,51 @@ class VirtualTryOnSetupView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        VtoProductSummaryCard(product: product),
+                        VtoProductSummaryCard(
+                          product: product,
+                          selectedColor: viewModel.selectedColor,
+                          selectedSize: viewModel.selectedSize,
+                          colorHasPreview: (c) =>
+                              viewModel.colorHasPreview(product, c),
+                          onColorSelected: viewModel.selectColor,
+                          onSizeSelected: viewModel.selectSize,
+                        ),
                         const SizedBox(height: 24),
-                        if (isFemale) ...[
-                          Text('Virtual Try-On', style: AppTypography.title),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Our virtual try-on uses AR to show how this item fits and looks on you in real time.',
-                            style: AppTypography.bodySmall,
-                          ),
-                        ] else ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.auto_awesome,
-                                color: AppColors.primaryDark,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'How Virtual Try-On works',
-                                style: AppTypography.bodyLarge.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'We use advanced body mapping and AI to show how the selected item fits and looks on you in real time.',
-                            style: AppTypography.bodySmall,
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        if (isFemale)
-                          Text(
-                            'Choose your camera',
-                            style: AppTypography.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        else
-                          Row(
-                            children: [
-                              const Icon(Icons.camera_alt_outlined),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Choose Camera',
-                                style: AppTypography.bodyLarge.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 16),
                         Row(
                           children: [
-                            Expanded(
-                              child: VtoCameraOptionCard(
-                                type: VirtualTryOnCameraType.front,
-                                isSelected:
-                                    viewModel.selectedCamera ==
-                                    VirtualTryOnCameraType.front,
-                                onTap: () => viewModel.selectCamera(
-                                  VirtualTryOnCameraType.front,
-                                ),
-                                isFemaleVariant: isFemale,
-                              ),
+                            const Icon(
+                              Icons.auto_awesome,
+                              color: AppColors.primaryDark,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: VtoCameraOptionCard(
-                                type: VirtualTryOnCameraType.rear,
-                                isSelected:
-                                    viewModel.selectedCamera ==
-                                    VirtualTryOnCameraType.rear,
-                                onTap: () => viewModel.selectCamera(
-                                  VirtualTryOnCameraType.rear,
-                                ),
-                                isFemaleVariant: isFemale,
+                            const SizedBox(width: 8),
+                            Text(
+                              'How Virtual Try-On Works',
+                              style: AppTypography.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 32),
-                        VtoPositioningSection(isFemaleVariant: isFemale),
-                        const SizedBox(height: 32),
-                        VtoPrivacyCard(isFemaleVariant: isFemale),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Take or choose a photo of yourself. We use Google's "
+                          "Gemini AI to generate a visual preview of you "
+                          "wearing this item in your selected colour. It's an "
+                          "appearance estimate, not a fit or sizing guarantee "
+                          "— actual drape, texture and size will vary.",
+                          style: AppTypography.bodySmall,
+                        ),
+                        const SizedBox(height: 24),
+                        VtoPositioningSection(isFemaleModel: isFemaleModel),
+                        const SizedBox(height: 24),
+                        VtoConsentCard(
+                          checked: viewModel.consentChecked,
+                          onChanged: viewModel.setConsentChecked,
+                        ),
                         const SizedBox(height: 16),
-                        VtoCompatibilityCard(isFemaleVariant: isFemale),
+                        const VtoCompatibilityCard(),
                         const SizedBox(height: 32),
-                        _buildPrimaryButton(context, isFemale),
+                        _buildPrimaryButton(context, viewModel),
                         const SizedBox(height: 16),
                         _buildSecondaryButton(context),
                         const SizedBox(height: 16),
@@ -164,80 +124,28 @@ class VirtualTryOnSetupView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isFemale) {
-    if (isFemale) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.neutralLight),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: Image.asset(AppAssets.headerLogo, height: 32),
-              ),
-            ),
-            const SizedBox(width: 48), // Balance for back button
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            Expanded(
-              child: Center(
-                child: Column(
-                  children: [
-                    Image.asset(AppAssets.headerLogo, height: 24),
-                    const SizedBox(height: 4),
-                    Text('Virtual Try-On', style: AppTypography.title),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 24), // Balance for back button
-          ],
-        ),
-      );
-    }
-  }
-
-  Widget _buildPrimaryButton(BuildContext context, bool isFemale) {
+  Widget _buildPrimaryButton(
+    BuildContext context,
+    VirtualTryOnSetupViewModel viewModel,
+  ) {
     return ElevatedButton(
-      onPressed: () {
-        AppToast.info(context, 'Coming soon');
-      },
+      onPressed: viewModel.canStart
+          ? () => _startTryOn(context, viewModel)
+          : null,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.white,
+        disabledBackgroundColor: AppColors.neutralLight,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         elevation: 0,
       ),
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            isFemale ? Icons.view_in_ar : Icons.checkroom,
-          ), // Approximation of icons
-          const SizedBox(width: 8),
-          const Text(
+          Icon(Icons.checkroom),
+          SizedBox(width: 8),
+          Text(
             'Start Try-On',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -246,10 +154,29 @@ class VirtualTryOnSetupView extends StatelessWidget {
     );
   }
 
+  void _startTryOn(BuildContext context, VirtualTryOnSetupViewModel viewModel) {
+    final authState = context.read<AuthSessionState>();
+    if (!authState.isAuthenticated) {
+      _requireSignInThen(context, () => _startTryOn(context, viewModel));
+      return;
+    }
+
+    final args = VirtualTryOnSessionArgs(
+      productId: viewModel.productId,
+      colorKey: viewModel.selectedColor!.name,
+      size: viewModel.selectedSize?.name,
+      idempotencyKey: viewModel.startNewAttemptIdempotencyKey(),
+    );
+    Navigator.pushNamed(
+      context,
+      RouteNames.virtualTryOnSession,
+      arguments: args,
+    );
+  }
+
   Widget _buildSecondaryButton(BuildContext context) {
     return OutlinedButton(
       onPressed: () {
-        // Change product -> Return to catalog, preserving Home base.
         Navigator.pushNamedAndRemoveUntil(
           context,
           RouteNames.explore,
@@ -265,7 +192,7 @@ class VirtualTryOnSetupView extends StatelessWidget {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.swap_horiz), // Approximation of the change product icon
+          Icon(Icons.swap_horiz),
           SizedBox(width: 8),
           Text(
             'Change Product',
@@ -281,6 +208,56 @@ class VirtualTryOnSetupView extends StatelessWidget {
       onPressed: () => Navigator.pop(context),
       style: TextButton.styleFrom(foregroundColor: AppColors.primaryDark),
       child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+    );
+  }
+}
+
+/// Routes a signed-out customer to login, then resumes [onSignedIn] once
+/// they return. `LoginView` pops with `true` on success when it was reached
+/// via a push (rather than replacing to Home) — see its doc comment.
+Future<void> _requireSignInThen(
+  BuildContext context,
+  VoidCallback onSignedIn,
+) async {
+  final result = await Navigator.pushNamed(context, RouteNames.login);
+  if (result == true && context.mounted) {
+    onSignedIn();
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  const _ErrorState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.checkroom_outlined,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
