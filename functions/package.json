@@ -14,7 +14,7 @@
     "lint": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "test:emulator": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-twin-ar-fns \"vitest run --config vitest.emulator.config.ts\"",
+    "test:emulator": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-twin-ar-fns \"vitest run --config vitest.emulator.config.ts\"",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "logs": "firebase functions:log"

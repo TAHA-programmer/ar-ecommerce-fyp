@@ -111,6 +111,15 @@ service firebase.storage {
           && request.resource.metadata.twinArVtoVersion.matches('[0-9]+');
     }
 
+    // Phase 9.3 Stage 4 — Virtual Try-On customer photos/results. A raster
+    // photo or generated preview, JPEG or PNG only. Same allowed set as
+    // `isValidVtoGarmentType()` (Stage 3); kept as its own function so that
+    // approved Stage-3 rule is never touched by this Stage-4 change.
+    function isValidVtoPersonPhotoType() {
+      return request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png';
+    }
+
     // Phase 9.2 §17-follow-up — REPLACES the old hardcoded product-id
     // allowlist with a live, metadata-driven authorization check against the
     // product's own Firestore document. Cross-service (Storage rules reading
@@ -324,6 +333,59 @@ service firebase.storage {
                              && request.resource.size < 12 * 1024 * 1024;
       allow delete: if isAdmin()
                      && assetFile.matches('garment-[a-zA-Z0-9]+-v[0-9]+[.](jpg|jpeg|png)');
+    }
+
+    // Phase 9.3 Stage 4 — Virtual Try-On customer person-photo upload.
+    // `{sessionId}.jpg` only, where `{sessionId}` is the 64-hex SHA-256 the
+    // Cloud Function derives from `(uid, idempotencyKey)`
+    // (`tryOnSessionIdFor` in `functions/src/lib/tryOn/session.ts`) — a
+    // single exact final path segment, so nothing else under
+    // `users/{uid}/tryOnUploads/**` is ever readable or writable, and a
+    // client can never guess or collide another user's object name space.
+    // Read: owner or admin only — this is raw customer biometric imagery,
+    // never public, never shared, unlike product photography.
+    // Create: owner only, JPEG/PNG, size-capped. CREATE-ONLY (`resource ==
+    // null`, the same immutability guard the Stage 3 garment block uses) —
+    // once uploaded for a given attempt, that exact object never changes
+    // under the client; a genuinely new attempt uses a new idempotency key
+    // and therefore a new `{sessionId}`.
+    // Delete: owner (a client-side cleanup / abandoned-attempt tidy-up) or
+    // admin. `generateTryOn` deletes it itself via the Admin SDK (which
+    // bypasses this rule) immediately after every generation, success or
+    // failure (D4) — this client delete path exists only as a courtesy, e.g.
+    // if the customer cancels before ever calling `generateTryOn`.
+    match /users/{uid}/tryOnUploads/{sessionFile} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+                     && resource == null
+                     && sessionFile.matches('[0-9a-f]{64}[.]jpg')
+                     && isValidVtoPersonPhotoType()
+                     && request.resource.size <= 12 * 1024 * 1024;
+      allow update: if false;
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    // Phase 9.3 Stage 4 — Virtual Try-On generated preview.
+    // `{sessionId}.jpg` OR `{sessionId}.png` — the Cloud Function saves the
+    // result under whichever extension matches the provider output's own
+    // VERIFIED content type (Gemini image output is commonly PNG; 2026-09-11
+    // hardening — never save a PNG under a misleading `.jpg` name). Write is
+    // FUNCTION-ONLY (`generateTryOn`, via the Admin SDK, which bypasses this
+    // rule) — `allow create, update: if false` for every client, including a
+    // superAdmin, so a client can never fabricate or overwrite a "result";
+    // the name-shape regex on read/delete is a defence-in-depth tightening,
+    // not the security boundary (create/update already deny everyone).
+    // Read: owner or admin only (§10 — this is a generated image of the
+    // customer, not storefront photography). Delete: owner (the Stage 5
+    // "delete this preview" / "leave the result flow" action, and the
+    // Profile "delete my try-on data" affordance) or admin; the scheduled
+    // `cleanupExpiredTryOnMedia` sweep also deletes via the Admin SDK.
+    match /users/{uid}/tryOnResults/{sessionFile} {
+      allow read: if (isOwner(uid) || isAdmin())
+                   && sessionFile.matches('[0-9a-f]{64}[.](jpg|png)');
+      allow create, update: if false;
+      allow delete: if (isOwner(uid) || isAdmin())
+                     && sessionFile.matches('[0-9a-f]{64}[.](jpg|png)');
     }
 
     match /{allPaths=**} {

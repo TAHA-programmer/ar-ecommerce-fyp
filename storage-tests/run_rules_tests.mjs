@@ -1043,6 +1043,212 @@ async function main() {
     await assertSucceeds(deleteObject(ref(admin, 'products/oxford/vto/garment-gray-v1.png')));
   });
 
+  console.log('users/{uid}/tryOnUploads/{sessionFile} — Phase 9.3 Stage 4 (Virtual Try-On)');
+
+  const SESSION_A = 'a'.repeat(64);
+  const SESSION_B = 'b'.repeat(64);
+  const oversizedPersonPhotoBytes = new Uint8Array(13 * 1024 * 1024); // > 12MiB
+
+  await run('the owner can upload their own person photo (valid name/type/size)', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`), jpegBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('the owner can upload a PNG person photo too', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${SESSION_B}.jpg`), pngBytes, {
+        contentType: 'image/png',
+      }),
+    );
+  });
+
+  await run('a customer cannot upload to ANOTHER user\'s tryOnUploads path', async () => {
+    const bob = storageFor(BOB, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(bob, `users/${ALICE}/tryOnUploads/${'c'.repeat(64)}.jpg`), jpegBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('an unauthenticated client cannot upload a person photo', async () => {
+    const anon = storageFor(null);
+    await assertFails(
+      uploadBytes(ref(anon, `users/${ALICE}/tryOnUploads/${'d'.repeat(64)}.jpg`), jpegBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('an oversized person photo (> 12MiB) is rejected', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${'e'.repeat(64)}.jpg`), oversizedPersonPhotoBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('a disallowed content type (e.g. model/gltf-binary) is rejected', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${'f'.repeat(64)}.jpg`), jpegBytes, {
+        contentType: 'model/gltf-binary',
+      }),
+    );
+  });
+
+  await run('a malformed session-id name shape (not 64 hex chars) is rejected', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/not-a-session-id.jpg`), jpegBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('a well-formed id with the wrong extension is rejected', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${'1'.repeat(64)}.png`), pngBytes, {
+        contentType: 'image/png',
+      }),
+    );
+  });
+
+  await run('create-only: the owner cannot overwrite an existing upload at the same session id', async () => {
+    await seed(`users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`, jpegBytes, 'image/jpeg');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`), jpegBytes, {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  await run('the owner can read their own uploaded person photo; a different customer cannot', async () => {
+    await seed(`users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`, jpegBytes, 'image/jpeg');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    const bob = storageFor(BOB, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+    await assertFails(getBytes(ref(bob, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+  });
+
+  await run('an unauthenticated client cannot read a person photo', async () => {
+    await seed(`users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`, jpegBytes, 'image/jpeg');
+    const anon = storageFor(null);
+    await assertFails(getBytes(ref(anon, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+  });
+
+  await run('a superAdmin can read any customer\'s uploaded person photo (support/debugging)', async () => {
+    await seed(`users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`, jpegBytes, 'image/jpeg');
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(getBytes(ref(admin, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+  });
+
+  await run('the owner can delete their own uploaded person photo; a different customer cannot', async () => {
+    await seed(`users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`, jpegBytes, 'image/jpeg');
+    const bob = storageFor(BOB, { role: 'customer' });
+    await assertFails(deleteObject(ref(bob, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(deleteObject(ref(alice, `users/${ALICE}/tryOnUploads/${SESSION_A}.jpg`)));
+  });
+
+  console.log('users/{uid}/tryOnResults/{sessionFile} — Phase 9.3 Stage 4 (Virtual Try-On)');
+
+  await run('NO client - not even the owner, not even a superAdmin - can create a tryOnResults object (function-only)', async () => {
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`), pngBytes, {
+        contentType: 'image/png',
+      }),
+    );
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertFails(
+      uploadBytes(ref(admin, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`), pngBytes, {
+        contentType: 'image/png',
+      }),
+    );
+  });
+
+  await run('NO client can overwrite an existing tryOnResults object either', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.jpg`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(
+      uploadBytes(ref(alice, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`), pngBytes, {
+        contentType: 'image/png',
+      }),
+    );
+  });
+
+  await run('the owner can read their own generated preview; a different customer cannot', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.jpg`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    const bob = storageFor(BOB, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+    await assertFails(getBytes(ref(bob, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+  });
+
+  await run('an unauthenticated client cannot read a generated preview', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.jpg`, pngBytes, 'image/png');
+    const anon = storageFor(null);
+    await assertFails(getBytes(ref(anon, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+  });
+
+  await run('a superAdmin can read any customer\'s generated preview', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.jpg`, pngBytes, 'image/png');
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(getBytes(ref(admin, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+  });
+
+  await run('the owner can delete their own generated preview ("delete this preview"); a different customer cannot', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.jpg`, pngBytes, 'image/png');
+    const bob = storageFor(BOB, { role: 'customer' });
+    await assertFails(deleteObject(ref(bob, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(deleteObject(ref(alice, `users/${ALICE}/tryOnResults/${SESSION_A}.jpg`)));
+  });
+
+  await run('a superAdmin can delete any customer\'s generated preview too', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_B}.jpg`, pngBytes, 'image/png');
+    const admin = storageFor(ADMIN, { role: 'superAdmin' });
+    await assertSucceeds(deleteObject(ref(admin, `users/${ALICE}/tryOnResults/${SESSION_B}.jpg`)));
+  });
+
+  // 2026-09-11 hardening pass — the result is saved under whichever
+  // extension matches its VERIFIED actual content type (PNG is common for
+  // Gemini image output), so the name-shape regex accepts .jpg OR .png.
+  await run('the owner can read their own generated preview saved under a .png path', async () => {
+    const sessionC = 'c'.repeat(64);
+    await seed(`users/${ALICE}/tryOnResults/${sessionC}.png`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(getBytes(ref(alice, `users/${ALICE}/tryOnResults/${sessionC}.png`)));
+  });
+
+  await run('the owner can delete their own generated preview saved under a .png path', async () => {
+    const sessionD = 'd'.repeat(64);
+    await seed(`users/${ALICE}/tryOnResults/${sessionD}.png`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertSucceeds(deleteObject(ref(alice, `users/${ALICE}/tryOnResults/${sessionD}.png`)));
+  });
+
+  await run('a malformed result name shape (wrong extension) is denied on read even to the owner', async () => {
+    await seed(`users/${ALICE}/tryOnResults/${SESSION_A}.gif`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `users/${ALICE}/tryOnResults/${SESSION_A}.gif`)));
+  });
+
+  await run('a malformed result name shape (not 64 hex chars) is denied on read even to the owner', async () => {
+    await seed(`users/${ALICE}/tryOnResults/not-a-session-id.jpg`, pngBytes, 'image/png');
+    const alice = storageFor(ALICE, { role: 'customer' });
+    await assertFails(getBytes(ref(alice, `users/${ALICE}/tryOnResults/not-a-session-id.jpg`)));
+  });
+
   console.log('catch-all');
 
   await run('every other path is denied to everyone, including a superAdmin', async () => {
