@@ -77,6 +77,13 @@ class _LoginViewState extends State<LoginView> {
         context,
         result.errorMessage ?? 'Invalid email or password.',
       );
+    } else if (Navigator.canPop(context)) {
+      // Reached as a sub-flow (e.g. Phase 9.3 Stage 5 Virtual Try-On routing
+      // a signed-out customer to sign in mid-flow) — pop back to the caller
+      // with a success signal instead of replacing the whole stack. The
+      // normal top-level entry (Splash -> Login) never has anything to pop
+      // to, so this branch is additive and never fires for that path.
+      Navigator.of(context).pop(true);
     } else {
       if (result.role == UserRole.superAdmin) {
         Navigator.of(context).pushReplacementNamed(RouteNames.adminDashboard);

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/product/product_category.dart';
 import '../../../core/widgets/feedback/app_toast.dart';
 import '../../../app/routes/route_names.dart';
+import '../../virtual_try_on/models/virtual_try_on_setup_args.dart';
 import '../repositories/product_details_repository.dart';
 import '../repositories/recently_viewed_repository.dart';
 import '../viewmodels/product_details_viewmodel.dart';
@@ -83,7 +84,11 @@ class _ProductDetailsContent extends StatelessWidget {
               onTryItOn: () => Navigator.pushNamed(
                 context,
                 RouteNames.virtualTryOnSetup,
-                arguments: viewModel.product!.summary.id,
+                arguments: VirtualTryOnSetupArgs(
+                  productId: viewModel.product!.summary.id,
+                  initialColorKey: viewModel.selectedColor?.name,
+                  initialSize: viewModel.selectedSize?.name,
+                ),
               ),
             )
           : HomeProductDetailsLayout(

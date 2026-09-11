@@ -17,6 +17,11 @@ class RouteNames {
   static const String explore = '/explore';
   static const String productDetails = '/product-details';
   static const String virtualTryOnSetup = '/virtual-try-on-setup';
+
+  /// Phase 9.3 Stage 5 — the customer capture → upload → generate → result
+  /// screen, reached from the setup screen's "Start Try-On". Expects a
+  /// `VirtualTryOnSessionArgs`.
+  static const String virtualTryOnSession = '/virtual-try-on-session';
   static const String roomArPreparation = '/room-ar-preparation';
 
   /// Phase 9.2 R5 — internal Tier-2 Marker-AR engine verification surface

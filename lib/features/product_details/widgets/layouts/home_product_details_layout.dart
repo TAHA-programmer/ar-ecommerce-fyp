@@ -104,6 +104,7 @@ class HomeProductDetailsLayout extends StatelessWidget {
           experienceType: product.experienceType,
           price: product.summary.currentPrice,
           isOutOfStock: viewModel.isOutOfStock,
+          hasRenderableVtoAsset: product.hasRenderableVtoAsset,
           onAddToCart: () {
             viewModel.addToCart().then((error) {
               if (!context.mounted) return;
