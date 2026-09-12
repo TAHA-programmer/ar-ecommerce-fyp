@@ -266,11 +266,14 @@ release/R8, split-per-abi) all green.
   interactive 3D preview implemented and validated on-device for the flagship
   product set; secure Firebase Storage model delivery with integrity
   verification; admin model-management workflow
+- **Virtual Try-On** — camera-based clothing try-on for supported products:
+  Admin garment-asset pipeline, a secure server-side Cloud Function
+  (Gemini image generation), and a customer capture → upload → generate →
+  result flow, validated on-device across a curated clothing catalogue
 
 **Future Work**
 - Broaden the validated AR model catalogue to further products
 - ARCore markerless (Tier 1) runtime, alongside a certified test device
-- Virtual Try-On production rendering (prep UI already exists)
 - Wider cross-device validation matrix
 - Google Sign-In; iOS support
 
