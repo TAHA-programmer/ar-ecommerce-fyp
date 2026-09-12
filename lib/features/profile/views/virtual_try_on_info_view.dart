@@ -28,8 +28,8 @@ class VirtualTryOnInfoView extends StatelessWidget {
           number: 3,
           title: 'Give consent',
           body:
-              'Confirm the Virtual Try-On consent — required every time, '
-              'before any photo is sent anywhere.',
+              'Confirm the Virtual Try-On consent. This is required every '
+              'time, before any photo is sent anywhere.',
         ),
         InfoSectionData(
           number: 4,

@@ -93,8 +93,8 @@ class _VirtualTryOnSessionViewState extends State<VirtualTryOnSessionView> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Leave while generating?'),
         content: const Text(
-          "Your preview will still finish generating — you can come back "
-          "later. It won't be shown if you leave now.",
+          "Your preview will still finish generating. You can come back "
+          "later, but it won't be shown here if you leave now.",
         ),
         actions: [
           TextButton(
@@ -484,8 +484,8 @@ class _GeneratingProgressState extends State<_GeneratingProgress> {
     return _ProgressState(
       title: 'Generating your preview',
       subtitle: _showLongerNotice
-          ? 'Still working — this can take a little longer for some items. '
-                'Please wait, you can leave this screen once it\'s done.'
+          ? 'Still working. Some items take a little longer to generate, '
+                "so please wait. You can leave this screen once it's done."
           : 'This can take up to a minute. Please wait.',
     );
   }
@@ -513,8 +513,9 @@ class _ResultView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'AI-generated preview — a visual estimate only. Not an exact '
-            'fit, sizing, or fabric-drape guarantee.',
+            "This is a generated preview, not an actual photo. It's a "
+            'visual estimate only, not a guarantee of exact fit, sizing, '
+            'or fabric drape.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -565,8 +566,8 @@ class _ResultView extends StatelessWidget {
             if (vm.sizeOnlyChangedNotice) ...[
               const SizedBox(height: 8),
               Text(
-                "Size affects your order, not this preview — see the size "
-                "chart for fit.",
+                'Size affects your order, not this preview. Check the size '
+                'chart for fit.',
                 style: AppTypography.caption.copyWith(
                   color: AppColors.textSecondary,
                 ),

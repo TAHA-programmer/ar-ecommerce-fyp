@@ -89,11 +89,11 @@ class VirtualTryOnSetupView extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          "Take or choose a photo of yourself. We use Google's "
-                          "Gemini AI to generate a visual preview of you "
-                          "wearing this item in your selected colour. It's an "
-                          "appearance estimate, not a fit or sizing guarantee "
-                          "— actual drape, texture and size will vary.",
+                          "Take or choose a photo of yourself, and we'll use "
+                          "Google's Gemini AI to show what this item might "
+                          "look like on you, in your selected colour. This is "
+                          "a visual estimate only, not a guarantee of fit or "
+                          "size. Actual drape, texture and size can vary.",
                           style: AppTypography.bodySmall,
                         ),
                         const SizedBox(height: 24),

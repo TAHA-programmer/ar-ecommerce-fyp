@@ -11,12 +11,21 @@ class ClothingProductGallery extends StatelessWidget {
   final ValueChanged<int> onThumbnailTap;
   final ProductExperienceType experienceType;
 
+  /// Phase 9.3 Stage 6 — the TRY-ON badge must mean try-on can actually
+  /// launch, not just that the product opted into the category
+  /// (`ProductDetailModel.hasRenderableVtoAsset`), matching
+  /// `ProductDetailsBottomActions`'s own "Try It On" button gate. Defaults to
+  /// `true` so any caller not yet passing it explicitly keeps its previous
+  /// behaviour.
+  final bool hasRenderableVtoAsset;
+
   const ClothingProductGallery({
     super.key,
     required this.gallery,
     required this.activeIndex,
     required this.onThumbnailTap,
     this.experienceType = ProductExperienceType.none,
+    this.hasRenderableVtoAsset = true,
   });
 
   @override
@@ -72,7 +81,8 @@ class ClothingProductGallery extends StatelessWidget {
                     ),
                   ),
                   // TRY-ON badge bottom left
-                  if (experienceType == ProductExperienceType.virtualTryOn)
+                  if (experienceType == ProductExperienceType.virtualTryOn &&
+                      hasRenderableVtoAsset)
                     Positioned(
                       top: 16,
                       left: 16,

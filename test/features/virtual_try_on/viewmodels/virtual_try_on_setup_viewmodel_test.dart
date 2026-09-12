@@ -83,11 +83,43 @@ void main() {
     },
   );
 
+  test('Stage 6: a colour missing its own preview asset does NOT block the '
+      'whole product — the product stays eligible (at least one colour '
+      'resolves) and the setup screen simply loads with a different colour '
+      'selected', () async {
+    final product = buildEligibleVtoProduct(
+      missingAssetForColors: {ProductColorOption.black},
+    );
+    final viewModel = VirtualTryOnSetupViewModel(
+      repository: FakeVtoProductDetailsRepository(
+        product: product,
+        productId: kEligibleVtoProductId,
+      ),
+      productId: kEligibleVtoProductId,
+    );
+
+    await Future.delayed(Duration.zero);
+
+    expect(viewModel.error, isNull);
+    // Blue still resolves, so it's the one selected by default.
+    expect(viewModel.selectedColor, ProductColorOption.blue);
+    expect(viewModel.colorHasPreview(product, ProductColorOption.blue), isTrue);
+    // Black has no asset — shown as a valid colour, but no preview.
+    expect(
+      viewModel.colorHasPreview(product, ProductColorOption.black),
+      isFalse,
+    );
+  });
+
   test(
-    'a colour missing its own preview asset makes the WHOLE product ineligible (hasRenderableVtoAsset requires every colour to resolve)',
+    'a product where NO colour has any asset at all is genuinely ineligible',
     () async {
       final product = buildEligibleVtoProduct(
-        missingAssetForColors: {ProductColorOption.black},
+        // default colours are blue + black — remove the asset for both.
+        missingAssetForColors: const {
+          ProductColorOption.blue,
+          ProductColorOption.black,
+        },
       );
       final viewModel = VirtualTryOnSetupViewModel(
         repository: FakeVtoProductDetailsRepository(

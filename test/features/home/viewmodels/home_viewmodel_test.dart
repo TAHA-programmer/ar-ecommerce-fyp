@@ -8,10 +8,12 @@ import 'package:twin_ar/core/models/order/order_model.dart';
 import 'package:twin_ar/core/models/order/payment_record.dart';
 import 'package:twin_ar/core/models/product/product_ar_metadata.dart';
 import 'package:twin_ar/core/models/product/product_category.dart';
+import 'package:twin_ar/core/models/product/product_color_option.dart';
 import 'package:twin_ar/core/models/product/product_experience_type.dart';
 import 'package:twin_ar/core/models/product/product_image_ref.dart';
 import 'package:twin_ar/core/models/product/product_model.dart';
 import 'package:twin_ar/core/models/product/product_publication_status.dart';
+import 'package:twin_ar/core/models/product/product_vto_metadata.dart';
 import 'package:twin_ar/features/home/models/category_model.dart';
 import 'package:twin_ar/features/home/models/home_banner_model.dart';
 import 'package:twin_ar/features/home/repositories/home_repository.dart';
@@ -30,6 +32,18 @@ const _renderableAr = ProductArMetadata(
   heightM: 0.5,
 );
 
+/// A renderable VTO garment asset for [colorKey] on [productId] — mirrors
+/// the shape `admin_vto_garment_card.dart` would actually upload.
+VtoGarmentAsset _vtoAsset(String productId, String colorKey) => VtoGarmentAsset(
+  storagePath: 'products/$productId/vto/garment-$colorKey-v1.jpg',
+  sha256: '0123456789abcdef' * 4,
+  contentType: 'image/jpeg',
+  byteSize: 800000,
+  width: 1200,
+  height: 1600,
+  version: 1,
+);
+
 ProductModel _product(
   String id, {
   DateTime? addedDate,
@@ -37,6 +51,9 @@ ProductModel _product(
   ProductPublicationStatus status = ProductPublicationStatus.published,
   ProductExperienceType experience = ProductExperienceType.none,
   ProductArMetadata? arMetadata,
+  ProductVtoMetadata? vtoMetadata,
+  bool vtoDisabled = false,
+  Set<ProductColorOption> availableColors = const {},
   ProductCategory kind = ProductCategory.decor,
   int recommendationRank = 50,
   double rating = 3.0,
@@ -58,6 +75,9 @@ ProductModel _product(
   mainImage: const ProductImageRef(path: 'assets/x.png'),
   experienceType: experience,
   arMetadata: arMetadata,
+  vtoMetadata: vtoMetadata,
+  vtoDisabled: vtoDisabled,
+  availableColors: availableColors,
   addedDate: addedDate ?? DateTime(2026, 1, 1),
   recommendationRank: recommendationRank,
   rating: rating,
@@ -165,19 +185,27 @@ void main() {
       expect(vm.categories, isNotEmpty);
       expect(vm.newArrivalsStatus, HomeSectionStatus.ready);
       expect(vm.arEnabledStatus, HomeSectionStatus.ready);
-      expect(vm.virtualTryOnStatus, HomeSectionStatus.ready);
+      // Stage 6 badge/eligibility parity: the real mock catalogue's 7
+      // virtualTryOn-flagged products carry no vtoMetadata at all (see
+      // product_model_vto_test.dart's "existing catalogue is undisturbed"
+      // regression test) — the same shape as 6 of the 7 real live catalogue
+      // products today, mens-oxford-shirt being the one live exception this
+      // local mock/seed source doesn't model. So the section is correctly
+      // EMPTY here, not "ready" — see the dedicated group below for cases
+      // that populate it with a genuinely configured product.
+      expect(vm.virtualTryOnStatus, HomeSectionStatus.empty);
       expect(vm.bestSellersStatus, HomeSectionStatus.ready);
       expect(vm.popularFurnitureDecorStatus, HomeSectionStatus.ready);
       for (final s in [
         vm.newArrivals,
         vm.arEnabledProducts,
-        vm.virtualTryOnCollection,
         vm.bestSellers,
         vm.popularFurnitureDecor,
         vm.featuredProducts,
       ]) {
         expect(s.length, lessThanOrEqualTo(3));
       }
+      expect(vm.virtualTryOnCollection, isEmpty);
     });
 
     test('New Arrivals is ordered by genuine addedDate, newest first, and '
@@ -234,29 +262,125 @@ void main() {
       expect(vm.arEnabledProducts.every((p) => p.arEnabled), true);
     });
 
-    test('Virtual Try-On shows only published+active isVirtualTryOnEnabled '
-        'products', () async {
+    test('Virtual Try-On shows only published+active products that can '
+        'ACTUALLY launch a try-on today (Stage 6 badge/eligibility parity) — '
+        'not merely experienceType == virtualTryOn', () async {
+      // Fully configured — the mens-oxford-shirt-shaped case.
       await db.addProduct(
         _product(
           'vto-ok',
           experience: ProductExperienceType.virtualTryOn,
+          availableColors: {ProductColorOption.blue},
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {'blue': _vtoAsset('vto-ok', 'blue')},
+          ),
           addedDate: DateTime(2099, 1, 1),
         ),
       );
+      // virtualTryOn-flagged but genuinely no garment configured — the
+      // shape of the other 6 real catalogue products. Must NOT appear;
+      // this is the exact regression this pass fixes.
+      await db.addProduct(
+        _product(
+          'vto-no-asset',
+          experience: ProductExperienceType.virtualTryOn,
+          availableColors: {ProductColorOption.black},
+          addedDate: DateTime(2099, 1, 2),
+        ),
+      );
+      // Multi-colour, only ONE colour covered — must still qualify the
+      // product-level badge (the approved "at least one colour" rule);
+      // the other colour is a per-colour "No preview" concern, not a
+      // whole-product block.
+      await db.addProduct(
+        _product(
+          'vto-partial-colour',
+          experience: ProductExperienceType.virtualTryOn,
+          availableColors: {ProductColorOption.blue, ProductColorOption.gray},
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {'blue': _vtoAsset('vto-partial-colour', 'blue')},
+          ),
+          addedDate: DateTime(2099, 1, 3),
+        ),
+      );
+      // Fully configured but unpublished (draft) — published/active still
+      // required regardless of the asset.
       await db.addProduct(
         _product(
           'vto-draft',
           experience: ProductExperienceType.virtualTryOn,
+          availableColors: {ProductColorOption.blue},
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {'blue': _vtoAsset('vto-draft', 'blue')},
+          ),
           status: ProductPublicationStatus.draft,
-          addedDate: DateTime(2099, 1, 2),
+          addedDate: DateTime(2099, 1, 4),
+        ),
+      );
+      // Fully configured but the admin switched the entry point off.
+      await db.addProduct(
+        _product(
+          'vto-disabled',
+          experience: ProductExperienceType.virtualTryOn,
+          availableColors: {ProductColorOption.blue},
+          vtoMetadata: ProductVtoMetadata(
+            garmentCategory: 'top',
+            garmentsByColor: {'blue': _vtoAsset('vto-disabled', 'blue')},
+          ),
+          vtoDisabled: true,
+          addedDate: DateTime(2099, 1, 5),
         ),
       );
       await vm.loadHomeData();
 
       final ids = vm.virtualTryOnCollection.map((p) => p.id).toSet();
       expect(ids.contains('vto-ok'), true);
+      expect(ids.contains('vto-partial-colour'), true);
+      expect(ids.contains('vto-no-asset'), false);
       expect(ids.contains('vto-draft'), false);
+      expect(ids.contains('vto-disabled'), false);
+      // The rendered badge flag must agree with what actually got in.
       expect(vm.virtualTryOnCollection.every((p) => p.tryOnEnabled), true);
+    });
+
+    test('Admin disabling then re-enabling Virtual Try-On updates the Home '
+        'badge/collection live, without a full reload', () async {
+      final configured = _product(
+        'vto-toggle',
+        experience: ProductExperienceType.virtualTryOn,
+        availableColors: {ProductColorOption.blue},
+        vtoMetadata: ProductVtoMetadata(
+          garmentCategory: 'top',
+          garmentsByColor: {'blue': _vtoAsset('vto-toggle', 'blue')},
+        ),
+        addedDate: DateTime(2099, 1, 1),
+      );
+      await db.addProduct(configured);
+      await vm.loadHomeData();
+      expect(
+        vm.virtualTryOnCollection.map((p) => p.id),
+        contains('vto-toggle'),
+      );
+
+      // Admin disables the entry point (mirrors
+      // ArMediaManagementViewModel.setVtoEntryPointEnabled(false) + Save).
+      await db.updateProduct(configured.copyWith(vtoDisabled: true));
+      expect(
+        vm.virtualTryOnCollection.map((p) => p.id),
+        isNot(contains('vto-toggle')),
+        reason: 'disabling must remove it without needing loadHomeData()',
+      );
+
+      // Admin re-enables it.
+      await db.updateProduct(configured.copyWith(vtoDisabled: false));
+      expect(
+        vm.virtualTryOnCollection.map((p) => p.id),
+        contains('vto-toggle'),
+        reason: 're-enabling must restore it live',
+      );
     });
 
     test(

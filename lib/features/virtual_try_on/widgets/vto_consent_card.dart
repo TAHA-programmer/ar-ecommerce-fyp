@@ -50,13 +50,23 @@ class VtoConsentCard extends StatelessWidget {
           AppCheckbox(
             value: checked,
             onChanged: (v) => onChanged(v ?? false),
-            labelText:
-                "I understand my photo will be sent to a secure AI service "
-                "(Google Gemini) to generate this preview. My photo is "
-                "deleted immediately after generating the preview, and the "
-                "generated preview is deleted when I close it or after 24 "
-                "hours. This is a visual preview only — not an accurate fit "
-                "or sizing guarantee.",
+            // Slightly smaller than the app-wide checkbox default
+            // (AppTypography.bodyMedium, 14px) so this longer consent
+            // statement sits comfortably in the card — still a real theme
+            // text style (bodySmall, 12px), same font family, and the same
+            // full-strength text colour so the privacy information reads
+            // with no less prominence than before.
+            labelWidget: Text(
+              "I understand my photo will be sent to Google Gemini, a "
+              "secure AI service, to create this preview. My photo is "
+              "deleted right after the preview is generated, and the "
+              "preview itself is deleted when I close it, or automatically "
+              "within 24 hours. This preview is just a visual guide, not a "
+              "guarantee of fit or size.",
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
         ],
       ),

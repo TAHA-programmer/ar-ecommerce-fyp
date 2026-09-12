@@ -20,13 +20,15 @@ import 'admin_media_components.dart';
 /// screen's existing "Save Changes" / "Save Configuration" button — the exact
 /// stage-then-save model of [AdminRoomArModelCard].
 ///
-/// The customer try-on flow does not exist yet — a fully-configured product
-/// still shows customers "Coming soon". The status copy here says
-/// "Configuration ready", never "Live" or "customers can try this on".
+/// The customer try-on flow (Phase 9.3 Stage 5) is live: a fully-configured,
+/// published, entry-point-enabled product genuinely shows customers "Try It
+/// On" and can generate a real preview. The status copy here says "Live"
+/// only when that is actually true — see [AdminVtoAssetStatus].
 ///
 /// "Preview Garment" is deliberately **informational**: it shows the uploaded
-/// 2-D garment reference image only. Customer try-on generation (a billable
-/// model call) is wired in a later stage.
+/// 2-D garment reference image only and never itself starts or affects a
+/// customer's Virtual Try-On session (that is a separate, billable model
+/// call the customer triggers from Product Details).
 class AdminVtoGarmentCard extends StatelessWidget {
   const AdminVtoGarmentCard({super.key, required this.viewModel});
 
@@ -74,8 +76,8 @@ class AdminVtoGarmentCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.s),
           ],
           Text(
-            'A visual preview only — it shows a garment\'s look and colour on a '
-            'person, and can never be used to judge fit or size.',
+            "A visual preview only. It shows a garment's look and colour on "
+            'a person, and can never be used to judge fit or size.',
             style: AppTypography.caption,
           ),
           const SizedBox(height: AppSpacing.m),
@@ -95,8 +97,7 @@ class AdminVtoGarmentCard extends StatelessWidget {
             Text(
               'Upload one clean garment photo for every colour this product '
               'sells. The optional "Default" image is used only for a colour '
-              'with no image of its own — use it just when the colourways look '
-              'identical.',
+              'with no image of its own, when the colourways look identical.',
               style: AppTypography.caption,
             ),
             const SizedBox(height: AppSpacing.s),
@@ -240,7 +241,7 @@ class AdminVtoGarmentCard extends StatelessWidget {
     spacing: AppSpacing.s,
     runSpacing: AppSpacing.xs,
     children: const [
-      _LegendItem(color: AppColors.success, label: 'Configuration ready'),
+      _LegendItem(color: AppColors.success, label: 'Live'),
       _LegendItem(color: AppColors.warning, label: 'Disabled / staged'),
       _LegendItem(color: AppColors.info, label: 'Uploading'),
       _LegendItem(color: AppColors.error, label: 'Invalid / needs fix'),
@@ -495,9 +496,8 @@ class _GarmentSlotRow extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.s),
               Text(
-                'This previews the uploaded 2-D garment reference image only. '
-                'It does not run a customer try-on — that is wired in a later '
-                'stage.',
+                "This previews the uploaded garment reference image only. It "
+                "doesn't start or affect a customer's Virtual Try-On session.",
                 style: AppTypography.caption,
               ),
             ],
@@ -619,11 +619,10 @@ class _EntryPointToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onCopy = customerReachable
-        ? 'On (admin intent) — the customer try-on flow is not built yet, so '
-              'this switch is stored for when it ships.'
-        : 'On (admin intent) — not yet effective: a colour is uncovered or the '
-              'product is unpublished, and the customer try-on flow is not '
-              'built yet.';
+        ? 'On. Customers can try this product on right now.'
+        : 'On, but not yet effective. A colour is uncovered or the product '
+              'is unpublished; try-on will work for customers as soon as '
+              "that's resolved.";
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -632,7 +631,7 @@ class _EntryPointToggle extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Customer "Try It On" entry point (stored for a later stage)',
+                'Customer "Try It On" entry point',
                 style: AppTypography.bodyMedium.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -641,8 +640,8 @@ class _EntryPointToggle extends StatelessWidget {
               Text(
                 enabled
                     ? onCopy
-                    : 'Off — the images are retained; the stored entry point is '
-                          'closed.',
+                    : "Off. The images stay saved, but customers can't try "
+                          'this product on.',
                 style: AppTypography.caption,
               ),
             ],
@@ -667,7 +666,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (status) {
       AdminVtoAssetStatus.live => (
-        'Configuration ready · customer try-on flow ships in a later stage',
+        'Live · customers can try this on',
         AppColors.success,
         Icons.check_circle_outline,
       ),

@@ -96,6 +96,7 @@ class ClothingProductDetailsLayout extends StatelessWidget {
                   activeIndex: viewModel.activeGalleryIndex,
                   onThumbnailTap: viewModel.setActiveGalleryIndex,
                   experienceType: product.experienceType,
+                  hasRenderableVtoAsset: product.hasRenderableVtoAsset,
                 ),
                 const SizedBox(height: 24),
                 ProductTitleBlock(product: product),
