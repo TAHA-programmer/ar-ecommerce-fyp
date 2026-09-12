@@ -28,7 +28,7 @@ enum HomeSectionStatus { loading, ready, empty, error }
 ///
 ///  * **New Arrivals / AR Enabled / Virtual Try-On** — synchronous filters
 ///    over the cache (`addedDate` order / `hasRenderableArModel` /
-///    `isVirtualTryOnEnabled`). Recompute for free on [_onDbChanged].
+///    `hasRenderableVtoAsset`). Recompute for free on [_onDbChanged].
 ///  * **Featured** — the explicit Admin `isFeatured` flag + `featuredRank`
 ///    (Stage 2 contract), cache-derived, hidden when nothing is featured.
 ///  * **Best Sellers** — `productStats.unitsSold` ordering ([ProductStatsRepository]),
@@ -401,7 +401,7 @@ class HomeViewModel extends ChangeNotifier {
       _byNewest,
     );
     _virtualTryOn = _pick(
-      eligible.where((p) => p.isVirtualTryOnEnabled),
+      eligible.where((p) => p.hasRenderableVtoAsset),
       _byNewest,
     );
 

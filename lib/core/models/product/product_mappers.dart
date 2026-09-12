@@ -38,7 +38,13 @@ extension ProductModelMappers on ProductModel {
       reviewCount: reviewCount,
       inStock: inStock,
       arEnabled: isRoomArEnabled,
-      tryOnEnabled: isVirtualTryOnEnabled,
+      // Phase 9.3 Stage 6 — badge/eligibility parity: a customer-visible
+      // TRY-ON badge must mean try-on can actually launch. Deliberately NOT
+      // mirroring `arEnabled` (Room AR keeps its badge on raw
+      // `isRoomArEnabled`, unchanged by this pass) — VTO's badge/Home/Explore
+      // surfaces now all key off the same `hasRenderableVtoAsset` gate the
+      // "Try It On" button already used.
+      tryOnEnabled: hasRenderableVtoAsset,
     );
   }
 

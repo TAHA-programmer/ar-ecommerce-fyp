@@ -208,7 +208,6 @@ void main() {
         'Top Rated',
         'New Arrivals',
         'AR Enabled Products',
-        'Virtual Try-On Collection',
         'Top Rated Furniture & Decor',
       ]) {
         await tester.scrollUntilVisible(
@@ -224,6 +223,12 @@ void main() {
       // stock mock catalogue (matches live — Featured is Admin-set).
       expect(find.text('Recently Viewed'), findsNothing);
       expect(find.text('Featured Products'), findsNothing);
+      // Stage 6 badge/eligibility parity: none of the stock mock catalogue's
+      // virtualTryOn-flagged products carry real vtoMetadata (matches 6 of
+      // the 7 real live products today), so the section correctly does not
+      // render at all — never an empty/misleading "Virtual Try-On
+      // Collection" heading with nothing underneath it.
+      expect(find.text('Virtual Try-On Collection'), findsNothing);
 
       expect(find.byType(CustomerBottomNavigation), findsOneWidget);
     });

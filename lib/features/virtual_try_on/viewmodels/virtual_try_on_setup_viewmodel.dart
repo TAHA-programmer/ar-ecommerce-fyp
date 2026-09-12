@@ -65,8 +65,9 @@ class VirtualTryOnSetupViewModel extends ChangeNotifier {
   /// eligible for try-on preview; otherwise the product's default colour, if
   /// eligible; otherwise the first eligible colour. `null` only if the
   /// product genuinely has no colours (never reached when
-  /// [ProductDetailModel.hasRenderableVtoAsset] is true, since that requires
-  /// every available colour to resolve — kept defensive regardless).
+  /// [ProductDetailModel.hasRenderableVtoAsset] is true — it already requires
+  /// at least one of these same colours to resolve, so this loop always
+  /// finds one; kept defensive regardless).
   ProductColorOption? _resolveInitialColor(ProductDetailModel p) {
     final carriedOver = _colorByName(p, _initialColorKey);
     if (carriedOver != null && colorHasPreview(p, carriedOver)) {

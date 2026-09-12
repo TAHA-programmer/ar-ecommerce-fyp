@@ -198,26 +198,36 @@ class ProductModel {
 
   /// `true` only when this product opts into Virtual Try-On *and* has a fully
   /// valid try-on config *and* the admin has not switched the customer entry
-  /// point off *and* every colour the product actually sells resolves to a
-  /// renderable garment asset (its own, or the product-wide default). Use this
-  /// to gate a customer "Try It On" launch (Phase 9.3 Stage 5) — never
-  /// [isVirtualTryOnEnabled] alone.
+  /// point off *and* **at least one** colour the product actually sells
+  /// resolves to a renderable garment asset (its own, or the product-wide
+  /// default). Use this to gate every customer-facing try-on signal — the
+  /// "Try It On" launch (Phase 9.3 Stage 5), the TRY-ON badge, and Home/
+  /// Explore try-on discoverability (Stage 6) — never [isVirtualTryOnEnabled]
+  /// alone.
   ///
-  /// Nothing reads this yet (Stage 2 is a data contract only). Deliberately
-  /// stricter than [ProductModel.hasRenderableArModel] on two axes:
-  ///  * it requires per-colour coverage (a customer picks a colour before
-  ///    generating; a colour with no renderable asset would dead-end), and
-  ///  * it folds in `assetsBelongToProduct` (via
-  ///    [ProductVtoMetadata.isRenderableForProduct]) so a well-formed but
-  ///    cross-product Storage path can never look launchable — Room AR keeps
-  ///    that ownership check as a *separate* defence layer in its preparation
-  ///    view-model; VTO fails closed here by default.
+  /// **Product-level vs per-colour:** this is deliberately an "at least one"
+  /// gate, not "every colour" — a product can be genuinely try-on-ready (and
+  /// advertised as such) while some of its colours have no photographed
+  /// garment yet. The setup screen's own per-colour
+  /// [ProductVtoMetadata.resolveGarment] check is what marks an individual
+  /// uncovered colour "No preview" and disables just that selection; it is
+  /// never hidden from the colour picker (a colour can still be a valid
+  /// purchase choice even with no try-on preview). Folding "every colour" into
+  /// this getter would make the *whole product* invisible over one missing
+  /// photo, which is stricter than the UI actually needs or the customer
+  /// experience calls for.
+  ///
+  /// It still folds in `assetsBelongToProduct` (via
+  /// [ProductVtoMetadata.isRenderableForProduct]) so a well-formed but
+  /// cross-product Storage path can never look launchable — Room AR keeps
+  /// that ownership check as a *separate* defence layer in its preparation
+  /// view-model; VTO fails closed here by default.
   bool get hasRenderableVtoAsset {
     final vto = vtoMetadata;
     if (!isVirtualTryOnEnabled || vto == null || vtoDisabled) return false;
     if (!vto.isRenderableForProduct(id)) return false;
     if (availableColors.isEmpty) return vto.garmentDefault != null;
-    return availableColors.every((c) => vto.resolveGarment(c.name) != null);
+    return availableColors.any((c) => vto.resolveGarment(c.name) != null);
   }
 
   /// `true` when a valid try-on config that belongs to this product exists but

@@ -109,17 +109,21 @@ class ProductDetailModel {
       experienceType == ProductExperienceType.virtualTryOn;
 
   /// `true` only when the product opts into Virtual Try-On *and* has a fully
-  /// valid config that belongs to this product (`isRenderableForProduct`) *and*
-  /// the admin has not switched it off *and* every [availableColors] entry
-  /// resolves to a renderable garment asset — the gate for a customer "Try It
-  /// On" launch (Phase 9.3 Stage 5). Exact mirror of
-  /// [ProductModel.hasRenderableVtoAsset]. Nothing reads it yet.
+  /// valid config that belongs to this product (`isRenderableForProduct`)
+  /// *and* the admin has not switched it off *and* **at least one**
+  /// [availableColors] entry resolves to a renderable garment asset — the
+  /// gate for the customer "Try It On" launch, the TRY-ON badge, and Home/
+  /// Explore discoverability. Exact mirror of
+  /// [ProductModel.hasRenderableVtoAsset] — see its doc comment for why this
+  /// is "at least one colour", not "every colour": an uncovered colour is
+  /// marked "No preview" per-colour in the setup screen, never used to hide
+  /// an otherwise-ready product.
   bool get hasRenderableVtoAsset {
     final vto = vtoMetadata;
     if (!isVirtualTryOnEnabled || vto == null || vtoDisabled) return false;
     if (!vto.isRenderableForProduct(summary.id)) return false;
     if (availableColors.isEmpty) return vto.garmentDefault != null;
-    return availableColors.every((c) => vto.resolveGarment(c.name) != null);
+    return availableColors.any((c) => vto.resolveGarment(c.name) != null);
   }
 
   /// `true` when a valid try-on config that belongs to this product exists but

@@ -197,6 +197,47 @@ void main() {
     await tester.pump(const Duration(seconds: 4)); // drain AppToast timer
     await tester.binding.setSurfaceSize(null);
   });
+
+  testWidgets(
+    'a fully configured, published product shows the honest "Live" copy',
+    (tester) async {
+      // `classic-blue-shirt` is published/active by default in the mock
+      // catalogue, so a saved, renderable garment config reaches
+      // AdminVtoAssetStatus.live — this is the exact status this pass
+      // corrected the copy for (it used to falsely claim the customer
+      // try-on flow "ships in a later stage").
+      viewModel.selectProduct('classic-blue-shirt'); // single colour: black
+      vtoPicker.next = writePng(tmp, 'black.png', width: 900, height: 1200);
+      await tester.binding.setSurfaceSize(const Size(390, 1600));
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('vto_add_black')));
+      await tester.pump();
+      await tester.pump();
+      expect(viewModel.vtoCandidateForSlot('black'), isNotNull);
+
+      final saveButton = find.byKey(const Key('save_changes_button'));
+      await tester.ensureVisible(saveButton);
+      await tester.pumpAndSettle();
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4)); // drain AppToast timer
+
+      expect(viewModel.vtoAssetStatus, AdminVtoAssetStatus.live);
+      expect(find.text('Live · customers can try this on'), findsOneWidget);
+      expect(
+        find.text('On. Customers can try this product on right now.'),
+        findsOneWidget,
+      );
+      // Never the stale "ships in a later stage" / "stored for later"
+      // claims this pass removed.
+      expect(find.textContaining('later stage'), findsNothing);
+      expect(find.textContaining('stored for'), findsNothing);
+
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
 }
 
 ArMediaManagementViewModel vm(WidgetTester tester) => tester

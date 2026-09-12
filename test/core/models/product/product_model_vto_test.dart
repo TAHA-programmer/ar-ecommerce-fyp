@@ -90,16 +90,32 @@ void main() {
       expect(p.isVirtualTryOnEnabled, isTrue);
     });
 
+    test('true: at least one colour resolves, even though another colour on '
+        'the same product has no asset and there is no default (Stage 6 — '
+        '"at least one", not "every colour"; the uncovered colour becomes '
+        '"No preview" in setup, it does not block the whole product)', () {
+      final p = _product(
+        colors: {ProductColorOption.blue, ProductColorOption.green},
+        vto: _vto(byColor: {'blue': _asset('vp1', 'blue')}),
+      );
+      // config is structurally renderable...
+      expect(p.vtoMetadata!.isRenderable, isTrue);
+      // ...blue resolves, green does not — the product still qualifies.
+      expect(p.hasRenderableVtoAsset, isTrue);
+      expect(p.vtoGarmentForColor(ProductColorOption.blue), isNotNull);
+      expect(p.vtoGarmentForColor(ProductColorOption.green), isNull);
+    });
+
     test(
-      'false: a colour the product sells has no asset and there is no default',
+      'false: the config is structurally renderable but covers a colour the '
+      'product does not even offer — none of the OFFERED colours resolve',
       () {
         final p = _product(
           colors: {ProductColorOption.blue, ProductColorOption.green},
-          vto: _vto(byColor: {'blue': _asset('vp1', 'blue')}),
+          // "black" is configured, but the product only sells blue/green.
+          vto: _vto(byColor: {'black': _asset('vp1', 'black')}),
         );
-        // config is structurally renderable...
         expect(p.vtoMetadata!.isRenderable, isTrue);
-        // ...but green does not resolve.
         expect(p.hasRenderableVtoAsset, isFalse);
       },
     );
@@ -289,23 +305,20 @@ void main() {
   });
 
   group('backward compatibility — existing catalogue is undisturbed', () {
-    test(
-      'every seed product: no VTO contract, VTO-ineligible, but tryOnEnabled '
-      'summary flag and experienceType are UNCHANGED',
-      () {
-        for (final p in MockCommerceDatabase().products) {
-          expect(p.vtoMetadata, isNull, reason: p.id);
-          expect(p.vtoDisabled, isFalse, reason: p.id);
-          expect(p.hasRenderableVtoAsset, isFalse, reason: p.id);
-          // The Stage-2 change must NOT alter what Home/badges show today.
-          expect(
-            p.toSummaryModel().tryOnEnabled,
-            p.experienceType == ProductExperienceType.virtualTryOn,
-            reason: p.id,
-          );
-        }
-      },
-    );
+    test('every seed product: no VTO contract, VTO-ineligible, and (Stage 6) '
+        'the tryOnEnabled summary/badge flag correctly reflects that — not '
+        'raw experienceType', () {
+      for (final p in MockCommerceDatabase().products) {
+        expect(p.vtoMetadata, isNull, reason: p.id);
+        expect(p.vtoDisabled, isFalse, reason: p.id);
+        expect(p.hasRenderableVtoAsset, isFalse, reason: p.id);
+        // Stage 6 badge/eligibility parity: tryOnEnabled now mirrors
+        // hasRenderableVtoAsset, never raw experienceType — a
+        // virtualTryOn seed product with no configured garment asset
+        // must NOT claim try-on readiness in its summary/badge flag.
+        expect(p.toSummaryModel().tryOnEnabled, isFalse, reason: p.id);
+      }
+    });
 
     test(
       'toDetailModel carries the VTO contract through with matching getters',

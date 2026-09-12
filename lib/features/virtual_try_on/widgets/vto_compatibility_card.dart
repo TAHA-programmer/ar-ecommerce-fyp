@@ -46,8 +46,8 @@ class VtoCompatibilityCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Requires Android 8+, a signed-in account, and a stable '
-                  'internet connection. The result is a visual estimate — '
-                  'it does not represent exact fit, sizing, or fabric drape.',
+                  "internet connection. The result is a visual estimate. It "
+                  "doesn't show exact fit, sizing, or fabric drape.",
                   style: AppTypography.caption,
                 ),
               ],
