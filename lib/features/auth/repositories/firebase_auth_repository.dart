@@ -3,6 +3,8 @@ import '../../../core/models/auth/auth_result.dart';
 import '../../../core/models/auth/user_role.dart';
 import '../../profile/repositories/user_profile_repository.dart';
 import '../../profile/repositories/firestore_user_profile_repository.dart';
+import '../services/google_sign_in_service.dart';
+import '../services/device_google_sign_in_service.dart';
 import 'auth_repository.dart';
 
 const String _kGenericAuthError = 'Something went wrong. Please try again.';
@@ -10,13 +12,17 @@ const String _kGenericAuthError = 'Something went wrong. Please try again.';
 class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _firebaseAuth;
   final UserProfileRepository _userProfileRepository;
+  final GoogleSignInService _googleSignInService;
 
   FirebaseAuthRepository({
     FirebaseAuth? firebaseAuth,
     UserProfileRepository? userProfileRepository,
+    GoogleSignInService? googleSignInService,
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
        _userProfileRepository =
-           userProfileRepository ?? FirestoreUserProfileRepository();
+           userProfileRepository ?? FirestoreUserProfileRepository(),
+       _googleSignInService =
+           googleSignInService ?? DeviceGoogleSignInService();
 
   @override
   Future<AuthResult> signIn({
@@ -105,8 +111,122 @@ class FirebaseAuthRepository implements AuthRepository {
     return null;
   }
 
+  /// `account-exists-with-different-credential` (an email already registered
+  /// via a different provider) is mapped below in [_mapAuthError] to a fixed
+  /// "sign in with your password instead" message rather than looking up
+  /// which provider they actually used - `firebase_auth`'s
+  /// `fetchSignInMethodsForEmail` was removed from the SDK entirely (Google's
+  /// 2023+ email-enumeration-protection hardening), so that lookup is no
+  /// longer possible, and this app only ever offers one other method
+  /// (email/password) regardless. Deliberately does **not** attempt silent/
+  /// automatic account linking from this unauthenticated error state - that
+  /// would mean trusting an unverified Google credential to merge into an
+  /// existing account before the caller has proven they own it. Account
+  /// linking (`currentUser.linkWithCredential`), if wanted, belongs behind a
+  /// separate, explicit, already-authenticated action - out of scope for
+  /// this pass; not implemented.
   @override
-  Future<void> signOut() => _firebaseAuth.signOut();
+  Future<AuthResult> signInWithGoogle() async {
+    final GoogleSignInPayload? payload;
+    try {
+      payload = await _googleSignInService.signIn();
+    } on GoogleSignInFailure catch (e) {
+      return AuthResult.failure(errorMessage: e.message);
+    } catch (_) {
+      return AuthResult.failure(errorMessage: _kGenericAuthError);
+    }
+    if (payload == null) {
+      // The user closed the account picker themselves - not an error.
+      return AuthResult.cancelled();
+    }
+
+    final UserCredential credential;
+    try {
+      credential = await _firebaseAuth.signInWithCredential(
+        GoogleAuthProvider.credential(idToken: payload.idToken),
+      );
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(errorMessage: _mapAuthError(e));
+    } catch (_) {
+      return AuthResult.failure(errorMessage: _kGenericAuthError);
+    }
+
+    final user = credential.user;
+    if (user == null) {
+      return AuthResult.failure(errorMessage: _kGenericAuthError);
+    }
+
+    await _ensureProfileExists(user);
+
+    return AuthResult.success(
+      userId: user.uid,
+      email: user.email ?? '',
+      role: await _resolveRole(user),
+    );
+  }
+
+  /// Idempotently ensures [user] has a `users/{uid}` Firestore profile,
+  /// creating one ONLY when [user] is Google-authenticated (checked via
+  /// `user.providerData` - the standard, real signal for which providers are
+  /// linked to this identity) and no profile exists yet. Never touches or
+  /// overwrites an existing profile - a returning Google user's profile
+  /// (and any edits they made to it) is left exactly as-is.
+  ///
+  /// **Recovery guarantee (security recheck 2026-09-13):** called from BOTH
+  /// [signInWithGoogle] (a fresh sign-in) AND every [authStateChanges]
+  /// emission (an app restart / persisted-session resume). A profile-write
+  /// failure right after a successful Google sign-in therefore self-heals
+  /// on the very next app launch or auth-state resolution, not only on a
+  /// second manual sign-in attempt - the user is never left stranded in a
+  /// signed-in-but-profile-less state with no path back to a working
+  /// profile (an `.update()`-based Edit Profile save would otherwise fail
+  /// forever on a genuinely missing document). A write failure here is
+  /// still deliberately non-fatal to the caller either way: unlike [signUp]
+  /// (which has no session yet to protect), this user is already
+  /// authenticated, so the safe move is to let them continue and retry
+  /// automatically, never to strand or sign them back out over it.
+  ///
+  /// For a non-Google identity (currently only `password`) a missing
+  /// profile is left alone - `signUp` always creates one before any real
+  /// session exists, so this should never be reached for that provider, and
+  /// this method has no valid phone value to invent for it. `role` is
+  /// always `'customer'` (see `createProfile`'s own doc comment) - nothing
+  /// here ever reads a role from any provider's profile data.
+  Future<void> _ensureProfileExists(User user) async {
+    final isGoogleUser = user.providerData.any(
+      (info) => info.providerId == 'google.com',
+    );
+    if (!isGoogleUser) return;
+
+    try {
+      final existingProfile = await _userProfileRepository.getProfile(user.uid);
+      if (existingProfile != null) return;
+      final displayName = user.displayName?.trim() ?? '';
+      await _userProfileRepository.createProfile(
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: displayName.isNotEmpty ? displayName : 'TWin AR Customer',
+        // Google never supplies a phone number. Left empty - the Firestore
+        // `create` rule accepts an empty phone only for a request whose ID
+        // token proves `sign_in_provider == 'google.com'`; the customer
+        // fills in a real one later via Edit Profile, at which point the
+        // same Pakistani-mobile validation as every other account applies.
+        phone: '',
+      );
+    } catch (_) {
+      // Non-fatal - see the doc comment above.
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    await _firebaseAuth.signOut();
+    // Best-effort: clears the on-device Google session so a future
+    // "Continue with Google" shows the account picker again instead of
+    // silently reusing whichever account was last used. Never allowed to
+    // block or fail logout itself - see the service's own doc comment.
+    await _googleSignInService.signOut();
+  }
 
   @override
   Future<String?> sendPasswordResetEmail({required String email}) async {
@@ -124,6 +244,14 @@ class FirebaseAuthRepository implements AuthRepository {
   Stream<AuthResult?> authStateChanges() {
     return _firebaseAuth.authStateChanges().asyncMap((user) async {
       if (user == null) return null;
+      // Security recheck (2026-09-13): also runs on every persisted-session
+      // resume (app restart), not only a fresh sign-in - see
+      // `_ensureProfileExists`'s doc comment for why this closes the
+      // "profile-write failed, user permanently stranded" gap. A pure no-op
+      // (no Firestore call at all) for every non-Google session; for a
+      // Google session it is one cheap profile read, and a write only on
+      // the rare occasion one is still missing.
+      await _ensureProfileExists(user);
       return AuthResult.success(
         userId: user.uid,
         email: user.email ?? '',
@@ -169,6 +297,13 @@ class FirebaseAuthRepository implements AuthRepository {
         return 'Invalid email or password.';
       case 'email-already-in-use':
         return 'An account already exists with this email.';
+      case 'account-exists-with-different-credential':
+        // The only other sign-in method this app offers is email/password,
+        // so this is always accurate without needing to enumerate methods
+        // (the SDK no longer exposes that lookup at all - see the doc
+        // comment on `signInWithGoogle`'s error handling).
+        return 'An account already exists with this email using a '
+            'password. Please sign in with your email and password instead.';
       case 'weak-password':
         return 'Password is too weak. Please choose a stronger password.';
       case 'operation-not-allowed':

@@ -10,6 +10,7 @@ import '../../../../core/widgets/fields/app_checkbox.dart';
 import '../../../../core/widgets/buttons/app_primary_button.dart';
 import '../../../../core/widgets/feedback/app_toast.dart';
 import '../../../../core/models/auth/user_role.dart';
+import '../../../../core/models/auth/auth_result.dart';
 import '../viewmodels/login_viewmodel.dart';
 import '../../widgets/auth_header.dart';
 import '../../widgets/auth_divider.dart';
@@ -72,11 +73,36 @@ class _LoginViewState extends State<LoginView> {
 
     if (!mounted) return;
 
+    _handleAuthResult(
+      result,
+      genericErrorMessage: 'Invalid email or password.',
+    );
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    final viewModel = context.read<LoginViewModel>();
+    if (viewModel.isLoading) return; // duplicate-tap guard
+    final result = await viewModel.submitGoogleSignIn();
+
+    if (!mounted) return;
+    _handleAuthResult(
+      result,
+      genericErrorMessage: 'Google Sign-In failed. Please try again.',
+    );
+  }
+
+  /// Shared by [_handleLogin] and [_handleGoogleSignIn]: a cancelled
+  /// attempt shows nothing (the user changed their mind, not an error); a
+  /// genuine failure shows its message; success routes exactly the same way
+  /// regardless of which method produced the session.
+  void _handleAuthResult(
+    AuthResult result, {
+    required String genericErrorMessage,
+  }) {
+    if (result.cancelled) return;
+
     if (!result.success) {
-      AppToast.error(
-        context,
-        result.errorMessage ?? 'Invalid email or password.',
-      );
+      AppToast.error(context, result.errorMessage ?? genericErrorMessage);
     } else if (Navigator.canPop(context)) {
       // Reached as a sub-flow (e.g. Phase 9.3 Stage 5 Virtual Try-On routing
       // a signed-out customer to sign in mid-flow) — pop back to the caller
@@ -91,13 +117,6 @@ class _LoginViewState extends State<LoginView> {
         Navigator.of(context).pushReplacementNamed(RouteNames.home);
       }
     }
-  }
-
-  void _handleGoogleSignIn() {
-    AppToast.info(
-      context,
-      'Google Sign-In will be connected during authentication integration.',
-    );
   }
 
   @override
@@ -219,7 +238,18 @@ class _LoginViewState extends State<LoginView> {
                   SizedBox(height: 32 * scale),
                   const AuthDivider(text: 'or continue with'),
                   SizedBox(height: 32 * scale),
-                  SocialLoginButton(onTap: _handleGoogleSignIn),
+                  Consumer<LoginViewModel>(
+                    builder: (context, vm, _) {
+                      return Opacity(
+                        key: const Key('google_signin_loading_wrapper'),
+                        opacity: vm.isLoading ? 0.5 : 1.0,
+                        child: IgnorePointer(
+                          ignoring: vm.isLoading,
+                          child: SocialLoginButton(onTap: _handleGoogleSignIn),
+                        ),
+                      );
+                    },
+                  ),
                   SizedBox(height: 32 * scale),
                   AuthFooterLink(
                     normalText: 'Don\'t have an account ? ',

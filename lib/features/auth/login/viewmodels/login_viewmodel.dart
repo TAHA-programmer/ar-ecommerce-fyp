@@ -101,4 +101,31 @@ class LoginViewModel extends ChangeNotifier {
 
     return result;
   }
+
+  /// Shares [_isLoading] with [submitLogin] so the two entry points can
+  /// never both be in flight at once (one tap fully disables both buttons,
+  /// guarding against a duplicate tap on either). "Remember Me" is
+  /// deliberately untouched here - it is an email/password-field
+  /// convenience with no equivalent concept for a Google account.
+  Future<AuthResult> submitGoogleSignIn() async {
+    if (_isLoading) {
+      // A second tap while the first attempt is still in flight - the UI
+      // already disables the button for this, but guard here too.
+      return AuthResult.cancelled();
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _authRepository.signInWithGoogle();
+
+    if (result.success) {
+      _authSessionState.setSession(result);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+
+    return result;
+  }
 }
