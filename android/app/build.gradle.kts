@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -5,6 +8,19 @@ plugins {
     // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing. `android/key.properties` is gitignored and never
+// committed - it holds the real release keystore's alias/passwords/path
+// (never this file). Guarded by existence so a checkout with no keystore
+// yet (CI, another contributor) still builds - `buildTypes.release` below
+// falls back to the debug config in that case, exactly as it did before
+// this was wired up, rather than hard-failing the build.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+val hasReleaseKeystoreConfig = keystorePropertiesFile.exists()
+if (hasReleaseKeystoreConfig) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -34,11 +50,33 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Only declared when `android/key.properties` actually exists (see
+        // above) - referencing a nonexistent keystore file here would fail
+        // Gradle sync even for someone who only ever runs debug builds.
+        if (hasReleaseKeystoreConfig) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signs with the real release keystore once `android/key.properties`
+            // exists (see the signingConfigs block above); falls back to the
+            // debug key otherwise so a fresh checkout with no release
+            // keystore yet still builds a working (debug-signed) release
+            // variant instead of failing - this was the prior behaviour for
+            // every build before a release keystore existed.
+            signingConfig = if (hasReleaseKeystoreConfig) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             // Phase 8.13.5: keep Flutter's default R8 config and add our own
             // rules so the release build tolerates the excluded Stripe
             // push-provisioning classes (see proguard-rules.pro).

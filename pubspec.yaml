@@ -65,6 +65,11 @@ dependencies:
   printing: ^5.13.3 # print / share / preview the marker sheet PDF
   path_provider: ^2.1.6
 
+  # Google Sign-In integration. v7's API (GoogleSignIn.instance.initialize()
+  # then .authenticate(), see DeviceGoogleSignInService) replaced the old
+  # GoogleSignIn()/.signIn() shape - see that file's doc comment.
+  google_sign_in: ^7.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

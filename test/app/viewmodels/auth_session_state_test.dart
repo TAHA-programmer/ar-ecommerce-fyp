@@ -36,6 +36,10 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> signOut() async {}
 
   @override
+  Future<AuthResult> signInWithGoogle() async =>
+      AuthResult.failure(errorMessage: 'not used');
+
+  @override
   Future<String?> sendPasswordResetEmail({required String email}) async => null;
 
   void dispose() => _controller.close();

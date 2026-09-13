@@ -8,7 +8,11 @@
 // Phase 8.12 (`users/{uid}` `displayName` shape validation + a strict
 // Pakistani local-mobile `phone` format `^03[0-9]{9}$` - enforced on
 // create and only on a real phone change on update, so a pre-8.12 profile
-// is never locked out), Phase 8.13.1 (`checkoutSessions/{sessionId}` -
+// is never locked out), Google Sign-In integration (`users/{uid}` create
+// additionally accepts an empty `phone` - Google never supplies one - via
+// `isValidPhoneOnCreate`; the update rule's existing "real change must be a
+// valid Pakistani mobile" check is unchanged and applies once completed),
+// Phase 8.13.1 (`checkoutSessions/{sessionId}` -
 // owner/admin read, `write: if false` for every client including the Cloud
 // Function's future writes going through the Admin SDK), and Phase 8.13.3
 // (`stripeEvents/{eventId}` - the server-only Stripe webhook ledger, NO
@@ -170,6 +174,98 @@ async function main() {
     );
   });
 
+  // Google Sign-In integration: Google never supplies a phone number, so a
+  // first-time Google profile is created with phone: '' - see
+  // isValidPhoneOnCreate in firestore.rules.
+  await run(
+    'owner signed in via Google can create their own profile with an empty phone',
+    async () => {
+      await testEnv.clearFirestore();
+      const alice = testEnv.authenticatedContext(ALICE, {
+        email: ALICE_EMAIL,
+        firebase: { sign_in_provider: 'google.com' },
+      });
+      await assertSucceeds(
+        setDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '',
+        }),
+      );
+    },
+  );
+
+  // Security recheck (2026-09-13): the empty-phone allowance must be scoped
+  // to the Google provider specifically, not "anyone may create with an
+  // empty phone" - this is the test that proves the scoping actually works
+  // (it FAILED before isValidPhoneOnCreate checked sign_in_provider).
+  await run(
+    'owner signed in via password (no Google claim) CANNOT create a profile with an empty phone',
+    async () => {
+      await testEnv.clearFirestore();
+      // No `firebase.sign_in_provider` claim at all - the same shape every
+      // other pre-existing test in this file uses, i.e. the ordinary
+      // email/password path.
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      await assertFails(
+        setDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '',
+        }),
+      );
+    },
+  );
+
+  await run(
+    'a caller cannot self-declare sign_in_provider: google.com to forge the exemption '
+    + '(the emulator/real tokens are the trust boundary, not this test - this just documents the intent)',
+    async () => {
+      await testEnv.clearFirestore();
+      // Even an explicit, non-Google provider claim must not qualify.
+      const alice = testEnv.authenticatedContext(ALICE, {
+        email: ALICE_EMAIL,
+        firebase: { sign_in_provider: 'password' },
+      });
+      await assertFails(
+        setDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '',
+        }),
+      );
+    },
+  );
+
+  await run(
+    'a Google-authenticated caller with a non-empty, invalid phone is still denied '
+    + '(the exemption is for empty only, never "anything goes" even for Google)',
+    async () => {
+      await testEnv.clearFirestore();
+      const alice = testEnv.authenticatedContext(ALICE, {
+        email: ALICE_EMAIL,
+        firebase: { sign_in_provider: 'google.com' },
+      });
+      await assertFails(
+        setDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '12345',
+        }),
+      );
+    },
+  );
+
+  await run(
+    'create with a non-empty but invalid phone is still denied (not loosened to "anything goes")',
+    async () => {
+      await testEnv.clearFirestore();
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      await assertFails(
+        setDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '12345',
+        }),
+      );
+    },
+  );
+
   console.log('users/{uid} - read');
 
   await run('owner can read their own profile', async () => {
@@ -209,6 +305,47 @@ async function main() {
       }),
     );
   });
+
+  // Google Sign-In integration: a profile created with an empty phone
+  // (isValidPhoneOnCreate) must still be completable/protected exactly like
+  // any other profile once the owner is ready to add a real number.
+  await run(
+    'a Google-created profile (empty phone) can later be completed with a real phone',
+    async () => {
+      await testEnv.clearFirestore();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '',
+        });
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      await assertSucceeds(
+        updateDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          phone: '03001112222',
+        }),
+      );
+    },
+  );
+
+  await run(
+    'a Google-created profile (empty phone) cannot be "completed" with an invalid phone',
+    async () => {
+      await testEnv.clearFirestore();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `users/${ALICE}`), {
+          ...validAliceDoc(),
+          phone: '',
+        });
+      });
+      const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+      await assertFails(
+        updateDoc(doc(alice.firestore(), `users/${ALICE}`), {
+          phone: 'not-a-number',
+        }),
+      );
+    },
+  );
 
   await run('owner cannot change role via update', async () => {
     await testEnv.clearFirestore();
@@ -403,9 +540,13 @@ async function main() {
     );
   });
 
+  // Note: an empty phone ('') is deliberately NOT in this "must be denied on
+  // create" list - Google Sign-In integration made it valid (see
+  // isValidPhoneOnCreate); it has its own dedicated succeeds/fails tests
+  // above. Every other malformed shape (including whitespace-only) is still
+  // denied exactly as before.
   for (const [label, badPhone] of [
     ['a non-string phone', 1234567890],
-    ['an empty phone', ''],
     ['a whitespace-only phone', '   '],
     ['fewer than 11 digits', '0300123456'],
     ['more than 11 digits', '030012345678'],

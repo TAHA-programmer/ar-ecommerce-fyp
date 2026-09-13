@@ -48,6 +48,17 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthResult> signInWithGoogle() async {
+    // Mock network delay
+    await Future.delayed(const Duration(milliseconds: 800));
+    return AuthResult.success(
+      userId: 'mock_google_customer_id',
+      email: 'google.customer@twinar.com',
+      role: UserRole.customer,
+    );
+  }
+
+  @override
   Future<String?> signUp({
     required String email,
     required String password,

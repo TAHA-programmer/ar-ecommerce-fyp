@@ -119,13 +119,37 @@ service cloud.firestore {
     // `phone`: a standard Pakistani local mobile number - exactly 11
     // digits, digits only, starting with `03` (e.g. `03001234567`).
     // Spaces, `+92`, hyphens, brackets and letters are all rejected by the
-    // strict `^03[0-9]{9}$` anchor. Enforced STRICTLY on create; on update
-    // it is enforced only when the phone value actually CHANGES (see the
-    // update rule) - so a pre-8.12 profile whose stored phone predates this
-    // format is never broken by an unrelated avatar-only update or a
-    // name-only edit that rewrites the same stored phone value.
+    // strict `^03[0-9]{9}$` anchor. Enforced on update only when the phone
+    // value actually CHANGES (see the update rule) - so a pre-8.12 profile
+    // whose stored phone predates this format is never broken by an
+    // unrelated avatar-only update or a name-only edit that rewrites the
+    // same stored phone value.
     function isValidPakistaniMobile(phone) {
       return phone is string && phone.matches('^03[0-9]{9}$');
+    }
+
+    // Create-time phone check: a valid Pakistani mobile for every provider,
+    // OR an empty string but ONLY when the caller's ID token proves the
+    // signed-in identity actually came from Google
+    // (`request.auth.token.firebase.sign_in_provider == 'google.com'` - a
+    // standard Firebase Auth ID-token claim, server-verified, never
+    // client-suppliable/spoofable). Google Sign-In never supplies a phone
+    // number (Google doesn't collect one); every other provider (currently
+    // just `password`) still MUST supply a real validated number - this is
+    // a narrow, provider-scoped exception, not a blanket "empty is fine"
+    // rule. The client-side email/password Sign Up form already always
+    // supplies a real phone before ever calling this, so this changes
+    // nothing for that path even without the provider check - the check
+    // exists so the RULE itself (defense in depth), not just client
+    // behaviour, is what actually enforces this. An empty phone is
+    // completed later via Edit Profile, at which point the update rule's
+    // "any REAL change must be a valid Pakistani mobile" check applies
+    // exactly as it does for every other account, regardless of provider.
+    function isValidPhoneOnCreate(phone) {
+      return phone is string &&
+             (isValidPakistaniMobile(phone) ||
+              (phone == '' &&
+               request.auth.token.firebase.sign_in_provider == 'google.com'));
     }
 
     // Phase 8.7: avatarStoragePath must be absent/null (no avatar yet) or a
@@ -270,7 +294,9 @@ service cloud.firestore {
       // pinned exactly to the six known profile fields - no client can
       // smuggle in an extra, unreviewed field at creation time. Phase 8.12:
       // displayName is shape-validated and phone must be a strict Pakistani
-      // local mobile number (`^03[0-9]{9}$`).
+      // local mobile number (`^03[0-9]{9}$`) - OR empty, for a Google
+      // Sign-In profile (see `isValidPhoneOnCreate`'s doc comment; Google
+      // Auth integration).
       allow create: if isOwner(uid)
                     && request.resource.data.uid == uid
                     && request.resource.data.email == request.auth.token.email
@@ -280,7 +306,7 @@ service cloud.firestore {
                          ['uid', 'email', 'displayName', 'phone', 'role', 'createdAt']
                        )
                     && isValidDisplayName(request.resource.data.displayName)
-                    && isValidPakistaniMobile(request.resource.data.phone);
+                    && isValidPhoneOnCreate(request.resource.data.phone);
 
       // The owner may update their own document, but never role, uid,
       // email, or createdAt - only displayName/phone/avatarStoragePath (and
