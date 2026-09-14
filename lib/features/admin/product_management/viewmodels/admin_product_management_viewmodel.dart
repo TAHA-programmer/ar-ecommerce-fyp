@@ -178,7 +178,9 @@ class AdminProductManagementViewModel extends ChangeNotifier {
       cleanupFailed = true;
     }
     for (final path in vtoOwnedPaths) {
-      if (!await storageService.deleteVtoGarmentByPath(path)) cleanupFailed = true;
+      if (!await storageService.deleteVtoGarmentByPath(path)) {
+        cleanupFailed = true;
+      }
     }
     for (final url in imageUrls) {
       if (!await storageService.deleteOwnedProductImage(

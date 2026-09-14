@@ -6,10 +6,18 @@ class CartQuantityControl extends StatelessWidget {
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
 
+  /// When `false`, the "+" control is greyed to signal the available-stock
+  /// limit has been reached — mirrors `ProductQuantitySelector.canIncrement`.
+  /// The tap still fires `onQuantityChanged(quantity + 1)` so the caller can
+  /// surface a clean "Only N available." message instead of silently doing
+  /// nothing.
+  final bool canIncrement;
+
   const CartQuantityControl({
     super.key,
     required this.quantity,
     required this.onQuantityChanged,
+    this.canIncrement = true,
   });
 
   @override
@@ -43,7 +51,10 @@ class CartQuantityControl extends StatelessWidget {
           _buildButton(
             icon: Icons.add,
             onTap: () => onQuantityChanged(quantity + 1),
-            enabled: true,
+            enabled: canIncrement,
+            // The tap must still reach the caller at the stock cap so it can
+            // surface "Only N available." — only the icon greys out.
+            blockTapWhenDisabled: false,
           ),
         ],
       ),
@@ -54,9 +65,10 @@ class CartQuantityControl extends StatelessWidget {
     required IconData icon,
     required VoidCallback onTap,
     required bool enabled,
+    bool blockTapWhenDisabled = true,
   }) {
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: (enabled || !blockTapWhenDisabled) ? onTap : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.all(4),

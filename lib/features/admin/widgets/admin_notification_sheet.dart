@@ -20,7 +20,11 @@ class AdminNotificationSheet extends StatelessWidget {
     }
 
     final lowStockCount = db.products
-        .where((p) => p.stockQuantity > 0 && p.stockQuantity <= 5)
+        .where(
+          (p) =>
+              p.stockQuantity > 0 &&
+              p.stockQuantity <= CommerceDatabase.lowStockThreshold,
+        )
         .length;
     if (lowStockCount > 0) {
       notifications.add('$lowStockCount products are low in stock.');

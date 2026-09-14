@@ -5,6 +5,7 @@ import 'package:twin_ar/core/data/mock_cart_repository.dart';
 import 'package:twin_ar/core/data/mock_category_repository.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/core/data/mock_favorites_repository.dart';
+import 'package:twin_ar/core/models/product/product_ar_metadata.dart';
 import 'package:twin_ar/core/models/product/product_category.dart';
 import 'package:twin_ar/core/models/product/product_color_option.dart';
 import 'package:twin_ar/core/models/product/product_experience_type.dart';
@@ -27,6 +28,22 @@ void main() {
   late MockCommerceDatabase db;
   late ExploreViewModel vm;
 
+  // A fully valid, renderable AR contract - `ProductArMetadata.isRenderable`
+  // requires a well-formed storagePath/sha256/positive dimensions. Used by
+  // fixtures that must represent a GENUINELY AR-eligible product, as
+  // distinct from one that merely carries the raw `roomAr` experience type
+  // with no real model (the exact distinction the "AR Available" filter
+  // must respect - see `ExploreViewModel.filteredProducts`'s capability
+  // filter and `ProductSummaryModel.arRenderable`).
+  final renderableArMetadata = ProductArMetadata(
+    storagePath: 'products/fixture/ar/model-v1.glb',
+    modelVersion: '1',
+    sha256: List.filled(64, 'a').join(),
+    widthM: 1.0,
+    depthM: 1.0,
+    heightM: 1.0,
+  );
+
   ProductModel product(
     String id, {
     ProductCategory kind = ProductCategory.decor,
@@ -38,6 +55,7 @@ void main() {
     Set<ProductColorOption> colors = const {},
     bool showInCatalog = true,
     int rank = 40,
+    ProductArMetadata? arMetadata,
   }) {
     return ProductModel(
       id: id,
@@ -58,6 +76,7 @@ void main() {
       deliveryEstimate: '3-5 days',
       availableColors: colors,
       recommendationRank: rank,
+      arMetadata: arMetadata,
     );
   }
 
@@ -99,11 +118,27 @@ void main() {
         stock: 0,
         experience: ProductExperienceType.roomAr,
         colors: {ProductColorOption.beige},
+        arMetadata: renderableArMetadata,
       ),
     );
     await db.addProduct(
       product(
         't-instock-ar-beige',
+        kind: ProductCategory.furniture,
+        stock: 3,
+        experience: ProductExperienceType.roomAr,
+        colors: {ProductColorOption.beige},
+        arMetadata: renderableArMetadata,
+      ),
+    );
+    // A product that carries the raw `roomAr` experience type but has NO
+    // renderable model contract - a placeholder/misconfigured listing. The
+    // "AR Available" filter must NOT treat this as AR-eligible (it can't
+    // actually promise a working Room-AR launch); it must still show up the
+    // moment AR is deselected, exactly like an ordinary non-AR product.
+    await db.addProduct(
+      product(
+        't-instock-rawflag-only-beige',
         kind: ProductCategory.furniture,
         stock: 3,
         experience: ProductExperienceType.roomAr,
@@ -116,6 +151,14 @@ void main() {
         kind: ProductCategory.lighting,
         stock: 3,
         colors: {ProductColorOption.gray},
+      ),
+    );
+    await db.addProduct(
+      product(
+        't-instock-nonar-beige',
+        kind: ProductCategory.clothing,
+        stock: 3,
+        colors: {ProductColorOption.beige},
       ),
     );
     await db.addProduct(
@@ -136,10 +179,12 @@ void main() {
     expect(vm.activeFilterState.arAvailable, true);
     expect(vm.activeFilterState.selectedColors, {ProductColorOption.beige});
     expect(filtered, lessThan(eligibleInDb()));
-    // every result genuinely matches all three
+    // every result genuinely matches all three, and is a GENUINELY
+    // renderable AR model - not merely the raw `roomAr` experience type.
     for (final p in vm.filteredProducts) {
       expect(p.summary.inStock, true);
       expect(p.summary.arEnabled, true);
+      expect(p.summary.arRenderable, true);
       expect(p.colors.contains(ProductColorOption.beige), true);
     }
     expect(
@@ -151,6 +196,100 @@ void main() {
       false,
       reason: 'out of stock must be filtered out',
     );
+    expect(
+      vm.filteredProducts.any(
+        (p) => p.summary.id == 't-instock-rawflag-only-beige',
+      ),
+      false,
+      reason:
+          'raw roomAr experience type with no renderable model must NOT '
+          'count as "AR Available"',
+    );
+  });
+
+  test('AR Available filters on the genuine renderable Room-AR contract, '
+      'not the raw experience-type flag', () {
+    vm.clearAllFilters();
+    vm.applyFilters(const ExploreFilterState(arAvailable: true));
+
+    final ids = vm.filteredProducts.map((p) => p.summary.id).toSet();
+    expect(ids.contains('t-instock-ar-beige'), true);
+    expect(
+      ids.contains('t-instock-rawflag-only-beige'),
+      false,
+      reason: 'has experienceType roomAr but no valid ProductArMetadata',
+    );
+    for (final p in vm.filteredProducts) {
+      expect(p.summary.arRenderable, true);
+    }
+  });
+
+  test('deselecting AR Available removes the AR restriction and '
+      'immediately surfaces matching non-AR products, without hiding the '
+      'AR ones still satisfying every other active filter (positive '
+      'filter semantics)', () {
+    // Start from the Figma default: In Stock + AR + Beige.
+    final before = vm.filteredProducts.map((p) => p.summary.id).toSet();
+    expect(before.contains('t-instock-ar-beige'), true);
+    expect(before.contains('t-instock-nonar-beige'), false);
+    expect(before.contains('t-instock-rawflag-only-beige'), false);
+
+    // Remove ONLY the AR chip (mirrors AppliedFilterChips' onFilterRemoved
+    // and the filter sheet's toggle-off — both call this exact copyWith).
+    vm.applyFilters(vm.activeFilterState.copyWith(arAvailable: false));
+
+    final after = vm.filteredProducts.map((p) => p.summary.id).toSet();
+    expect(vm.activeFilterState.arAvailable, false);
+    // Beige + In Stock is unchanged, so the widened set is a strict
+    // superset: the AR item is still there (positive filter, never hidden)
+    // AND the non-AR / raw-flag-only beige items are now included too.
+    expect(after.containsAll(before), true);
+    expect(after.contains('t-instock-nonar-beige'), true);
+    expect(after.contains('t-instock-rawflag-only-beige'), true);
+    expect(after.length, greaterThan(before.length));
+  });
+
+  test('removing one chip (e.g. Beige) while AR + In Stock stay active only '
+      'widens along that one dimension - mirrors AppliedFilterChips\' '
+      'per-chip onFilterRemoved', () {
+    final beigeOn = vm.filteredProducts.map((p) => p.summary.id).toSet();
+
+    // AppliedFilterChips' Beige chip calls exactly this copyWith.
+    vm.applyFilters(
+      vm.activeFilterState.copyWith(
+        selectedColors: Set.of(vm.activeFilterState.selectedColors)
+          ..remove(ProductColorOption.beige),
+      ),
+    );
+
+    expect(vm.activeFilterState.selectedColors, isEmpty);
+    expect(vm.activeFilterState.arAvailable, true);
+    expect(vm.activeFilterState.inStockOnly, true);
+    final beigeOff = vm.filteredProducts.map((p) => p.summary.id).toSet();
+    // Still AR-gated and in-stock-gated, so the raw-flag-only / non-AR
+    // fixtures remain excluded, but a non-beige AR item may now appear.
+    expect(beigeOff.containsAll(beigeOn), true);
+    expect(beigeOff.contains('t-instock-rawflag-only-beige'), false);
+    expect(beigeOff.contains('t-instock-nonar-gray'), false);
+  });
+
+  test('selecting the "All" category chip (All Products) never touches '
+      'AR / Beige / In Stock - only the category dimension changes', () {
+    vm.setCategory(ProductCategory.furniture);
+    expect(vm.activeFilterState.arAvailable, true);
+    expect(vm.activeFilterState.inStockOnly, true);
+    expect(vm.activeFilterState.selectedColors, {ProductColorOption.beige});
+
+    vm.setCategory(ProductCategory.all);
+
+    expect(vm.activeFilterState.category, ProductCategory.all);
+    expect(vm.activeFilterState.categoryId, isNull);
+    // AR/Beige/In Stock survive the category round-trip untouched - "All
+    // Products" is not what clears the AR restriction; deselecting the AR
+    // chip itself is (see the dedicated deselect test above).
+    expect(vm.activeFilterState.arAvailable, true);
+    expect(vm.activeFilterState.inStockOnly, true);
+    expect(vm.activeFilterState.selectedColors, {ProductColorOption.beige});
   });
 
   test('Clear All + All category + empty search + Recommended sort shows the '
@@ -258,19 +397,24 @@ void main() {
     final filtered = vm.filteredProducts;
     expect(filtered.length, lessThan(full));
     for (final p in filtered) {
-      expect(p.summary.inStock && p.summary.arEnabled, true);
+      expect(p.summary.inStock && p.summary.arRenderable, true);
       expect(p.colors.contains(ProductColorOption.beige), true);
     }
     // count is exactly the number of eligible products matching all three
+    // (using the same `arRenderable` predicate the viewmodel filters on)
     final expected = db.products.where((p) {
       final c = p.toCatalogModel();
       return p.isActive &&
           p.publicationStatus == ProductPublicationStatus.published &&
           c.summary.inStock &&
-          c.summary.arEnabled &&
+          c.summary.arRenderable &&
           c.colors.contains(ProductColorOption.beige);
     }).length;
     expect(filtered.length, expected);
+    expect(
+      filtered.any((p) => p.summary.id == 't-instock-rawflag-only-beige'),
+      false,
+    );
   });
 
   test('category + advanced filters + search + sort combine correctly', () {

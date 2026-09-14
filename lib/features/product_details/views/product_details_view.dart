@@ -40,11 +40,13 @@ class _ProductDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<ProductDetailsViewModel>();
+    final cartCount = context.watch<CustomerShoppingState>().cartCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: ProductDetailsHeader(
         isFavorite: viewModel.isFavorite,
+        cartCount: cartCount,
         onFavoriteToggle: () {
           viewModel.toggleFavorite().then((error) {
             if (error != null && context.mounted) {
@@ -98,8 +100,7 @@ class _ProductDetailsContent extends StatelessWidget {
                 RouteNames.roomArPreparation,
                 arguments: viewModel.product!.summary.id,
               ),
-              onTryItOn:
-                  () {}, // Not used in HomeProductDetailsLayout, but we need to update it if it's there? Wait, HomeProductDetailsLayout doesn't have onTryItOn. Let's check.
+              onTryItOn: () {}, // No Try-On affordance on non-clothing layout.
             ),
     );
   }

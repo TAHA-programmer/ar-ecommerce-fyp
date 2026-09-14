@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/delivery_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
+/// The delivery-estimate/fee strip on non-clothing Product Details. Sourced
+/// entirely from [DeliveryConstants] — the same policy the cart and
+/// checkout actually apply — rather than a free-text per-product field, so
+/// this can never drift into a stale or fictional claim (see
+/// [DeliveryConstants]'s doc comment).
 class ProductDeliveryCard extends StatelessWidget {
-  final String deliveryEstimate;
-  final String? warranty;
-
-  const ProductDeliveryCard({
-    super.key,
-    required this.deliveryEstimate,
-    this.warranty,
-  });
+  const ProductDeliveryCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +45,7 @@ class ProductDeliveryCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        deliveryEstimate,
+                        DeliveryConstants.estimatedDeliveryLabel,
                         style: AppTypography.label.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -68,7 +67,7 @@ class ProductDeliveryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(
-                  Icons.verified_outlined,
+                  Icons.payments_outlined,
                   color: AppColors.primary,
                   size: 24,
                 ),
@@ -78,7 +77,7 @@ class ProductDeliveryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Free Delivery',
+                        'Delivery Fee',
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w500,
@@ -86,7 +85,7 @@ class ProductDeliveryCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'On orders above Rs 2,000',
+                        DeliveryConstants.deliveryFeeLabel,
                         style: AppTypography.label.copyWith(
                           color: AppColors.primary,
                         ),

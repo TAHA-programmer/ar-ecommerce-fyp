@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import '../../../core/data/cart_repository.dart' show cartMaxQuantity;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/product_image_view.dart';
@@ -136,6 +139,9 @@ class CartItemCard extends StatelessWidget {
                         CartQuantityControl(
                           quantity: item.quantity,
                           onQuantityChanged: onQuantityChanged,
+                          canIncrement:
+                              item.quantity <
+                              math.min(product.stockQuantity, cartMaxQuantity),
                         ),
                         if (item.quantity > 1) ...[
                           const SizedBox(height: 4),

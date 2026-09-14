@@ -88,12 +88,9 @@ class HomeProductDetailsLayout extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: ProductDeliveryCard(
-                    deliveryEstimate: product.deliveryEstimate,
-                    warranty: product.warranty,
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.0),
+                  child: ProductDeliveryCard(),
                 ),
                 const SizedBox(height: 32),
               ],

@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import '../../../app/routes/route_names.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/feedback/app_toast.dart';
 
 class ProductDetailsHeader extends StatelessWidget
     implements PreferredSizeWidget {
   final bool isFavorite;
   final VoidCallback onFavoriteToggle;
 
+  /// Live cart line count, mirroring [CustomerHeader]'s badge — sourced by
+  /// the caller from `CustomerShoppingState.cartCount` so every app bar
+  /// (Home/Explore/Cart's own header and this one) shows the same number.
+  final int cartCount;
+
   const ProductDetailsHeader({
     super.key,
     required this.isFavorite,
     required this.onFavoriteToggle,
+    required this.cartCount,
   });
 
   @override
@@ -35,11 +41,44 @@ class ProductDetailsHeader extends StatelessWidget
           ),
           onPressed: onFavoriteToggle,
         ),
-        IconButton(
-          icon: const Icon(Icons.share_outlined),
-          onPressed: () {
-            AppToast.info(context, 'Coming soon');
-          },
+        Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.shopping_cart_outlined,
+                color: AppColors.textPrimary,
+              ),
+              onPressed: () => Navigator.pushNamed(context, RouteNames.cart),
+            ),
+            if (cartCount > 0)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$cartCount',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
