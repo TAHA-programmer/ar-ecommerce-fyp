@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../viewmodels/product_details_viewmodel.dart';
 import '../clothing_product_gallery.dart';
 import '../product_title_block.dart';
+import '../product_category_breadcrumb.dart';
 import '../expandable_product_description.dart';
 import '../product_color_selector.dart';
 import '../product_size_selector.dart';
@@ -56,12 +57,6 @@ class ClothingProductDetailsLayout extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: AppColors.textSecondary,
-              ),
             ],
           ),
         ),
@@ -100,6 +95,14 @@ class ClothingProductDetailsLayout extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 ProductTitleBlock(product: product),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: ProductCategoryBreadcrumb(
+                    categoryName: viewModel.categoryDisplayName,
+                    subcategory: product.subcategory,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 ExpandableProductDescription(description: product.description),
                 const SizedBox(height: 16),

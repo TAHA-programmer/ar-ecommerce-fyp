@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:twin_ar/core/constants/delivery_constants.dart';
 import 'package:twin_ar/core/data/category_repository.dart';
 import 'package:twin_ar/core/data/mock_category_repository.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
@@ -57,9 +58,18 @@ void main() {
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.byType(Image), findsWidgets); // Header logo + gallery images
 
-      // Favorite and Share in header
+      // Favorite and cart (live badge, opens Cart) in header — share was
+      // replaced with the same functional cart icon as the main app bar.
+      // Scoped to the AppBar since "Add to Cart" also uses a cart icon.
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
-      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byIcon(Icons.shopping_cart_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.share_outlined), findsNothing);
 
       // NO CustomerBottomNavigation
       expect(find.byType(CustomerBottomNavigation), findsNothing);
@@ -70,10 +80,30 @@ void main() {
       expect(find.text('Rs 16,000/-'), findsOneWidget);
       expect(find.text('25% OFF'), findsOneWidget);
 
+      // Dynamic category breadcrumb (a RichText, hence findRichText: true),
+      // sourced from real product data.
+      expect(
+        find.textContaining('Furniture', findRichText: true),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('Accent Chairs', findRichText: true),
+        findsOneWidget,
+      );
+
       // Specifications
       expect(find.text('Material'), findsOneWidget);
       expect(find.text('Premium Fabric, Solid Wood'), findsOneWidget);
       expect(find.text('Dimensions'), findsOneWidget);
+
+      // Delivery card now reads the centralized, truthful delivery policy —
+      // never a per-product hardcoded date.
+      expect(
+        find.text(DeliveryConstants.estimatedDeliveryLabel),
+        findsOneWidget,
+      );
+      expect(find.text(DeliveryConstants.deliveryFeeLabel), findsOneWidget);
+      expect(find.textContaining('20 - 24 May'), findsNothing);
 
       // Actions
       expect(find.text('View in Your Room'), findsOneWidget);
@@ -104,6 +134,15 @@ void main() {
       expect(find.text('Rs 3,200/-'), findsOneWidget);
       expect(find.text('31% OFF'), findsOneWidget);
 
+      // Dynamic category breadcrumb (a RichText, hence findRichText: true),
+      // sourced from real product data.
+      expect(find.textContaining('Clothing', findRichText: true), findsWidgets);
+      expect(find.textContaining('Shirts', findRichText: true), findsOneWidget);
+
+      // Fabric/Fit/Care rows are informational, not navigation — no
+      // trailing chevrons.
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+
       // Sizes
       expect(find.text('S'), findsOneWidget);
       expect(find.text('M'), findsOneWidget);
@@ -111,10 +150,15 @@ void main() {
       expect(find.text('XL'), findsOneWidget);
       expect(find.text('XXL'), findsOneWidget);
 
-      // Benefits
+      // Benefits — the delivery-fee item reflects the real flat fee, never
+      // a fictional "free above Rs X" claim.
       expect(find.textContaining('7-Day Easy'), findsOneWidget);
       expect(find.textContaining('Secure'), findsOneWidget);
-      expect(find.textContaining('Free Shipping'), findsOneWidget);
+      expect(
+        find.textContaining(DeliveryConstants.deliveryFeeLabel),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Free Shipping'), findsNothing);
 
       // Actions — Phase 9.3 Stage 5: "Try It On" is now gated on
       // `hasRenderableVtoAsset`, not `experienceType` alone. The mock

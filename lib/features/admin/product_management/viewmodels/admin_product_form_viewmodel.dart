@@ -1627,7 +1627,8 @@ class AdminProductFormViewModel extends ChangeNotifier {
     }
     if (vtoCleanupFailed || vtoHadForeignPath) {
       _vtoCleanupWarning = [
-        if (vtoCleanupFailed) 'a garment image could not be removed from storage',
+        if (vtoCleanupFailed)
+          'a garment image could not be removed from storage',
         if (vtoHadForeignPath)
           'one or more stored garment paths did not belong to this product '
               'and were left untouched',

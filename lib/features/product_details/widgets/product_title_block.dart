@@ -105,9 +105,12 @@ class ProductTitleBlock extends StatelessWidget {
                   ],
                 ),
               ),
-              _StockIndicator(
-                stockQuantity: product.stockQuantity,
-                isClothing: isClothing,
+              const SizedBox(width: 8),
+              Flexible(
+                child: _StockIndicator(
+                  stockQuantity: product.stockQuantity,
+                  isClothing: isClothing,
+                ),
               ),
             ],
           ),
@@ -149,11 +152,15 @@ class _StockIndicator extends StatelessWidget {
           ),
           const SizedBox(width: 4),
         ],
-        Text(
-          outOfStock ? 'Out of Stock' : '$stockQuantity available',
-          style: AppTypography.bodySmall.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            outOfStock ? 'Out of Stock' : '$stockQuantity available',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

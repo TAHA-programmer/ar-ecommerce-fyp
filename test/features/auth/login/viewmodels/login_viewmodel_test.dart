@@ -28,8 +28,10 @@ class _ConfigurableGoogleAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> signIn({required String email, required String password}) =>
-      _delegate.signIn(email: email, password: password);
+  Future<AuthResult> signIn({
+    required String email,
+    required String password,
+  }) => _delegate.signIn(email: email, password: password);
 
   @override
   Future<String?> signUp({
@@ -285,21 +287,27 @@ void main() {
       },
     );
 
-    test('a genuine failure carries its message and leaves no session', () async {
-      final repository = _ConfigurableGoogleAuthRepository()
-        ..nextGoogleResult = () => AuthResult.failure(
-          errorMessage: 'Google Sign-In is not set up correctly yet.',
+    test(
+      'a genuine failure carries its message and leaves no session',
+      () async {
+        final repository = _ConfigurableGoogleAuthRepository()
+          ..nextGoogleResult = () => AuthResult.failure(
+            errorMessage: 'Google Sign-In is not set up correctly yet.',
+          );
+        final sessionState = AuthSessionState();
+        final viewModel = LoginViewModel(repository, sessionState);
+
+        final result = await viewModel.submitGoogleSignIn();
+
+        expect(result.success, isFalse);
+        expect(result.cancelled, isFalse);
+        expect(
+          result.errorMessage,
+          'Google Sign-In is not set up correctly yet.',
         );
-      final sessionState = AuthSessionState();
-      final viewModel = LoginViewModel(repository, sessionState);
-
-      final result = await viewModel.submitGoogleSignIn();
-
-      expect(result.success, isFalse);
-      expect(result.cancelled, isFalse);
-      expect(result.errorMessage, 'Google Sign-In is not set up correctly yet.');
-      expect(sessionState.isAuthenticated, isFalse);
-    });
+        expect(sessionState.isAuthenticated, isFalse);
+      },
+    );
 
     test(
       'a duplicate call while one is already in flight is ignored (never two concurrent attempts)',

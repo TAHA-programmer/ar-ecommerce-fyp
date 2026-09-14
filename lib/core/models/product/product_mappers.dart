@@ -45,6 +45,10 @@ extension ProductModelMappers on ProductModel {
       // surfaces now all key off the same `hasRenderableVtoAsset` gate the
       // "Try It On" button already used.
       tryOnEnabled: hasRenderableVtoAsset,
+      // Explore's "AR Available" filter promises a working AR experience, so
+      // it must key off the real renderable contract, not the raw
+      // `isRoomArEnabled` flag `arEnabled` intentionally keeps for the badge.
+      arRenderable: hasRenderableArModel,
     );
   }
 

@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/data/cart_repository.dart' show cartMaxQuantity;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
@@ -88,6 +91,26 @@ class ShoppingCartView extends StatelessWidget {
                                   item.cartItem.id,
                                 ),
                                 onQuantityChanged: (newQuantity) {
+                                  // Phase 8.11a-style guard mirroring Product
+                                  // Details: an increment past the live
+                                  // stock cap is rejected client-side with a
+                                  // clean message instead of silently
+                                  // persisting an unfulfillable quantity.
+                                  // (Re-validated authoritatively at
+                                  // checkout / server reservation either way.)
+                                  final maxAllowed = math.min(
+                                    item.product.stockQuantity,
+                                    cartMaxQuantity,
+                                  );
+                                  if (newQuantity > maxAllowed) {
+                                    AppToast.warning(
+                                      context,
+                                      maxAllowed <= 0
+                                          ? 'This product is out of stock.'
+                                          : 'Only $maxAllowed available.',
+                                    );
+                                    return;
+                                  }
                                   viewModel
                                       .updateQuantity(
                                         item.cartItem.id,

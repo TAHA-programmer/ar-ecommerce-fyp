@@ -20,8 +20,22 @@ class ProductSummaryModel {
   final double rating;
   final int reviewCount;
   final bool inStock;
+
+  /// Raw `experienceType == roomAr` flag - drives the "AR" badge on Home/
+  /// Explore product cards ONLY. Deliberately NOT the eligibility gate for
+  /// anything a customer can actually launch or that a filter can promise
+  /// them - see [arRenderable] for that.
   final bool arEnabled;
   final bool tryOnEnabled;
+
+  /// Mirrors `ProductModel.hasRenderableArModel`: `true` only when the
+  /// product genuinely has a fully valid, renderable Room-AR model contract
+  /// (not just [arEnabled]'s raw experience-type flag). This is the correct
+  /// predicate for anything that PROMISES a working AR experience - e.g.
+  /// Explore's "AR Available" filter - as opposed to [arEnabled], which
+  /// merely drives the cosmetic "AR" badge and stays on the raw flag by
+  /// existing design.
+  final bool arRenderable;
 
   const ProductSummaryModel({
     required this.id,
@@ -36,6 +50,7 @@ class ProductSummaryModel {
     this.inStock = true,
     this.arEnabled = false,
     this.tryOnEnabled = false,
+    this.arRenderable = false,
   });
 
   /// The full source-aware image reference - the preferred way for a

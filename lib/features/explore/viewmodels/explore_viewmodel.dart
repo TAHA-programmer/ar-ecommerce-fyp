@@ -294,11 +294,16 @@ class ExploreViewModel extends ChangeNotifier {
     }
 
     // 5. Capabilities (AR / Try-On)
-    // If both selected, it's AR OR TryOn
+    // If both selected, it's AR OR TryOn. "AR Available" promises a working
+    // Room-AR launch, so it must gate on the genuine renderable contract
+    // (`arRenderable`, mirroring `ProductModel.hasRenderableArModel`) —
+    // never the raw `arEnabled` experience-type flag that badge display
+    // alone uses. A positive filter: turning it off removes the AR
+    // restriction entirely rather than excluding AR products.
     if (_activeFilterState.arAvailable || _activeFilterState.tryOnAvailable) {
       results = results.where((p) {
         bool match = false;
-        if (_activeFilterState.arAvailable && p.summary.arEnabled) {
+        if (_activeFilterState.arAvailable && p.summary.arRenderable) {
           match = true;
         }
         if (_activeFilterState.tryOnAvailable && p.summary.tryOnEnabled) {
