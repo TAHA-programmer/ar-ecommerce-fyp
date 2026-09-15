@@ -54,3 +54,25 @@ export { adjustFavoriteCount } from "./adjustFavoriteCount";
 export { generateTryOn } from "./generateTryOn";
 export { cleanupExpiredTryOnMedia } from "./cleanupExpiredTryOnMedia";
 export { cleanupUserTryOnData } from "./cleanupUserTryOnData";
+
+// Ratings/Reviews v1 (`24_RATINGS_REVIEWS_FEEDBACK_PLAN.md`), Stage 2 -
+// `submitReview` (create-or-edit) and `deleteReview`, both transactionally
+// maintaining the `productStats` rating aggregate. NOT deployed yet - local
+// implementation + test pass only (rules/indexes for `reviews`/
+// `reviewReports` are Stage 4; `reportReview`/`moderateReview` are Stage 3).
+export { submitReview } from "./submitReview";
+export { deleteReview } from "./deleteReview";
+
+// Stage 3 - `reportReview` (unique-reporter counting, threshold flagging,
+// never auto-hides) and `moderateReview` (admin-only hide/restore/reject
+// with a required reason + audit stamp). NOT deployed yet - local
+// implementation + test pass only (rules/indexes are Stage 4).
+export { reportReview } from "./reportReview";
+export { moderateReview } from "./moderateReview";
+
+// Stage 9 - Auth-deletion cleanup, a sibling to `cleanupUserTryOnData`
+// (same `auth.user().onDelete()` event, both fire independently): hard-
+// deletes every review the deleted user authored and reverses each
+// `published` one out of `productStats`. NOT deployed yet - local
+// implementation + test pass only.
+export { cleanupUserReviewsData } from "./cleanupUserReviewsData";

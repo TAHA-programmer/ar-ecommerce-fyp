@@ -16,7 +16,7 @@ class AdminAccountSheet extends StatelessWidget {
     final email = authState.email ?? 'admin@twinar.com';
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.l),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -73,6 +73,15 @@ class AdminAccountSheet extends StatelessWidget {
               onTap: () {
                 // Not implemented in this phase
                 Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              key: const Key('admin_account_sheet_reviews_tile'),
+              leading: const Icon(Icons.rate_review_outlined),
+              title: Text('Reviews Moderation', style: AppTypography.bodyLarge),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamed(RouteNames.adminReviews);
               },
             ),
             ListTile(

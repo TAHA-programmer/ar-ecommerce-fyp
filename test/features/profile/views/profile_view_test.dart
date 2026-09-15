@@ -82,6 +82,8 @@ void main() {
 
     // Menu items
     expect(find.text('My Orders'), findsOneWidget);
+    // Ratings/Reviews v1 Stage 7 — the new Profile entry point.
+    expect(find.text('My Reviews'), findsOneWidget);
     expect(find.text('Help and Support'), findsOneWidget);
     expect(find.text('Log Out'), findsOneWidget);
 

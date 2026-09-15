@@ -22,6 +22,7 @@ import { getStorage } from "firebase-admin/storage";
 import Stripe from "stripe";
 
 import { createPaymentIntentHandler } from "../../src/createPaymentIntent";
+import { FALLBACK_REVIEWER_DISPLAY_NAME } from "../../src/lib/reviews/authorDisplayName";
 import type { StripePaymentApi, StripePaymentIntentLike } from "../../src/lib/stripe";
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT as string;
@@ -129,6 +130,77 @@ export async function readSession(sessionId: string): Promise<Record<string, unk
 
 export async function readOrder(id: string): Promise<Record<string, unknown> | undefined> {
   return (await testDb.doc(`orders/${id}`).get()).data();
+}
+
+/** Directly seeds a `users/{uid}` profile doc - Ratings/Reviews v1's
+ *  `submitReview` reads this (Admin SDK, bypasses `firestore.rules`) to
+ *  compute `authorDisplayName`. Only `displayName` is relevant to that
+ *  path; other fields are filled in with harmless placeholders so the doc
+ *  is realistic without every test needing to specify them. */
+export async function seedUserProfile(
+  uid: string,
+  overrides: Record<string, unknown> = {},
+): Promise<void> {
+  await testDb.doc(`users/${uid}`).set({
+    uid,
+    email: `${uid}@example.com`,
+    displayName: "Test User",
+    phone: "",
+    role: "customer",
+    createdAt: FieldValue.serverTimestamp(),
+    ...overrides,
+  });
+}
+
+/** Directly seeds an `orders/{id}` doc - Ratings/Reviews v1's eligibility
+ *  check reads this collection, and testing it doesn't require going
+ *  through the full checkout/webhook pipeline any more than `seedProduct`
+ *  requires going through the Admin product form. */
+export async function seedOrder(
+  id: string,
+  overrides: Record<string, unknown> = {},
+): Promise<void> {
+  await testDb.doc(`orders/${id}`).set({
+    userId: "test-uid",
+    items: [],
+    orderStatus: "delivered",
+    ...overrides,
+  });
+}
+
+export async function readReview(id: string): Promise<Record<string, unknown> | undefined> {
+  return (await testDb.doc(`reviews/${id}`).get()).data();
+}
+
+/** Directly seeds a `reviews/{id}` doc - used to set up an EXISTING review
+ *  for an edit/delete/edit-window test without going through `submitReview`
+ *  first (so a test can control `createdAt` precisely). */
+export async function seedReview(
+  id: string,
+  overrides: Record<string, unknown> = {},
+): Promise<void> {
+  await testDb.doc(`reviews/${id}`).set({
+    productId: "p1",
+    userId: "test-uid",
+    authorDisplayName: FALLBACK_REVIEWER_DISPLAY_NAME,
+    orderId: "order-1",
+    rating: 3,
+    title: null,
+    body: "Seeded review body with enough characters to be valid.",
+    status: "published",
+    reportCount: 0,
+    flaggedForReview: false,
+    createdAt: Timestamp.now(),
+    editedAt: null,
+    moderatedAt: null,
+    moderatedBy: null,
+    moderationReason: null,
+    ...overrides,
+  });
+}
+
+export async function readProductStats(id: string): Promise<Record<string, unknown> | undefined> {
+  return (await testDb.doc(`productStats/${id}`).get()).data();
 }
 
 export async function readPayment(id: string): Promise<Record<string, unknown> | undefined> {

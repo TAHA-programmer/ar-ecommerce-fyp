@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/models/product/product_category.dart';
+import '../../reviews/viewmodels/reviews_viewmodel.dart';
 import '../models/product_detail_model.dart';
 
 class ProductTitleBlock extends StatelessWidget {
@@ -12,6 +14,11 @@ class ProductTitleBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isClothing = product.categoryKind == ProductCategory.clothing;
+    // Ratings/Reviews v1 Stage 12 - the live `productStats` aggregate,
+    // already loaded by the SAME `ReviewsViewModel` the "Ratings & Reviews"
+    // section below reads (Stage 6) - no separate fetch, no static
+    // `product.summary.rating`/`.reviewCount` reliance left here at all.
+    final stats = context.watch<ReviewsViewModel>().stats;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -30,30 +37,40 @@ class ProductTitleBlock extends StatelessWidget {
               if (isClothing)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${product.summary.rating}',
-                        style: AppTypography.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
+                  child: stats.hasReviews
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              stats.averageRating.toStringAsFixed(1),
+                              style: AppTypography.bodySmall.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.black87,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${stats.ratingCount})',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        )
+                      // v1 §0 decision 16's honest empty state - never a
+                      // fabricated "0.0 ★ (0)" for a product with no
+                      // published reviews yet.
+                      : Text(
+                          'No reviews yet',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.star_rounded,
-                        color: Colors.black87,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '(${product.summary.reviewCount})',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
             ],
           ),

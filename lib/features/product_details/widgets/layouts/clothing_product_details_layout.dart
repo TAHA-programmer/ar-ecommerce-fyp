@@ -9,6 +9,7 @@ import '../product_size_selector.dart';
 import '../product_quantity_selector.dart';
 import '../product_details_bottom_actions.dart';
 import '../clothing_benefits_card.dart';
+import '../../../reviews/widgets/product_reviews_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/models/product/product_specification.dart';
@@ -105,6 +106,8 @@ class ClothingProductDetailsLayout extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 ExpandableProductDescription(description: product.description),
+                const SizedBox(height: 16),
+                ProductReviewsSection(productTitle: product.summary.title),
                 const SizedBox(height: 16),
                 if (fabricSpec != null)
                   Padding(

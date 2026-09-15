@@ -59,6 +59,17 @@ class RouteNames {
   static const String orders = '/orders';
   static const String orderDetail = '/order-detail';
 
+  /// Ratings/Reviews v1 Stage 7 — the Write/Edit Review form for ONE
+  /// product. Reached from Product Details' eligibility-gated "Write a
+  /// Review"/"Edit Your Review" entry, Order Detail's per-item "Rate this
+  /// product" (only on a delivered order), and the My Reviews list's own
+  /// "Edit" action. Expects a `WriteReviewArgs`.
+  static const String writeReview = '/write-review';
+
+  /// Ratings/Reviews v1 Stage 7 — the signed-in customer's own reviews
+  /// across every product, reached from Profile's "My Reviews" entry.
+  static const String myReviews = '/my-reviews';
+
   // Admin Routes
   static const String adminDashboard = '/admin/dashboard';
   static const String adminProducts = '/admin/products';
@@ -72,4 +83,7 @@ class RouteNames {
   static const String adminInventory = '/admin/inventory';
   static const String adminOrders = '/admin/orders';
   static const String adminOrderDetail = '/admin/orders/detail';
+  // Ratings/Reviews v1 Stage 8 — Admin moderation screen (report queue +
+  // hide/restore/reject), reached from the Admin account sheet.
+  static const String adminReviews = '/admin/reviews';
 }

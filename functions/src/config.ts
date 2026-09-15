@@ -143,3 +143,36 @@ export const VTO_UPLOAD_ORPHAN_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
  *  maintain a Firestore index of outstanding uploads instead of scanning
  *  Storage directly. */
 export const VTO_UPLOAD_ORPHAN_SCAN_MAX_FILES = 1000;
+
+/**
+ * Ratings/Reviews v1 (`24_RATINGS_REVIEWS_FEEDBACK_PLAN.md` §0 - developer-
+ * approved 2026-09-14). These MUST exactly mirror
+ * `lib/features/reviews/models/review_validation.dart`'s `ReviewValidation`
+ * constants on the Flutter side - the server values here are the real gate;
+ * the Dart copy is only what the client form/validation reads, so the two
+ * must never silently drift apart.
+ */
+export const REVIEW_MIN_RATING = 1;
+export const REVIEW_MAX_RATING = 5;
+export const REVIEW_MAX_TITLE_LENGTH = 80;
+export const REVIEW_MIN_BODY_LENGTH = 10;
+export const REVIEW_MAX_BODY_LENGTH = 1000;
+/** A review may be edited for this many days after its ORIGINAL creation -
+ *  never reset by an edit's own timestamp. */
+export const REVIEW_EDIT_WINDOW_DAYS = 30;
+export const REVIEW_EDIT_WINDOW_MS = REVIEW_EDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+/** Unique-reporter count at which a review is flagged for Admin attention -
+ *  never auto-hidden; manual moderation stays authoritative (v1 decision 11). */
+export const REVIEW_REPORT_FLAG_THRESHOLD = 3;
+/** Optional free-text note a reporter may add to a report. */
+export const REVIEW_REPORT_NOTE_MAX_LENGTH = 500;
+/** The reason an Admin gives for a hide/restore/reject moderation action -
+ *  required for EVERY action (v1 decision 12: "each action requires a
+ *  reason"), captured verbatim in `reviews/{id}.moderationReason`. */
+export const REVIEW_MODERATION_REASON_MAX_LENGTH = 500;
+
+/** The superAdmin custom-claim value `firestore.rules`' `isAdmin()` already
+ *  checks (`request.auth.token.role == 'superAdmin'`) - `moderateReview`
+ *  checks the identical claim server-side via the callable's own
+ *  `request.auth.token.role`, no new admin-detection mechanism invented. */
+export const SUPER_ADMIN_ROLE = "superAdmin";

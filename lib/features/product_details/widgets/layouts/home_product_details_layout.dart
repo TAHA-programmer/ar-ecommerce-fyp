@@ -9,6 +9,7 @@ import '../product_color_selector.dart';
 import '../product_quantity_selector.dart';
 import '../product_delivery_card.dart';
 import '../product_details_bottom_actions.dart';
+import '../../../reviews/widgets/product_reviews_section.dart';
 import '../../../../core/widgets/feedback/app_toast.dart';
 
 class HomeProductDetailsLayout extends StatelessWidget {
@@ -52,6 +53,8 @@ class HomeProductDetailsLayout extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 ExpandableProductDescription(description: product.description),
+                const SizedBox(height: 16),
+                ProductReviewsSection(productTitle: product.summary.title),
                 const SizedBox(height: 16),
                 if (product.specifications.isNotEmpty) ...[
                   Padding(

@@ -17,6 +17,7 @@ import { CHECKOUT_SESSIONS_COLLECTION } from "./checkoutSession";
  */
 
 export const COLLECTIONS = {
+  users: "users",
   products: "products",
   orders: "orders",
   payments: "payments",
@@ -28,6 +29,9 @@ export const COLLECTIONS = {
   // Phase 9.3 "Virtual Try-On" Stage 4.
   tryOnSessions: "tryOnSessions",
   tryOnQuota: "tryOnQuota",
+  // Ratings/Reviews v1 (`24_RATINGS_REVIEWS_FEEDBACK_PLAN.md`).
+  reviews: "reviews",
+  reviewReports: "reviewReports",
 } as const;
 
 /** The single server-owned document id used for the D9 global daily cap. */
@@ -50,6 +54,16 @@ export function checkoutSessionDoc(sessionId: string) {
   return checkoutSessionsRef().doc(sessionId);
 }
 
+/** `users/{uid}` - read-only from `submitReview` (Ratings/Reviews v1 Stage
+ *  7): resolves the AUTHOR's OWN profile document via the Admin SDK (which
+ *  bypasses `firestore.rules`' owner/admin-only read rule) to compute the
+ *  masked `authorDisplayName` snapshot stored on their review - see
+ *  `lib/reviews/authorDisplayName.ts`. Never used to read anyone else's
+ *  profile field beyond `displayName`, and never writes to this collection. */
+export function userDoc(uid: string) {
+  return db().collection(COLLECTIONS.users).doc(uid);
+}
+
 export function productsRef() {
   return db().collection(COLLECTIONS.products);
 }
@@ -58,8 +72,12 @@ export function productDoc(productId: string) {
   return productsRef().doc(productId);
 }
 
+export function ordersRef() {
+  return db().collection(COLLECTIONS.orders);
+}
+
 export function orderDoc(orderId: string) {
-  return db().collection(COLLECTIONS.orders).doc(orderId);
+  return ordersRef().doc(orderId);
 }
 
 export function paymentDoc(paymentId: string) {
@@ -123,4 +141,24 @@ export function tryOnGlobalQuotaDoc() {
 /** `users/{uid}/addressDefault/pointer` - the single authoritative default-address pointer. */
 export function userAddressDefaultPointerDoc(uid: string) {
   return db().doc(`users/${uid}/addressDefault/pointer`);
+}
+
+/** `reviews/{userId}_{productId}` - Ratings/Reviews v1. The deterministic
+ *  id (see `lib/reviews/model.ts#reviewDocId`) is what enforces one review
+ *  per user per product. */
+export function reviewsRef() {
+  return db().collection(COLLECTIONS.reviews);
+}
+
+export function reviewDoc(reviewId: string) {
+  return reviewsRef().doc(reviewId);
+}
+
+/** `reviewReports/{reporterId}_{reviewId}` - one report per user per review. */
+export function reviewReportsRef() {
+  return db().collection(COLLECTIONS.reviewReports);
+}
+
+export function reviewReportDoc(reportId: string) {
+  return reviewReportsRef().doc(reportId);
 }

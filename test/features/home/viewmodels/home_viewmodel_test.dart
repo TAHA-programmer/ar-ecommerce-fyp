@@ -22,6 +22,7 @@ import 'package:twin_ar/features/home/repositories/mock_product_stats_repository
 import 'package:twin_ar/features/home/viewmodels/home_viewmodel.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
+import 'package:twin_ar/features/reviews/models/product_rating_stats.dart';
 
 const _renderableAr = ProductArMetadata(
   storagePath: 'products/x/ar/model-v1.glb',
@@ -861,6 +862,150 @@ void main() {
       ]);
 
       expect(repo.categoriesCalls, 1);
+    });
+  });
+
+  group('HomeViewModel — live rating stats (Ratings/Reviews v1 Stage 12)', () {
+    const liveStats = ProductRatingStats(
+      ratingSum: 45,
+      ratingCount: 10,
+      averageRating: 4.5,
+      rating1Count: 0,
+      rating2Count: 0,
+      rating3Count: 1,
+      rating4Count: 3,
+      rating5Count: 6,
+    );
+
+    test(
+      'Featured cards show the LIVE productStats aggregate, never the '
+      'static seed rating/reviewCount toSummaryModel() would carry',
+      () async {
+        final db = _EmptyCommerceDatabase();
+        // Seeded with an obviously-different static rating (1.0/1) so a
+        // pass-through-unchanged bug would be caught immediately.
+        await db.addProduct(
+          _product(
+            'feat',
+            isFeatured: true,
+            featuredRank: 1,
+            rating: 1.0,
+            reviewCount: 1,
+          ),
+        );
+        final vm = _vm(
+          db,
+          stats: MockProductStatsRepository(ratingStats: {'feat': liveStats}),
+        );
+        await vm.loadHomeData();
+
+        final card = vm.featuredProducts.single;
+        expect(card.rating, 4.5);
+        expect(card.reviewCount, 10);
+      },
+    );
+
+    test('a product with NO productStats rating entry shows the honest '
+        'zero state, even when its static seed rating was non-zero', () async {
+      final db = _EmptyCommerceDatabase();
+      await db.addProduct(
+        _product(
+          'unreviewed',
+          isFeatured: true,
+          featuredRank: 1,
+          rating: 5.0,
+          reviewCount: 50,
+        ),
+      );
+      // No `ratingStats` entry for 'unreviewed' at all.
+      final vm = _vm(db, stats: MockProductStatsRepository());
+      await vm.loadHomeData();
+
+      final card = vm.featuredProducts.single;
+      expect(card.rating, 0.0);
+      expect(card.reviewCount, 0);
+    });
+
+    test(
+      'applies to every card-producing section: Best Sellers (real-data '
+      'path), Best Sellers (rating-fallback path), and New Arrivals',
+      () async {
+        final db = MockCommerceDatabase();
+        await db.addProduct(_product('best', rating: 1.0, reviewCount: 1));
+        final vmReal = _vm(
+          db,
+          stats: MockProductStatsRepository(
+            unitsSold: {'best': 5},
+            ratingStats: {'best': liveStats},
+          ),
+        );
+        await vmReal.loadHomeData();
+        expect(vmReal.bestSellersUsesRealSalesData, true);
+        expect(vmReal.bestSellers.single.rating, 4.5);
+        expect(vmReal.bestSellers.single.reviewCount, 10);
+
+        final dbFallback = _EmptyCommerceDatabase();
+        await dbFallback.addProduct(
+          _product('rated', rating: 1.0, reviewCount: 1),
+        );
+        final vmFallback = _vm(
+          dbFallback,
+          stats: MockProductStatsRepository(ratingStats: {'rated': liveStats}),
+        );
+        await vmFallback.loadHomeData();
+        expect(vmFallback.bestSellersUsesRealSalesData, false);
+        expect(vmFallback.bestSellers.single.rating, 4.5);
+
+        final dbNew = _EmptyCommerceDatabase();
+        await dbNew.addProduct(
+          _product(
+            'new-item',
+            addedDate: DateTime(2099),
+            rating: 1.0,
+            reviewCount: 1,
+          ),
+        );
+        final vmNew = _vm(
+          dbNew,
+          stats: MockProductStatsRepository(
+            ratingStats: {'new-item': liveStats},
+          ),
+        );
+        await vmNew.loadHomeData();
+        expect(vmNew.newArrivals.single.rating, 4.5);
+        expect(vmNew.newArrivals.single.reviewCount, 10);
+      },
+    );
+
+    test('a ratingStatsFor failure is swallowed - every card falls back to '
+        'the zero state, never an error surface', () async {
+      final db = MockCommerceDatabase();
+      await db.addProduct(_product('a', rating: 5.0, reviewCount: 50));
+      final vm = _vm(db, stats: MockProductStatsRepository(throwOnRead: true));
+      await vm.loadHomeData();
+
+      expect(vm.hasError, false);
+      expect(vm.showFullScreenError, false);
+      expect(vm.bestSellers, isNotEmpty);
+      for (final card in vm.bestSellers) {
+        expect(card.rating, 0.0);
+        expect(card.reviewCount, 0);
+      }
+    });
+
+    test('reloadDynamicSections() re-resolves ratings too', () async {
+      final db = _EmptyCommerceDatabase();
+      await db.addProduct(_product('feat', isFeatured: true, featuredRank: 1));
+      final stats = MockProductStatsRepository();
+      final vm = _vm(db, stats: stats);
+      await vm.loadHomeData();
+      expect(vm.featuredProducts.single.rating, 0.0);
+
+      stats.ratingStats['feat'] = liveStats;
+      await vm.reloadDynamicSections();
+
+      expect(vm.featuredProducts.single.rating, 4.5);
+      expect(vm.featuredProducts.single.reviewCount, 10);
     });
   });
 }

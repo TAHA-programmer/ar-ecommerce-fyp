@@ -11,6 +11,7 @@ import '../../../core/models/product/product_publication_status.dart';
 import '../../../core/models/product/product_summary_model.dart';
 import '../../product_details/repositories/product_details_repository.dart';
 import '../../product_details/repositories/recently_viewed_repository.dart';
+import '../../reviews/models/product_rating_stats.dart';
 import '../models/category_model.dart';
 import '../models/home_banner_model.dart';
 import '../repositories/home_repository.dart';
@@ -217,6 +218,12 @@ class HomeViewModel extends ChangeNotifier {
   List<ProductStatRank> _unitsSoldRanks = const [];
   List<ProductStatRank> _favoriteCountRanks = const [];
 
+  /// Ratings/Reviews v1 Stage 12 - live `productStats` rating aggregate,
+  /// keyed by product id, refreshed alongside the ranks above in
+  /// [_loadStats]. An id absent here is treated exactly like
+  /// [ProductRatingStats.zero] by [_withLiveRatings] - never an error.
+  Map<String, ProductRatingStats> _ratingStatsById = const {};
+
   // ── whole-screen error gate (preserves the Phase 9.3 pre-work behaviour) ─
   /// The one async failure surface. Stats / view-history failures never set
   /// this — they fall back or hide silently.
@@ -350,6 +357,41 @@ class HomeViewModel extends ChangeNotifier {
       // defence in depth. Keep the last-good ranks and fall back silently.
       debugPrint('Home: productStats read failed (using rating fallback): $e');
     }
+    try {
+      // A separate `try` from the ranks above - a rating-stats failure must
+      // never affect Best Sellers/Popular ranking, and vice versa.
+      final eligibleIds = _db.products
+          .where(_isEligible)
+          .map((p) => p.id)
+          .toList(growable: false);
+      _ratingStatsById = await _productStats.ratingStatsFor(eligibleIds);
+    } catch (e) {
+      // Keep the last-good map and fall back to the honest zero state -
+      // never an error strip (v1 §0 decision 16).
+      debugPrint('Home: rating stats read failed (cards show no rating): $e');
+    }
+  }
+
+  /// Ratings/Reviews v1 Stage 12 - overwrites each summary's `rating`/
+  /// `reviewCount` (which `toSummaryModel()` populates from the STATIC seed
+  /// fields by default) with the live `productStats` aggregate from
+  /// [_ratingStatsById]. A product with no entry (never reviewed, or the
+  /// read hasn't resolved yet) gets `0.0`/`0` - exactly
+  /// [ProductRatingStats.zero] - which [RatingRow] already renders as no
+  /// badge at all, the established "No reviews yet" precedent for cards
+  /// (tracker §1, never a fabricated placeholder number).
+  List<ProductSummaryModel> _withLiveRatings(
+    List<ProductSummaryModel> products,
+  ) {
+    return products
+        .map((p) {
+          final stats = _ratingStatsById[p.id];
+          return p.copyWith(
+            rating: stats?.averageRating ?? 0.0,
+            reviewCount: stats?.ratingCount ?? 0,
+          );
+        })
+        .toList(growable: false);
   }
 
   Future<void> _loadRecentlyViewed() async {
@@ -392,26 +434,28 @@ class HomeViewModel extends ChangeNotifier {
     final eligible = _db.products.where(_isEligible).toList();
     final byId = {for (final p in eligible) p.id: p};
 
-    _newArrivals = _pick(
-      eligible.where((p) => p.addedDate.millisecondsSinceEpoch > 0),
-      _byNewest,
+    _newArrivals = _withLiveRatings(
+      _pick(
+        eligible.where((p) => p.addedDate.millisecondsSinceEpoch > 0),
+        _byNewest,
+      ),
     );
-    _arEnabled = _pick(
-      eligible.where((p) => p.hasRenderableArModel),
-      _byNewest,
+    _arEnabled = _withLiveRatings(
+      _pick(eligible.where((p) => p.hasRenderableArModel), _byNewest),
     );
-    _virtualTryOn = _pick(
-      eligible.where((p) => p.hasRenderableVtoAsset),
-      _byNewest,
+    _virtualTryOn = _withLiveRatings(
+      _pick(eligible.where((p) => p.hasRenderableVtoAsset), _byNewest),
     );
 
     // Featured — explicit Admin curation, hidden when empty.
     final featured = eligible.where((p) => p.isFeatured).toList()
       ..sort(_byFeaturedRank);
-    _featured = featured
-        .take(_sectionLimit)
-        .map((p) => p.toSummaryModel())
-        .toList(growable: false);
+    _featured = _withLiveRatings(
+      featured
+          .take(_sectionLimit)
+          .map((p) => p.toSummaryModel())
+          .toList(growable: false),
+    );
     _featuredSeeAllIds = featured
         .take(_seeAllLimit)
         .map((p) => p.id)
@@ -429,10 +473,12 @@ class HomeViewModel extends ChangeNotifier {
     final ranked = _resolveRanks(_unitsSoldRanks, byId);
     if (ranked.isNotEmpty) {
       _bestSellersFromSales = true;
-      _bestSellers = ranked
-          .take(_sectionLimit)
-          .map((p) => p.toSummaryModel())
-          .toList(growable: false);
+      _bestSellers = _withLiveRatings(
+        ranked
+            .take(_sectionLimit)
+            .map((p) => p.toSummaryModel())
+            .toList(growable: false),
+      );
       _bestSellersSeeAllIds = ranked
           .take(_seeAllLimit)
           .map((p) => p.id)
@@ -441,10 +487,12 @@ class HomeViewModel extends ChangeNotifier {
     }
     _bestSellersFromSales = false;
     final rated = eligible.toList()..sort(_byRating);
-    _bestSellers = rated
-        .take(_sectionLimit)
-        .map((p) => p.toSummaryModel())
-        .toList(growable: false);
+    _bestSellers = _withLiveRatings(
+      rated
+          .take(_sectionLimit)
+          .map((p) => p.toSummaryModel())
+          .toList(growable: false),
+    );
     _bestSellersSeeAllIds = rated
         .take(_seeAllLimit)
         .map((p) => p.id)
@@ -461,10 +509,12 @@ class HomeViewModel extends ChangeNotifier {
     ).where(_isFurnitureOrDecor).toList();
     if (ranked.isNotEmpty) {
       _popularFromFavorites = true;
-      _popular = ranked
-          .take(_sectionLimit)
-          .map((p) => p.toSummaryModel())
-          .toList(growable: false);
+      _popular = _withLiveRatings(
+        ranked
+            .take(_sectionLimit)
+            .map((p) => p.toSummaryModel())
+            .toList(growable: false),
+      );
       _popularSeeAllIds = ranked
           .take(_seeAllLimit)
           .map((p) => p.id)
@@ -473,10 +523,12 @@ class HomeViewModel extends ChangeNotifier {
     }
     _popularFromFavorites = false;
     final rated = eligible.where(_isFurnitureOrDecor).toList()..sort(_byRating);
-    _popular = rated
-        .take(_sectionLimit)
-        .map((p) => p.toSummaryModel())
-        .toList(growable: false);
+    _popular = _withLiveRatings(
+      rated
+          .take(_sectionLimit)
+          .map((p) => p.toSummaryModel())
+          .toList(growable: false),
+    );
     _popularSeeAllIds = rated
         .take(_seeAllLimit)
         .map((p) => p.id)
@@ -492,10 +544,12 @@ class HomeViewModel extends ChangeNotifier {
       if (product != null) resolved.add(product);
     }
     _recentlyViewedEligibleCount = resolved.length;
-    _recentlyViewedProducts = resolved
-        .take(_sectionLimit)
-        .map((p) => p.toSummaryModel())
-        .toList(growable: false);
+    _recentlyViewedProducts = _withLiveRatings(
+      resolved
+          .take(_sectionLimit)
+          .map((p) => p.toSummaryModel())
+          .toList(growable: false),
+    );
   }
 
   static bool _isEligible(ProductModel p) =>

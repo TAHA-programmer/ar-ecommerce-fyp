@@ -43,6 +43,16 @@ rules_version = '2';
 // to `storage.rules` (product/category images stay public-read because
 // `Image.network` rendering has no auth token to attach).
 //
+// Ratings/Reviews v1 Stage 4 (`24_RATINGS_REVIEWS_FEEDBACK_PLAN.md`):
+// `reviews/{userId}_{productId}` (published reviews readable by any
+// signed-in customer, an author's own review readable regardless of
+// status, admin reads everything, NO client write path at all - Cloud
+// Function/Admin SDK only) and `reviewReports/{reporterId}_{reviewId}`
+// (admin-read-only, same no-client-write rule). `productStats/{productId}`
+// is UNCHANGED - its existing `read: isSignedIn(); write: false` rule
+// already covers the new rating-aggregate fields with no modification
+// needed. NOT deployed yet - local rules-emulator verification only.
+//
 // Phase 8.12 (Security Rules Hardening): audited every block above against
 // the actual Phase 8.1-8.11a code. The one hardening applied is
 // `users/{uid}` field validation (below): `displayName` is shape-checked
@@ -699,6 +709,47 @@ service cloud.firestore {
     // SDK - no client write path, now or later.
     match /tryOnQuota/{docId} {
       allow read: if isAdmin() || isOwner(docId);
+      allow write: if false;
+    }
+
+    // Ratings/Reviews v1 (`24_RATINGS_REVIEWS_FEEDBACK_PLAN.md`, Stage 4).
+    //
+    // `reviews/{userId}_{productId}` - written EXCLUSIVELY by the
+    // `submitReview` / `deleteReview` / `moderateReview` Cloud Functions via
+    // the Admin SDK (which bypasses these rules) - `allow write: if false`
+    // for every client, including a superAdmin, mirrors `checkoutSessions` /
+    // `tryOnSessions` / `tryOnQuota` exactly: no client write path, now or
+    // later.
+    //
+    // READ: a `published` review is visible to any signed-in customer (the
+    // public per-product review list); the review's OWNER may always read
+    // their own review regardless of `status` (so they can see a
+    // hidden/rejected one of their own, e.g. in a future "My Reviews"
+    // screen, as "under review" rather than it simply vanishing); an admin
+    // may read any review, of any status, for moderation. An unauthenticated
+    // client can never read a review - matches every other customer-data
+    // collection in this file (there is no anonymous browsing tier here).
+    match /reviews/{reviewId} {
+      allow read: if (isSignedIn() && resource.data.status == 'published')
+                  || isOwner(resource.data.userId)
+                  || isAdmin();
+      allow write: if false;
+    }
+
+    // `reviewReports/{reporterId}_{reviewId}` - written EXCLUSIVELY by the
+    // `reportReview` Cloud Function via the Admin SDK. `allow write: if
+    // false` for every client, including a superAdmin - same reasoning as
+    // `reviews` above.
+    //
+    // READ: admin-only. A reporter must never see their own report
+    // reflected back (nothing legitimate to gain from it, and it would leak
+    // the deterministic id scheme), and a review's author must never learn
+    // who reported them or why - only an admin, moderating, needs to see
+    // report reasons/notes. Not even the reporter who WROTE a given report
+    // (impossible anyway, since `write` is unconditionally denied) gets
+    // read access to it.
+    match /reviewReports/{reportId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
 

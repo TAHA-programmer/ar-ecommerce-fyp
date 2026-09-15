@@ -14,6 +14,9 @@ import 'package:twin_ar/features/product_details/repositories/product_details_re
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
 import 'package:twin_ar/features/product_details/repositories/recently_viewed_repository.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
+import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
+import 'package:twin_ar/features/reviews/repositories/reviews_repository.dart';
+import 'package:twin_ar/features/reviews/repositories/mock_reviews_repository.dart';
 
 void main() {
   Widget createTestWidget(String productId, {MockCommerceDatabase? db}) {
@@ -38,6 +41,12 @@ void main() {
               MockCartRepository(),
             ),
           ),
+          // Ratings/Reviews v1 Stage 6 — ProductDetailsView now also
+          // constructs a ReviewsViewModel alongside ProductDetailsViewModel.
+          ChangeNotifierProvider<AuthSessionState>(
+            create: (_) => AuthSessionState(),
+          ),
+          Provider<ReviewsRepository>(create: (_) => MockReviewsRepository()),
         ],
         child: ProductDetailsView(productId: productId),
       ),
