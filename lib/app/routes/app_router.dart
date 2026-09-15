@@ -71,6 +71,15 @@ import '../../features/orders/views/my_orders_view.dart';
 import '../../features/orders/viewmodels/my_orders_viewmodel.dart';
 import '../../features/orders/views/order_detail_view.dart';
 import '../../features/orders/viewmodels/order_detail_viewmodel.dart';
+import '../../features/reviews/models/write_review_args.dart';
+import '../../features/reviews/repositories/reviews_repository.dart';
+import '../../features/reviews/viewmodels/write_review_viewmodel.dart';
+import '../../features/reviews/viewmodels/my_reviews_viewmodel.dart';
+import '../../features/reviews/views/write_review_view.dart';
+import '../../features/reviews/views/my_reviews_view.dart';
+import '../../features/reviews/repositories/admin_reviews_repository.dart';
+import '../../features/admin/reviews_moderation/viewmodels/admin_reviews_viewmodel.dart';
+import '../../features/admin/reviews_moderation/views/admin_reviews_view.dart';
 import '../../features/admin/views/admin_dashboard_view.dart';
 import '../../features/admin/views/admin_products_view.dart';
 import '../../features/admin/views/admin_inventory_view.dart';
@@ -440,6 +449,33 @@ class AppRouter {
             child: const OrderDetailView(),
           ),
         );
+      case RouteNames.writeReview:
+        final writeReviewArgs = settings.arguments;
+        if (writeReviewArgs is! WriteReviewArgs) {
+          return _errorRoute('Product ID is required');
+        }
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ChangeNotifierProvider(
+            create: (context) => WriteReviewViewModel(
+              repository: context.read<ReviewsRepository>(),
+              productId: writeReviewArgs.productId,
+            ),
+            child: WriteReviewView(productTitle: writeReviewArgs.productTitle),
+          ),
+        );
+      case RouteNames.myReviews:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ChangeNotifierProvider(
+            create: (context) => MyReviewsViewModel(
+              repository: context.read<ReviewsRepository>(),
+              productDetailsRepository: context
+                  .read<ProductDetailsRepository>(),
+            ),
+            child: const MyReviewsView(),
+          ),
+        );
       case RouteNames.adminDashboard:
         return MaterialPageRoute(
           settings: settings,
@@ -533,6 +569,18 @@ class AppRouter {
               orderId: orderId,
             ),
             child: const AdminOrderDetailView(),
+          ),
+        );
+      case RouteNames.adminReviews:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ChangeNotifierProvider(
+            create: (context) => AdminReviewsViewModel(
+              repository: context.read<AdminReviewsRepository>(),
+              productDetailsRepository: context
+                  .read<ProductDetailsRepository>(),
+            ),
+            child: const AdminReviewsView(),
           ),
         );
       default:

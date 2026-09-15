@@ -3602,6 +3602,276 @@ async function main() {
     );
   });
 
+  console.log('reviews / reviewReports - Ratings/Reviews v1 Stage 4');
+
+  async function seedReviewDoc(reviewId, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `reviews/${reviewId}`), {
+        productId: 'p1',
+        userId: ALICE,
+        orderId: 'order-1',
+        rating: 4,
+        title: 'Great',
+        body: 'Exactly as described, would buy again for sure.',
+        status: 'published',
+        reportCount: 0,
+        flaggedForReview: false,
+        createdAt: serverTimestamp(),
+        editedAt: null,
+        moderatedAt: null,
+        moderatedBy: null,
+        moderationReason: null,
+        ...data,
+      });
+    });
+  }
+
+  await run('a signed-in customer can read a PUBLISHED review that is not their own', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertSucceeds(getDoc(doc(bob.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a signed-in customer CANNOT read a HIDDEN review that is not their own', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'hidden' });
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a signed-in customer CANNOT read a REJECTED review that is not their own', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'rejected' });
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('the review\'s OWNER can read their own review even when HIDDEN', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'hidden' });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('the review\'s OWNER can read their own review even when REJECTED', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'rejected' });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('an unauthenticated client cannot read ANY review, even a published one', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(getDoc(doc(anon.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a superAdmin can read a hidden review for moderation', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'hidden' });
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(getDoc(doc(admin.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a superAdmin can read a rejected review for moderation', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, { status: 'rejected' });
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(getDoc(doc(admin.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a customer cannot create a review directly - submitReview Cloud Function only', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), `reviews/${ALICE}_p1`), {
+        productId: 'p1',
+        userId: ALICE,
+        orderId: 'order-1',
+        rating: 5,
+        title: null,
+        body: 'Trying to write my own review document directly, bypassing the function.',
+        status: 'published',
+        reportCount: 0,
+        flaggedForReview: false,
+        createdAt: serverTimestamp(),
+        editedAt: null,
+        moderatedAt: null,
+        moderatedBy: null,
+        moderationReason: null,
+      }),
+    );
+  });
+
+  await run('the review\'s own author cannot update it directly (e.g. inflate their own rating)', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(updateDoc(doc(alice.firestore(), `reviews/${ALICE}_p1`), { rating: 5 }));
+  });
+
+  await run('a customer cannot forge reportCount/flaggedForReview via a direct write either', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(
+      updateDoc(doc(bob.firestore(), `reviews/${ALICE}_p1`), {
+        reportCount: 999,
+        flaggedForReview: true,
+      }),
+    );
+  });
+
+  await run('the review\'s own author cannot delete it directly - deleteReview Cloud Function only', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(deleteDoc(doc(alice.firestore(), `reviews/${ALICE}_p1`)));
+  });
+
+  await run('a superAdmin ALSO cannot write a review directly - no client write path at all, ever', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewDoc(`${ALICE}_p1`, {});
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(
+      updateDoc(doc(admin.firestore(), `reviews/${ALICE}_p1`), {
+        status: 'hidden',
+        moderatedBy: 'admin-uid',
+      }),
+    );
+    await assertFails(deleteDoc(doc(admin.firestore(), `reviews/${ALICE}_p1`)));
+    await assertFails(
+      setDoc(doc(admin.firestore(), `reviews/${BOB}_p2`), {
+        productId: 'p2',
+        userId: BOB,
+        orderId: 'order-2',
+        rating: 1,
+        title: null,
+        body: 'admin trying to forge a review directly, not through moderateReview.',
+        status: 'published',
+        reportCount: 0,
+        flaggedForReview: false,
+        createdAt: serverTimestamp(),
+        editedAt: null,
+        moderatedAt: null,
+        moderatedBy: null,
+        moderationReason: null,
+      }),
+    );
+  });
+
+  async function seedReviewReport(reportId, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `reviewReports/${reportId}`), {
+        reviewId: `${ALICE}_p1`,
+        reporterId: BOB,
+        reason: 'spam',
+        note: null,
+        createdAt: serverTimestamp(),
+        ...data,
+      });
+    });
+  }
+
+  await run('a superAdmin can read a review report', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewReport(`${BOB}_${ALICE}_p1`, {});
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertSucceeds(getDoc(doc(admin.firestore(), `reviewReports/${BOB}_${ALICE}_p1`)));
+  });
+
+  await run('the reporter cannot read their own report - reports are admin-only, private from everyone else too', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewReport(`${BOB}_${ALICE}_p1`, {});
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `reviewReports/${BOB}_${ALICE}_p1`)));
+  });
+
+  await run('the reviewed review\'s author cannot read a report against it - who reported them stays private', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewReport(`${BOB}_${ALICE}_p1`, {});
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(getDoc(doc(alice.firestore(), `reviewReports/${BOB}_${ALICE}_p1`)));
+  });
+
+  await run('an unauthenticated client cannot read a review report', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewReport(`${BOB}_${ALICE}_p1`, {});
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(getDoc(doc(anon.firestore(), `reviewReports/${BOB}_${ALICE}_p1`)));
+  });
+
+  await run('a customer cannot create a review report directly - reportReview Cloud Function only', async () => {
+    await testEnv.clearFirestore();
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(
+      setDoc(doc(bob.firestore(), `reviewReports/${BOB}_${ALICE}_p1`), {
+        reviewId: `${ALICE}_p1`,
+        reporterId: BOB,
+        reason: 'spam',
+        note: null,
+        createdAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('a superAdmin ALSO cannot write a review report directly - no client write path at all, ever', async () => {
+    await testEnv.clearFirestore();
+    await seedReviewReport(`${BOB}_${ALICE}_p1`, {});
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(
+      updateDoc(doc(admin.firestore(), `reviewReports/${BOB}_${ALICE}_p1`), { reason: 'other' }),
+    );
+    await assertFails(deleteDoc(doc(admin.firestore(), `reviewReports/${BOB}_${ALICE}_p1`)));
+  });
+
+  await run('productStats read/write access is UNCHANGED by the new rating-aggregate fields (regression)', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'productStats/p1'), {
+        unitsSold: 10,
+        favoriteCount: 2,
+        ratingSum: 12,
+        ratingCount: 3,
+        averageRating: 4,
+        rating1Count: 0,
+        rating2Count: 0,
+        rating3Count: 0,
+        rating4Count: 2,
+        rating5Count: 1,
+      });
+    });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), 'productStats/p1')));
+    await assertFails(updateDoc(doc(alice.firestore(), 'productStats/p1'), { ratingSum: 999 }));
+
+    const admin = testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+    await assertFails(updateDoc(doc(admin.firestore(), 'productStats/p1'), { ratingCount: 999 }));
+
+    const anon = testEnv.unauthenticatedContext();
+    await assertFails(getDoc(doc(anon.firestore(), 'productStats/p1')));
+  });
+
   console.log('catch-all - other collections');
 
   await run('any other collection is denied by the catch-all rule', async () => {

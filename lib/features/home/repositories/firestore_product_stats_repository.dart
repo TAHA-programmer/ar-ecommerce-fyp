@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../reviews/models/product_rating_stats.dart';
+import '../../reviews/repositories/review_firestore_mapper.dart';
 import 'product_stats_repository.dart';
 
 /// Firestore-backed [ProductStatsRepository]. One-shot ranked reads of the
@@ -47,4 +49,33 @@ class FirestoreProductStatsRepository implements ProductStatsRepository {
   @override
   Future<List<ProductStatRank>> topByFavoriteCount({int limit = 24}) =>
       _topBy('favoriteCount', limit);
+
+  @override
+  Future<Map<String, ProductRatingStats>> ratingStatsFor(
+    List<String> productIds,
+  ) async {
+    if (productIds.isEmpty) return const {};
+    // Parallel doc-by-id reads (mirrors `MyReviewsViewModel
+    // ._resolveProductSummaries`'s established "resolve N, isolate a
+    // per-item failure" pattern) rather than a `whereIn` query - this reads
+    // by the KNOWN document id (the productId IS the `productStats` doc id),
+    // so there is no filter/order to express and no composite-index
+    // question at all.
+    final entries = await Future.wait(
+      productIds.map((id) async {
+        try {
+          final doc = await _firestore.collection('productStats').doc(id).get();
+          final data = doc.data();
+          if (data == null) return null;
+          return MapEntry(id, productRatingStatsFromFirestore(data));
+        } catch (_) {
+          return null; // one failed read must never blank the rest
+        }
+      }),
+    );
+    return {
+      for (final entry in entries)
+        if (entry != null) entry.key: entry.value,
+    };
+  }
 }

@@ -456,6 +456,14 @@ class ProfileView extends StatelessWidget {
                                 Navigator.pushNamed(context, RouteNames.orders),
                           ),
                           ProfileMenuItem(
+                            icon: Icons.rate_review_outlined,
+                            title: 'My Reviews',
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              RouteNames.myReviews,
+                            ),
+                          ),
+                          ProfileMenuItem(
                             icon: Icons.location_on_outlined,
                             title: 'Saved Addresses',
                             onTap: () => Navigator.pushNamed(

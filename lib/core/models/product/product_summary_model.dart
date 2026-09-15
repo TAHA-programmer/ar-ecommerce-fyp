@@ -57,4 +57,26 @@ class ProductSummaryModel {
   /// rendering widget to get a [ProductImageRef] for `ProductImageView`.
   ProductImageRef get image =>
       ProductImageRef(path: imageAssetPath, source: imageSource);
+
+  /// Ratings/Reviews v1 Stage 12 - lets a caller overwrite [rating]/
+  /// [reviewCount] with the live `productStats` aggregate after
+  /// `ProductModelMappers.toSummaryModel()` has populated every other field
+  /// from the static product doc, without re-deriving the rest by hand.
+  ProductSummaryModel copyWith({double? rating, int? reviewCount}) {
+    return ProductSummaryModel(
+      id: id,
+      title: title,
+      imageAssetPath: imageAssetPath,
+      imageSource: imageSource,
+      currentPrice: currentPrice,
+      originalPrice: originalPrice,
+      discountPercentage: discountPercentage,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      inStock: inStock,
+      arEnabled: arEnabled,
+      tryOnEnabled: tryOnEnabled,
+      arRenderable: arRenderable,
+    );
+  }
 }

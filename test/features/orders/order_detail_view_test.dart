@@ -85,6 +85,8 @@ void main() {
           RouteNames.home: (_) => const Scaffold(body: Text('Home')),
           RouteNames.helpSupport: (_) =>
               const Scaffold(body: Text('Help & Support')),
+          RouteNames.writeReview: (_) =>
+              const Scaffold(body: Text('Write Review Screen')),
         },
       );
     }
@@ -180,6 +182,69 @@ void main() {
         expect(find.byType(OrderStatusTimeline), findsOneWidget);
       }
     });
+
+    testWidgets(
+      'Ratings/Reviews v1 Stage 7: does NOT show "Rate this product" for a '
+      'non-delivered order',
+      (tester) async {
+        await tester.pumpWidget(createWidgetUnderTest());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Rate this product'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Ratings/Reviews v1 Stage 7: shows "Rate this product" per item on a '
+      'delivered order and navigates to the Write Review screen',
+      (tester) async {
+        final deliveredOrder = OrderModel(
+          id: '#TWDELIVERED',
+          userId: 'test-uid',
+          paymentId: 'pay_delivered',
+          items: [
+            OrderItemModel(
+              productId: 'p1',
+              productName: 'Men\'s Oxford Shirt',
+              imagePath: 'assets/images/products/shirt.png',
+              quantity: 1,
+              unitPrice: 5000,
+              lineTotal: 5000,
+            ),
+          ],
+          orderDate: DateTime(2024, 5, 24),
+          subtotal: 5000,
+          deliveryFee: 0,
+          discount: 0,
+          total: 5000,
+          paymentMethod: PaymentMethod.stripeCard,
+          paymentStatus: PaymentStatus.paid,
+          orderStatus: OrderStatus.delivered,
+          deliveryAddress: AddressModel(
+            id: 'A1',
+            fullName: 'Ananya Sharma',
+            phoneNumber: '1234567890',
+            addressLine1: '12, Greenwood Apartments',
+            city: 'Bengaluru',
+            provinceOrState: 'Karnataka',
+            postalCode: '560001',
+          ),
+          estimatedDeliveryStart: DateTime(2024),
+          estimatedDeliveryEnd: DateTime(2024),
+        );
+        db.addOrder(deliveredOrder);
+
+        await tester.pumpWidget(createWidgetUnderTest(orderId: '#TWDELIVERED'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Rate this product'), findsOneWidget);
+
+        await tester.tap(find.text('Rate this product'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Write Review Screen'), findsOneWidget);
+      },
+    );
 
     testWidgets('Contact Support navigates correctly', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());

@@ -34,6 +34,10 @@ import '../features/product_details/repositories/product_details_repository.dart
 import '../features/product_details/repositories/firestore_product_details_repository.dart';
 import '../features/product_details/repositories/recently_viewed_repository.dart';
 import '../features/product_details/repositories/firestore_recently_viewed_repository.dart';
+import '../features/reviews/repositories/reviews_repository.dart';
+import '../features/reviews/repositories/firestore_reviews_repository.dart';
+import '../features/reviews/repositories/admin_reviews_repository.dart';
+import '../features/reviews/repositories/firestore_admin_reviews_repository.dart';
 import '../features/room_ar/capability/room_ar_capability_service.dart';
 import '../features/checkout/services/checkout_payment_service.dart';
 import '../features/checkout/services/stripe_checkout_payment_service.dart';
@@ -147,6 +151,28 @@ class AppProviders {
     Provider<RecentlyViewedRepository>(
       create: (context) =>
           FirestoreRecentlyViewedRepository(context.read<AuthSessionState>()),
+    ),
+    // Ratings/Reviews v1 Stage 6 — read-only Product Details review section.
+    // Same shape as RecentlyViewedRepository above: reads the CURRENT
+    // AuthSessionState at call time (never a cached uid), so it stays
+    // correct across sign-in/out even though this Provider itself doesn't
+    // rebuild on auth changes. `submitReview`/`deleteReview`/`reportReview`
+    // callables are Stage 2/3 `TECH PASSED` but NOT deployed yet - every
+    // call currently fails until Stage 10's explicit deploy; reads simply
+    // return empty/zero until then (the `reviews` collection doesn't exist
+    // live), never an error.
+    Provider<ReviewsRepository>(
+      create: (context) =>
+          FirestoreReviewsRepository(context.read<AuthSessionState>()),
+    ),
+    // Ratings/Reviews v1 Stage 8 — the admin-scoped read/moderate contract
+    // `FirestoreReviewsRepository`'s own class doc comment deferred to this
+    // stage (`moderateReview` is admin-only). Doesn't need `AuthSessionState`
+    // itself — an admin's reads aren't uid-scoped (they see every review
+    // regardless of author) and `moderateReview`'s admin check happens
+    // server-side via the caller's own attached ID token custom claim.
+    Provider<AdminReviewsRepository>(
+      create: (_) => FirestoreAdminReviewsRepository(),
     ),
     // Phase 9.2 R8 — Room-AR device-capability probe for tier routing. Leaf
     // infra (a native method channel + permission_handler); no dependencies.

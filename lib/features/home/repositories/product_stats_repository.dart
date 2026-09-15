@@ -1,3 +1,5 @@
+import '../../reviews/models/product_rating_stats.dart';
+
 /// One row of a `productStats` ordering query: a product id and the numeric
 /// value it was ranked by (`unitsSold` for Best Sellers, `favoriteCount` for
 /// Popular). Only rows with a genuinely positive value are ever returned.
@@ -28,4 +30,16 @@ abstract class ProductStatsRepository {
 
   /// Products with the most `favoriteCount`, highest first, `value > 0` only.
   Future<List<ProductStatRank>> topByFavoriteCount({int limit = 24});
+
+  /// Rating-aggregate stats (Ratings/Reviews v1 Stage 12 - the SAME
+  /// `productStats` rating fields `ReviewsRepository.ratingStatsFor` reads
+  /// for a single product, here bulk-read for a whole page of Home cards)
+  /// for exactly the given [productIds], keyed by id. An id absent from the
+  /// result never had a `productStats` doc or has zero published reviews -
+  /// callers treat a missing key exactly like [ProductRatingStats.zero],
+  /// never an error. Never throws - resolves to `{}` on any failure, the
+  /// same silent-fallback contract as [topByUnitsSold]/[topByFavoriteCount].
+  Future<Map<String, ProductRatingStats>> ratingStatsFor(
+    List<String> productIds,
+  );
 }

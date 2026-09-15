@@ -9,6 +9,7 @@ import '../../../../core/utils/order_id_formatter.dart';
 import '../../../../core/widgets/product_image_view.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 import 'widgets/order_status_timeline.dart';
+import 'package:twin_ar/features/reviews/models/write_review_args.dart';
 
 class OrderDetailView extends StatelessWidget {
   const OrderDetailView({super.key});
@@ -273,61 +274,96 @@ class OrderDetailView extends StatelessWidget {
                 const Divider(color: AppColors.neutralLight, height: 32),
             itemBuilder: (context, index) {
               final item = order.items[index];
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: ProductImageView(
-                      imageRef: item.image,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productName,
-                          style: AppTypography.bodyLarge.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ProductImageView(
+                          imageRef: item.image,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
                         ),
-                        const SizedBox(height: 4),
-                        if (item.selectedSize != null ||
-                            item.selectedColor != null) ...[
-                          Text(
-                            [
-                              if (item.selectedSize != null)
-                                'Size: ${item.selectedSize}',
-                              if (item.selectedColor != null)
-                                'Color: ${item.selectedColor}',
-                            ].join(' • '),
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.productName,
+                              style: AppTypography.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                        Text(
-                          'Qty: ${item.quantity}',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
+                            const SizedBox(height: 4),
+                            if (item.selectedSize != null ||
+                                item.selectedColor != null) ...[
+                              Text(
+                                [
+                                  if (item.selectedSize != null)
+                                    'Size: ${item.selectedSize}',
+                                  if (item.selectedColor != null)
+                                    'Color: ${item.selectedColor}',
+                                ].join(' • '),
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                            Text(
+                              'Qty: ${item.quantity}',
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Rs ${NumberFormat('#,##0').format(item.lineTotal)}',
+                        style: AppTypography.bodyLarge.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Ratings/Reviews v1 Stage 7 — a delivered order is exactly
+                  // the eligibility condition `submitReview` re-verifies
+                  // server-side, so this button needs no separate
+                  // ReviewsViewModel/eligibility read: the order itself
+                  // already proves it. Always labelled "Rate this product"
+                  // regardless of whether the customer already reviewed it —
+                  // the Write Review screen loads any existing review and
+                  // shows "Edit Your Review" itself once it does.
+                  if (order.orderStatus == OrderStatus.delivered) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          RouteNames.writeReview,
+                          arguments: WriteReviewArgs(
+                            productId: item.productId,
+                            productTitle: item.productName,
                           ),
                         ),
-                      ],
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: EdgeInsets.zero,
+                        ),
+                        icon: const Icon(Icons.star_outline_rounded, size: 18),
+                        label: const Text('Rate this product'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Rs ${NumberFormat('#,##0').format(item.lineTotal)}',
-                    style: AppTypography.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  ],
                 ],
               );
             },

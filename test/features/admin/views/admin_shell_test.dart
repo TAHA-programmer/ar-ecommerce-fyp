@@ -44,6 +44,8 @@ void main() {
               const Scaffold(body: Text('Inventory Route')),
           RouteNames.adminOrders: (context) =>
               const Scaffold(body: Text('Orders Route')),
+          RouteNames.adminReviews: (context) =>
+              const Scaffold(body: Text('Reviews Route')),
         },
       ),
     );
@@ -123,4 +125,18 @@ void main() {
       expect(find.text('Log Out'), findsOneWidget);
     },
   );
+
+  testWidgets('AdminAccountSheet\'s "Reviews Moderation" tile navigates to '
+      'RouteNames.adminReviews', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestWidget());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('admin_account_sheet_reviews_tile')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reviews Route'), findsOneWidget);
+  });
 }
