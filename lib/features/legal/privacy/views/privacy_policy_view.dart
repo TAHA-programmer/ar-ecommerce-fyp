@@ -10,7 +10,7 @@ class PrivacyPolicyView extends StatelessWidget {
       title: 'Privacy Policy',
       subtitle:
           'Learn how TWin AR collects, uses, and protects your information.',
-      lastUpdated: 'Last updated: August 2026',
+      lastUpdated: 'Last updated: September 2026',
       sections: [
         LegalSectionData(
           number: 1,
@@ -28,7 +28,7 @@ class PrivacyPolicyView extends StatelessWidget {
           number: 3,
           title: 'Authentication',
           body:
-              'We support secure email and password authentication. Additionally, third-party authentication methods such as Google Sign-In may be integrated to streamline your access to the app.',
+              'We support secure email and password authentication, as well as Google Sign-In for faster access to the app.',
         ),
         LegalSectionData(
           number: 4,
@@ -56,36 +56,42 @@ class PrivacyPolicyView extends StatelessWidget {
         ),
         LegalSectionData(
           number: 8,
+          title: 'Ratings and Reviews',
+          body:
+              'If you purchase and receive a product, you may submit a rating and written review for it. A published review shows a masked version of your name (for example, "Ayesha K.") — never your email, phone number, or other account details — and is visible to other users viewing that product. Other users may report a review they believe is spam, offensive, or fake; reported reviews are queued for our team to review, and we may hide or remove content that violates these Terms.',
+        ),
+        LegalSectionData(
+          number: 9,
           title: 'Third-Party Services',
           body:
               'We may employ third-party companies and services, such as Firebase for backend infrastructure, Stripe for payments, and Google Gemini for Virtual Try-On image generation, to facilitate our application. These third parties have access to your Personal Data only to perform these tasks on our behalf.',
         ),
         LegalSectionData(
-          number: 9,
+          number: 10,
           title: 'Data Security',
           body:
               'We value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it. But remember that no method of transmission over the internet, or method of electronic storage is 100% secure.',
         ),
         LegalSectionData(
-          number: 10,
+          number: 11,
           title: 'Data Retention',
           body:
               'Your data is retained only for as long as necessary to provide you with our services and for legitimate and essential business purposes, such as maintaining the performance of the app. See "Virtual Try-On Photos" above for the specific retention rules that apply to Virtual Try-On images.',
         ),
         LegalSectionData(
-          number: 11,
+          number: 12,
           title: 'User Choices and Rights',
           body:
               'You have the right to update or delete your account information at any time. Permissions such as camera access can also be managed directly through your device settings.',
         ),
         LegalSectionData(
-          number: 12,
+          number: 13,
           title: 'Changes to This Policy',
           body:
               'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.',
         ),
         LegalSectionData(
-          number: 13,
+          number: 14,
           title: 'Contact Us',
           body:
               'If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact the TWin AR support team.',

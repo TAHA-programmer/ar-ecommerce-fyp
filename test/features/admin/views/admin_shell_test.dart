@@ -5,12 +5,44 @@ import 'package:twin_ar/features/admin/views/admin_shell.dart';
 import 'package:twin_ar/features/admin/views/admin_dashboard_view.dart';
 import 'package:twin_ar/features/admin/widgets/admin_bottom_navigation.dart';
 import 'package:twin_ar/features/admin/dashboard/viewmodels/admin_dashboard_viewmodel.dart';
+import 'package:twin_ar/features/admin/notifications/viewmodels/admin_notifications_viewmodel.dart';
+import 'package:twin_ar/features/admin/notifications/views/admin_notifications_view.dart';
 import 'package:twin_ar/features/auth/repositories/auth_repository.dart';
 import 'package:twin_ar/features/auth/repositories/mock_auth_repository.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
 import 'package:twin_ar/core/data/commerce_database.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
+import 'package:twin_ar/core/models/order/order_model.dart';
+import 'package:twin_ar/features/address/models/address_model.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
+
+OrderModel _pendingOrder(String id) {
+  final date = DateTime(2026, 1, 1);
+  return OrderModel(
+    id: id,
+    userId: 'test-uid',
+    paymentId: 'pay_$id',
+    items: const [],
+    orderDate: date,
+    subtotal: 0,
+    deliveryFee: 0,
+    discount: 0,
+    total: 0,
+    paymentMethod: PaymentMethod.stripeCard,
+    paymentStatus: PaymentStatus.pending,
+    orderStatus: OrderStatus.pending,
+    deliveryAddress: AddressModel(
+      fullName: 'Test User',
+      phoneNumber: '9999999999',
+      addressLine1: '1 Test Street',
+      city: 'Lahore',
+      provinceOrState: 'Punjab',
+      postalCode: '00000',
+    ),
+    estimatedDeliveryStart: date.add(const Duration(days: 7)),
+    estimatedDeliveryEnd: date.add(const Duration(days: 14)),
+  );
+}
 
 void main() {
   Widget createTestWidget({
@@ -46,6 +78,11 @@ void main() {
               const Scaffold(body: Text('Orders Route')),
           RouteNames.adminReviews: (context) =>
               const Scaffold(body: Text('Reviews Route')),
+          RouteNames.adminNotifications: (context) => ChangeNotifierProvider(
+            create: (context) =>
+                AdminNotificationsViewModel(context.read<CommerceDatabase>()),
+            child: const AdminNotificationsView(),
+          ),
         },
       ),
     );
@@ -84,7 +121,7 @@ void main() {
     expect(find.byType(AdminDashboardView), findsNothing);
   });
 
-  testWidgets('Notification bell opens AdminNotificationSheet', (
+  testWidgets('Notification bell opens the dedicated AdminNotificationsView', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(createTestWidget());
@@ -96,13 +133,77 @@ void main() {
     await tester.tap(bellIcon);
     await tester.pumpAndSettle();
 
+    expect(find.byType(AdminNotificationsView), findsOneWidget);
     expect(find.text('Notifications'), findsOneWidget);
 
-    // Tap close to dismiss
-    await tester.tap(find.byIcon(Icons.close));
+    // Tap back to return to the Dashboard.
+    await tester.tap(find.byKey(const Key('admin_notifications_back_button')));
     await tester.pumpAndSettle();
-    expect(find.text('Notifications'), findsNothing);
+    expect(find.byType(AdminNotificationsView), findsNothing);
+    expect(find.byType(AdminDashboardView), findsOneWidget);
   });
+
+  testWidgets('Notification badge is hidden when there is nothing to flag', (
+    WidgetTester tester,
+  ) async {
+    // The default MockCommerceDatabase fixture has no orders and every
+    // product comfortably above the low-stock threshold.
+    await tester.pumpWidget(createTestWidget());
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('admin_notification_badge')), findsNothing);
+  });
+
+  testWidgets(
+    'Notification badge shows the real count once a product goes low in '
+    'stock, and the Notifications screen lists it',
+    (WidgetTester tester) async {
+      final db = MockCommerceDatabase();
+      final lowStockProduct = db.products.first;
+      await db.updateStock(lowStockProduct.id, 2);
+
+      await tester.pumpWidget(createTestWidget(db: db));
+      await tester.pumpAndSettle();
+
+      final badge = find.byKey(const Key('admin_notification_badge'));
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text('1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byIcon(Icons.notifications_none));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Low Stock Products'), findsOneWidget);
+      expect(find.text(lowStockProduct.title), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Notification badge count sums low-stock products and pending orders, '
+    'and grows past a single digit without truncation',
+    (WidgetTester tester) async {
+      final db = MockCommerceDatabase();
+      // Push 11 products low in stock (past a single digit) plus 1 pending
+      // order, so the expected count is a genuinely summed 12 - not a
+      // hardcoded or capped value.
+      for (final product in db.products.take(11)) {
+        await db.updateStock(product.id, 2);
+      }
+      db.addOrder(_pendingOrder('order-badge-test'));
+
+      await tester.pumpWidget(createTestWidget(db: db));
+      await tester.pumpAndSettle();
+
+      final badge = find.byKey(const Key('admin_notification_badge'));
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text('12')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'Profile icon opens AdminAccountSheet reading from AuthSessionState',

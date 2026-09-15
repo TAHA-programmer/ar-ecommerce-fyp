@@ -93,6 +93,8 @@ import '../../features/admin/ar_media_management/views/admin_ar_media_management
 import '../../features/admin/ar_media_management/views/admin_ar_model_preview_view.dart';
 import '../../features/admin/orders_payments/viewmodels/admin_order_detail_viewmodel.dart';
 import '../../features/admin/orders_payments/views/admin_order_detail_view.dart';
+import '../../features/admin/notifications/viewmodels/admin_notifications_viewmodel.dart';
+import '../../features/admin/notifications/views/admin_notifications_view.dart';
 
 class AppRouter {
   AppRouter._();
@@ -581,6 +583,15 @@ class AppRouter {
                   .read<ProductDetailsRepository>(),
             ),
             child: const AdminReviewsView(),
+          ),
+        );
+      case RouteNames.adminNotifications:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ChangeNotifierProvider(
+            create: (context) =>
+                AdminNotificationsViewModel(context.read<CommerceDatabase>()),
+            child: const AdminNotificationsView(),
           ),
         );
       default:

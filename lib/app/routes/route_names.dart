@@ -86,4 +86,7 @@ class RouteNames {
   // Ratings/Reviews v1 Stage 8 — Admin moderation screen (report queue +
   // hide/restore/reject), reached from the Admin account sheet.
   static const String adminReviews = '/admin/reviews';
+  // Profile/Support audit — dedicated Notifications screen reached from the
+  // Admin header's notification bell, replacing the old bottom-sheet.
+  static const String adminNotifications = '/admin/notifications';
 }

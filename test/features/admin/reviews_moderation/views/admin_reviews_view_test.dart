@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
+import 'package:twin_ar/core/data/commerce_database.dart';
+import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/features/admin/reviews_moderation/viewmodels/admin_reviews_viewmodel.dart';
 import 'package:twin_ar/features/admin/reviews_moderation/views/admin_reviews_view.dart';
 import 'package:twin_ar/features/product_details/models/product_detail_model.dart';
@@ -57,6 +59,12 @@ Widget _createWidget(MockAdminReviewsRepository repo) {
     providers: [
       ChangeNotifierProvider<AuthSessionState>(
         create: (_) => AuthSessionState(),
+      ),
+      // AdminHeader (inside AdminShell, which AdminReviewsView renders)
+      // reads CommerceDatabase to decide whether the notification badge
+      // shows.
+      ChangeNotifierProvider<CommerceDatabase>(
+        create: (_) => MockCommerceDatabase(),
       ),
       ChangeNotifierProvider<AdminReviewsViewModel>(
         create: (_) => AdminReviewsViewModel(

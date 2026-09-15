@@ -410,10 +410,6 @@ class _AdminProductsViewContentState extends State<_AdminProductsViewContent> {
                     margin: const EdgeInsets.fromLTRB(4, 4, 8, 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: viewModel.filterState.hasActiveFilters ? 2 : 1,
-                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.tune, color: AppColors.primary),
@@ -566,10 +562,6 @@ class _AdminProductsViewContentState extends State<_AdminProductsViewContent> {
                     margin: const EdgeInsets.fromLTRB(4, 4, 8, 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: hasActiveFilters ? 2 : 1,
-                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.tune, color: AppColors.primary),

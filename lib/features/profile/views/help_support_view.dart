@@ -1,11 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/info_screen_scaffold.dart';
+import '../../../core/constants/app_contact.dart';
+import '../../../core/services/mail_launcher_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/feedback/app_toast.dart';
 
 class HelpSupportView extends StatelessWidget {
   const HelpSupportView({super.key});
+
+  Future<void> _contactSupport(BuildContext context) async {
+    final launched = await context
+        .read<MailLauncherService>()
+        .launchSupportEmail();
+    if (!context.mounted) return;
+    if (launched) {
+      AppToast.success(context, 'Opening your email app...');
+    } else {
+      AppToast.error(
+        context,
+        "Couldn't open an email app. Please email "
+        "${AppContact.supportEmail} directly.",
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +53,11 @@ class HelpSupportView extends StatelessWidget {
               'Open a supported clothing product and choose Try It On, then follow the positioning instructions.',
         ),
         InfoSectionData(
+          title: 'How do I leave a rating or review?',
+          body:
+              'Once your order is delivered, open the product page or that order in My Orders and choose Write a Review to share your rating and feedback.',
+        ),
+        InfoSectionData(
           title: 'How do I view my orders?',
           body:
               'Your placed orders will be available through My Orders in your Profile.',
@@ -58,7 +82,12 @@ class HelpSupportView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Email Support\nsupport@twinar.app',
+              'Email Support',
+              textAlign: TextAlign.center,
+              style: TextStyle(height: 1.5, color: AppColors.textPrimary),
+            ),
+            const SelectableText(
+              AppContact.supportEmail,
               textAlign: TextAlign.center,
               style: TextStyle(height: 1.5, color: AppColors.textPrimary),
             ),
@@ -70,9 +99,7 @@ class HelpSupportView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                AppToast.info(context, 'Coming soon');
-              },
+              onPressed: () => _contactSupport(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 minimumSize: const Size(double.infinity, 50),

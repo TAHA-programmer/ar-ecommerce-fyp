@@ -70,6 +70,10 @@ dependencies:
   # GoogleSignIn()/.signIn() shape - see that file's doc comment.
   google_sign_in: ^7.2.0
 
+  # Help & Support's "Contact Support" — opens a mailto: compose intent via
+  # DeviceMailLauncherService (core/services/mail_launcher_service.dart).
+  url_launcher: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

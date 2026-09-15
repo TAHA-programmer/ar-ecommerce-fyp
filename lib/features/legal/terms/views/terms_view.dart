@@ -9,7 +9,7 @@ class TermsView extends StatelessWidget {
     return const LegalScreenScaffold(
       title: 'Terms & Conditions',
       subtitle: 'Please read these terms carefully before using TWin AR.',
-      lastUpdated: 'Last updated: August 2026',
+      lastUpdated: 'Last updated: September 2026',
       sections: [
         LegalSectionData(
           number: 1,
@@ -49,30 +49,36 @@ class TermsView extends StatelessWidget {
         ),
         LegalSectionData(
           number: 7,
+          title: 'User Reviews and Content',
+          body:
+              'If you submit a rating or review, you confirm it reflects your own genuine experience with the product and does not contain spam, offensive material, or content that infringes on others\' rights. We may hide, restrict the visibility of, or remove any review that violates these Terms, including in response to another user\'s report.',
+        ),
+        LegalSectionData(
+          number: 8,
           title: 'User Responsibilities',
           body:
               'Users agree not to misuse the application, attempt unauthorized access, or use the application for any illegal or unauthorized purpose.',
         ),
         LegalSectionData(
-          number: 8,
+          number: 9,
           title: 'Intellectual Property',
           body:
               'The TWin AR branding, interface, and original content are the property of their respective owners and are protected by applicable intellectual property laws.',
         ),
         LegalSectionData(
-          number: 9,
+          number: 10,
           title: 'Returns, Cancellations, and Refunds',
           body:
               'Specific policies regarding returns, cancellations, and refunds are governed by the final store policy associated with the purchased item.',
         ),
         LegalSectionData(
-          number: 10,
+          number: 11,
           title: 'Changes to Terms',
           body:
               'We reserve the right to modify or replace these Terms & Conditions at any time. Your continued use of the application following the posting of any changes constitutes acceptance of those changes.',
         ),
         LegalSectionData(
-          number: 11,
+          number: 12,
           title: 'Contact / Support',
           body:
               'For support or questions regarding these Terms & Conditions, please contact the TWin AR support team.',
