@@ -76,8 +76,17 @@ void main() {
     expect(authState.isAuthenticated, isTrue);
     expect(authState.isSuperAdmin, isTrue);
 
-    // Tap the Log Out button
+    // Tap the Log Out tile - a confirmation dialog appears first; signing
+    // out has NOT happened yet.
     await tester.tap(find.text('Log Out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Log Out?'), findsOneWidget);
+    expect(find.text('Are you sure you want to log out?'), findsOneWidget);
+    expect(authState.isAuthenticated, isTrue);
+
+    // Confirm via the dialog's "Logout" button.
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Logout'));
     await tester.pumpAndSettle();
 
     // Verify session cleared
@@ -87,6 +96,47 @@ void main() {
     // Verify navigated to login
     expect(find.text('Login Screen'), findsOneWidget);
     expect(find.byType(AdminAccountSheet), findsNothing);
+  });
+
+  testWidgets('Admin logout confirmation - Cancel does not sign out', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final authState = AuthSessionState();
+    authState.setSession(
+      AuthResult.success(
+        userId: '1',
+        email: 'admin@twinar.com',
+        role: UserRole.superAdmin,
+      ),
+    );
+    final authRepo = MockAuthRepository();
+
+    await tester.pumpWidget(
+      createTestWidget(
+        child: const Scaffold(body: AdminAccountSheet()),
+        authState: authState,
+        authRepo: authRepo,
+      ),
+    );
+
+    await tester.tap(find.text('Log Out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Log Out?'), findsOneWidget);
+
+    // Tap Cancel instead of Logout.
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    // Dialog dismissed, session untouched, sheet still open.
+    expect(find.text('Log Out?'), findsNothing);
+    expect(authState.isAuthenticated, isTrue);
+    expect(find.byType(AdminAccountSheet), findsOneWidget);
   });
 
   testWidgets('Customer logout clears AuthSessionState and routes to Login', (

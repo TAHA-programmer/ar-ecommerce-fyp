@@ -65,5 +65,14 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Help & Support's "Contact Support" mailto: compose action
+             (url_launcher). Required on Android 11+ package-visibility
+             rules so the app can actually see an installed email client;
+             without this, launchUrl silently reports no handler even when
+             a mail app is present. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
     </queries>
 </manifest>

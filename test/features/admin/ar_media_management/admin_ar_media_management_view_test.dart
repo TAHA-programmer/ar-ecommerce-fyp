@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
+import 'package:twin_ar/core/data/commerce_database.dart';
 import 'package:twin_ar/core/data/mock_commerce_database.dart';
 import 'package:twin_ar/core/services/mock_storage_service.dart';
 import 'package:twin_ar/features/admin/widgets/admin_bottom_navigation.dart';
@@ -51,6 +52,10 @@ void main() {
         ChangeNotifierProvider<AuthSessionState>(
           create: (_) => AuthSessionState(),
         ),
+        // AdminHeader (inside AdminShell, which this view renders) reads
+        // CommerceDatabase to decide whether the notification badge shows -
+        // same fixture instance the ViewModel above was built with.
+        ChangeNotifierProvider<CommerceDatabase>.value(value: database),
         ChangeNotifierProvider<ArMediaManagementViewModel>.value(
           value: viewModel,
         ),

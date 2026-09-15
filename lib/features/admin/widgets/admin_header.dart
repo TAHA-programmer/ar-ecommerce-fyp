@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:twin_ar/app/routes/route_names.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
 import 'package:twin_ar/core/constants/app_assets.dart';
+import 'package:twin_ar/core/data/commerce_database.dart';
 import 'package:twin_ar/core/theme/app_colors.dart';
 import 'package:twin_ar/core/theme/app_typography.dart';
 import 'package:twin_ar/core/theme/app_spacing.dart';
-import 'admin_notification_sheet.dart';
+import '../notifications/admin_notification_signal.dart';
 import 'admin_account_sheet.dart';
 
 class AdminHeader extends StatelessWidget implements PreferredSizeWidget {
@@ -26,6 +28,9 @@ class AdminHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthSessionState>();
+    final notificationCount = adminNotificationCount(
+      context.watch<CommerceDatabase>(),
+    );
     final String displayName;
     if (authState.isSuperAdmin) {
       displayName = 'Super Admin';
@@ -77,37 +82,52 @@ class AdminHeader extends StatelessWidget implements PreferredSizeWidget {
               Row(
                 children: [
                   Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
                     children: [
                       IconButton(
                         icon: const Icon(
                           Icons.notifications_none,
                           color: AppColors.black,
                         ),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(16),
-                              ),
-                            ),
-                            builder: (context) =>
-                                const AdminNotificationSheet(),
-                          );
-                        },
+                        tooltip: notificationCount > 0
+                            ? 'Notifications, $notificationCount pending'
+                            : 'Notifications',
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushNamed(RouteNames.adminNotifications),
                       ),
-                      Positioned(
-                        right: 12,
-                        top: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
+                      // Same numeric-pill convention as the customer cart
+                      // badge (`CustomerHeader`) - a growing pill sized by
+                      // its own text, not a fixed dot, so it stays legible
+                      // for any count without a "99+" cap.
+                      if (notificationCount > 0)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            key: const Key('admin_notification_badge'),
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$notificationCount',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(width: AppSpacing.xs),

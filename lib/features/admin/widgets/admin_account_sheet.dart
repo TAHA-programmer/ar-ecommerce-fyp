@@ -4,11 +4,67 @@ import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
 import 'package:twin_ar/features/auth/repositories/auth_repository.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
 import 'package:twin_ar/core/theme/app_colors.dart';
+import 'package:twin_ar/core/theme/app_radii.dart';
 import 'package:twin_ar/core/theme/app_typography.dart';
 import 'package:twin_ar/core/theme/app_spacing.dart';
 
 class AdminAccountSheet extends StatelessWidget {
   const AdminAccountSheet({super.key});
+
+  /// Mirrors the customer Profile's own logout confirmation
+  /// (`ProfileView._confirmLogout`) so both surfaces ask the same question
+  /// before signing out. The `Navigator` is captured before the sheet is
+  /// popped so the post-sign-out redirect to Login still has somewhere
+  /// valid to push to, even though this widget's own `context` is gone by
+  /// then.
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.mediumBorder,
+          side: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        title: Text('Log Out?', style: AppTypography.title),
+        content: Text(
+          'Are you sure you want to log out?',
+          style: AppTypography.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.primaryDark,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final navigator = Navigator.of(context);
+    final authRepo = context.read<AuthRepository>();
+    final authState = context.read<AuthSessionState>();
+
+    navigator.pop(); // close the account sheet
+
+    await authRepo.signOut();
+    authState.clearSession();
+
+    navigator.pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,14 +124,6 @@ class AdminAccountSheet extends StatelessWidget {
             const Divider(),
             const SizedBox(height: AppSpacing.s),
             ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: Text('Account Settings', style: AppTypography.bodyLarge),
-              onTap: () {
-                // Not implemented in this phase
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
               key: const Key('admin_account_sheet_reviews_tile'),
               leading: const Icon(Icons.rate_review_outlined),
               title: Text('Reviews Moderation', style: AppTypography.bodyLarge),
@@ -90,25 +138,7 @@ class AdminAccountSheet extends StatelessWidget {
                 'Log Out',
                 style: AppTypography.bodyLarge.copyWith(color: AppColors.error),
               ),
-              subtitle: Text(
-                'Mock Logout for testing',
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              onTap: () async {
-                final authRepo = context.read<AuthRepository>();
-                final authState = context.read<AuthSessionState>();
-
-                await authRepo.signOut();
-                authState.clearSession();
-
-                if (context.mounted) {
-                  Navigator.of(
-                    context,
-                  ).pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
-                }
-              },
+              onTap: () => _confirmLogout(context),
             ),
           ],
         ),

@@ -15,7 +15,7 @@ class AboutTwinArView extends StatelessWidget {
         InfoSectionData(
           title: 'What TWin AR Offers',
           body:
-              '• Room AR\nPreview supported furniture, rugs, decor, and lighting in your environment before purchasing.\n\n• Virtual Try-On\nPreview supported clothing products using the Virtual Try-On experience.\n\n• Smart Shopping\nBrowse products, manage your cart, choose delivery addresses, place orders, and complete secure card payments.',
+              '• Room AR\nPreview supported furniture, rugs, decor, and lighting in your environment before purchasing.\n\n• Virtual Try-On\nPreview supported clothing products using the Virtual Try-On experience.\n\n• Ratings & Reviews\nRead ratings and reviews from other customers, and leave your own after your order is delivered.\n\n• Smart Shopping\nBrowse products, manage your cart, choose delivery addresses, place orders, and complete secure card payments.',
         ),
         InfoSectionData(
           title: 'Our Goal',

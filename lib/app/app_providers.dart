@@ -27,6 +27,8 @@ import '../features/profile/repositories/user_profile_repository.dart';
 import '../features/profile/repositories/firestore_user_profile_repository.dart';
 import '../core/services/storage_service.dart';
 import '../core/services/firebase_storage_service.dart';
+import '../core/services/mail_launcher_service.dart';
+import '../core/services/device_mail_launcher_service.dart';
 import 'viewmodels/auth_session_state.dart';
 import 'viewmodels/customer_profile_state.dart';
 
@@ -70,6 +72,7 @@ class AppProviders {
     CheckoutPaymentService? checkoutPaymentService,
     VirtualTryOnService? virtualTryOnService,
     VirtualTryOnPhotoPickerService? virtualTryOnPhotoPickerService,
+    MailLauncherService? mailLauncherService,
   }) => [
     // AuthRepository/AuthSessionState are registered before
     // CommerceDatabase because FirestoreCommerceDatabase (Phase 8.5) needs
@@ -136,6 +139,11 @@ class AppProviders {
     ),
     Provider<StorageService>(
       create: (_) => storageService ?? FirebaseStorageService(),
+    ),
+    // Help & Support's "Contact Support" mailto: compose action. Optional
+    // test-injection seam, like the services above.
+    Provider<MailLauncherService>(
+      create: (_) => mailLauncherService ?? DeviceMailLauncherService(),
     ),
     // Home/Explore/Product Details no longer depend on CommerceDatabase -
     // their Firestore implementations query Firestore directly (see each
