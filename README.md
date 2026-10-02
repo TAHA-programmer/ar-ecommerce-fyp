@@ -2,8 +2,9 @@
 
 A production-grade Android e-commerce application built with Flutter and Firebase,
 featuring an **in-room Augmented Reality product preview**, **camera-based Virtual
-Try-On for clothing**, a real Stripe checkout, a Ratings & Reviews system, and a
-full admin management panel.
+Try-On for clothing**, a real Stripe checkout, a Ratings & Reviews system,
+**push notifications (Firebase Cloud Messaging)**, and a full admin management
+panel.
 
 > Final Year Project (FYP-2). The AR subsystem lets a customer place a
 > true-to-scale 3D model of a furniture product into their own room, from a
@@ -18,6 +19,7 @@ full admin management panel.
 - [Features](#features)
 - [Room AR — Three-Tier Architecture](#room-ar--three-tier-architecture)
 - [Virtual Try-On](#virtual-try-on)
+- [Push Notifications (FCM)](#push-notifications-fcm)
 - [Tech Stack](#tech-stack)
 - [Architecture & Patterns](#architecture--patterns)
 - [Project Structure](#project-structure)
@@ -40,12 +42,15 @@ TWin AR is a complete storefront + back office:
   cart, favourites and delivery addresses, check out with real (test-mode)
   Stripe payments, track their orders, and rate/review products they've
   received — and, for supported products, preview them in AR or try clothing on
-  virtually before buying.
+  virtually before buying. Order, refund and review-moderation updates arrive
+  as optional push notifications and are always kept in an in-app
+  Notification Centre.
 - **Super-admins** manage products, categories, inventory stock, orders &
   payments, customer reviews, and upload / validate / version / enable-disable /
   delete the 3D models and garment assets that power the AR and Virtual Try-On
   experiences — all from an in-app admin panel gated by Firebase custom claims.
-- The backend is **real Firebase** (Auth, Firestore, Storage, Cloud Functions)
+- The backend is **real Firebase** (Auth, Firestore, Storage, Cloud Functions,
+  Cloud Messaging)
   on a live project, with Cloud Functions as the exclusive trusted creator of
   orders, payments, and reviews, and a transactional stock-reservation model.
 
@@ -72,9 +77,14 @@ TWin AR is a complete storefront + back office:
 - **"View in Your Room"** AR preview for AR-enabled products
 - **Virtual Try-On** for supported clothing — capture or choose a photo,
   generate a preview, and manage/delete your own Try-On data at any time
+- **Notification Centre & preferences** — a server-written inbox of order
+  (placed / confirmed / shipped / delivered / cancelled), payment-refund and
+  review-moderation updates, with unread badge on the Home/Explore bell, mark
+  read / mark all read / swipe to delete, and per-category push switches
+  (see [Push Notifications](#push-notifications-fcm))
 - Profile, delivery address book (single authoritative default), favourites,
   My Reviews — all cross-device synced
-- Help & Support (FAQ covering ordering, AR, Try-On, reviews, payments) with a
+- Help & Support (FAQ covering ordering, AR, Try-On, reviews, payments, notifications) with a
   working **Contact Support** action that opens your email app addressed to
   the project's real support mailbox; Privacy Policy and Terms & Conditions
   kept in sync with what the app actually does and stores
@@ -100,14 +110,18 @@ TWin AR is a complete storefront + back office:
   status/flagged, with a report audit trail and hide / restore / reject actions
 - **Notifications** — a dedicated screen listing pending orders and low-stock
   products, with a live numeric badge on the bell (never a fake or hardcoded
-  count, and never shown when there's nothing to flag)
+  count, and never shown when there's nothing to flag). It stays a live,
+  state-derived view; **push alerts** (new order, low / out of stock, flagged
+  review, payment issue) complement it and deep-link into the relevant screen
+  — they are not stored as an Admin inbox
 - Account menu with a real, confirmed sign-out flow — no placeholder tiles, no
   "mock" labels
 
 ### Backend (Firebase)
 - Custom-claim (`superAdmin`) role authorization — never email-based
 - Hardened `firestore.rules` + `storage.rules` with full emulator test suites
-- Cloud Functions (Node 22, 2nd-gen, `us-central1`):
+- Cloud Functions (Node 22, `us-central1`) — **21 live in total**: 13 existing
+  plus the 8 notification functions below:
   - **Checkout**: `createPaymentIntent` (auth + authoritative pricing +
     **atomic stock reservation before any charge**), `stripeWebhook`
     (signature-verified, idempotent, creates orders/payments from session
@@ -118,6 +132,12 @@ TWin AR is a complete storefront + back office:
     `cleanupExpiredTryOnMedia`, `cleanupUserTryOnData`
   - **Home content signals**: `adjustFavoriteCount`, `adjustStatsOnOrderCancel`
     (maintain the `productStats/{id}` aggregate behind Best Sellers/Popular)
+  - **Notifications (FCM)**: `registerDevice`, `unregisterDevice` (callables),
+    `onOrderCreatedNotify`, `onOrderStatusNotify`, `onProductStockNotify`,
+    `onReviewNotify`, `onStripeEventNotify` (Firestore triggers) and
+    `cleanupUserNotificationData` (Auth-deletion cleanup, a sibling of the
+    Try-On and Reviews cleanups). All triggers sit behind a
+    `NOTIFICATIONS_ENABLED` kill-switch.
 - Content-addressed image storage with same-save rollback
 
 ---
@@ -169,17 +189,104 @@ Try-On Data**.
 
 ---
 
+## Push Notifications (FCM)
+
+Server-driven push notifications over **Firebase Cloud Messaging**, built so a
+push is only ever a *convenience* — the in-app state is always the source of
+truth.
+
+**What is sent**
+
+| Audience | Events |
+|---|---|
+| Customer | Order confirmed, shipped, delivered, cancelled; a payment refunded because a reservation was lost; a review hidden / not published by moderation |
+| Customer (inbox only, no push) | Order placed; review restored |
+| Admin | New paid order; product low stock (crossing into 1–5) and out of stock; a review flagged by repeated reports; a payment issue |
+
+Customer notices never include an address, items or amounts (only a short order
+reference), and a cancellation never promises a refund. Stock alerts use a
+cooldown so flapping around the threshold cannot spam.
+
+**Customer experience**
+- **Notification Centre** (bell on Home/Explore, plus Profile → Notifications):
+  newest first, grouped by day, with loading / empty / error-with-retry states
+  and an "off" banner when the OS permission is not granted. It works offline
+  from the Firestore cache.
+- **Preferences** (Notification settings): customers can switch **Order
+  updates** and **Reviews & moderation** off; Admin has four switches (new
+  orders, stock, moderation, payments). Switching a category off stops only the
+  *push* — the Notification Centre still records the update.
+- **Permission** (Android 13+ `POST_NOTIFICATIONS`) is requested only at a
+  relevant moment — after the first order, from Settings, or as a one-time Admin
+  explainer — never at app launch, and a "Not now" is remembered.
+- **Foreground / background / terminated:** a push while the app is open shows
+  a tappable in-app banner (no duplicate system notification); otherwise the OS
+  renders it from the FCM `notification` payload on one of four Android
+  channels — *Order updates* (high), *Account & reviews* (low),
+  *Store alerts* (high), *Stock & moderation* (default).
+- **Safe deep links:** a payload is strictly validated (version, allow-listed
+  type, audience, id shape) and mapped to a **hard-coded** destination — it never
+  carries a route or URL. A notification for a different signed-in account, or
+  an Admin destination for a non-admin, is dropped; a tap during splash/login is
+  held, re-validated against the current session, then opened on top of the
+  stack.
+
+**Device registration & cleanup**
+- The app registers its FCM token through the `registerDevice` callable; the
+  **server stamps the role from the verified ID-token claim** (never the request
+  body). Tokens live in a **server-only** `deviceTokens` collection keyed by the
+  token's SHA-256, capped at 10 devices per user, and a token re-registered by
+  another account moves ownership (shared-device safe).
+- On logout the app asks the server to remove the token (best-effort,
+  time-boxed) and always invalidates the local token; a leftover record is
+  removed by failed-send pruning or its 60-day TTL. Deleting an account also
+  deletes its tokens, inbox and preferences.
+
+**Data model, rules & TTL**
+- `users/{uid}/notifications/{dedupeKey}` — server-written inbox; deterministic
+  ids make every trigger idempotent. Clients may only set `readAt` (to the
+  server time) or delete their own rows.
+- `users/{uid}/notificationSettings/prefs` — owner-writable booleans (missing =
+  on; admin keys accepted only from a super-admin).
+- `deviceTokens` and `notificationEvents` (admin dedupe/cooldown ledger) have
+  **no client access**.
+- Firestore **TTL policies** on `expireAt`: device tokens (60 days), inbox rows
+  (90 days), ledger (7 days).
+- FCM is sent only from Cloud Functions (Admin SDK, direct-to-token — no topics,
+  no server key in the app). Dead tokens are pruned; transient failures never
+  delete a device.
+
+**Deployment requirement (kill-switch).** The 8 functions read a
+`NOTIFICATIONS_ENABLED` boolean parameter. Deploys are non-interactive, so the
+project's git-ignored `functions/.env.<projectId>` file must define that
+parameter; if it is missing, a non-interactive deploy fails and an interactive
+one defaults the flag **off**. Deploy the notification functions **by name** with
+`--force` (functions with a retry policy require it) and never with a bare
+`firebase deploy` that would touch the other 13.
+
+```bash
+firebase deploy --only functions:registerDevice,functions:unregisterDevice,\
+functions:onOrderCreatedNotify,functions:onOrderStatusNotify,\
+functions:onProductStockNotify,functions:onReviewNotify,\
+functions:onStripeEventNotify,functions:cleanupUserNotificationData --force
+```
+
+Push delivery is **best-effort** by nature (Doze, battery savers, a
+force-stopped app, no network); nothing in the app depends on a push arriving.
+
+---
+
 ## Tech Stack
 
 - **Flutter** (Dart SDK `^3.12.2`; developed on Flutter 3.44 / Dart 3.12), **Provider** for state
 - **Firebase**: Auth (Email/Password + Google Sign-In), Cloud Firestore,
-  Storage, Cloud Functions (Node 22 / TypeScript)
+  Storage, Cloud Functions (Node 22 / TypeScript), Cloud Messaging (FCM)
 - **Stripe** `flutter_stripe` (test mode only — no live account)
 - **Google Gemini** — server-side Virtual Try-On image generation
 - **Native Android (Kotlin)** for AR: CameraX, OpenCV 4.12 (ArUco + `solvePnP`),
   Google Filament (glTF rendering), platform channels
 - `google_sign_in`, `url_launcher`, `file_picker`, `image_picker`,
-  `permission_handler`, `printing` / `pdf`, `path_provider`, `crypto`,
+  `firebase_messaging`, `permission_handler`, `printing` / `pdf`, `path_provider`, `crypto`,
   `shared_preferences`
 - Emulator-based rule testing (`@firebase/rules-unit-testing`), `vitest` for
   Cloud Functions
@@ -219,6 +326,8 @@ lib/
     reviews/                   Ratings & Reviews — write/edit/delete, My Reviews,
                                 product review sections, report flow
     recently_viewed/           Per-customer product-view history
+    notifications/             Notification Centre, preferences, FCM registration,
+                                payload router / navigator, lifecycle
     virtual_try_on/            Consent → capture → upload → generate → result
     admin/
       dashboard/  product_management/  inventory/  orders_payments/
@@ -234,7 +343,10 @@ lib/
 
 android/app/src/main/kotlin/com/tahafayyaz/twin_ar/roomar/
                              Native AR: CameraX + OpenCV + Filament renderers
-functions/                   Cloud Functions (Stripe, reviews, Try-On, home stats)
+android/app/src/main/kotlin/com/tahafayyaz/twin_ar/NotificationChannels.kt
+                             The four FCM notification channels
+functions/                   Cloud Functions (Stripe, reviews, Try-On, home stats,
+                             notifications — lib/notifications/)
 firestore.rules  storage.rules  firestore.indexes.json
 firestore-tests/  storage-tests/   Emulator rule-test suites
 scripts/                     Node helpers: seeding, catalogue migrations, GLB upload
@@ -292,10 +404,12 @@ cd functions       && npm ci && npm test        # Cloud Functions (unit)
 cd functions       && npm run test:emulator     # Cloud Functions (emulator)
 ```
 
-Current status: `flutter test` **1624 passing**, Firestore rules **293/293**,
-Storage rules **111/111**, Cloud Functions **251/251** unit + **217/217**
+Current status: `flutter test` **1828 passing**, Firestore rules **321/321**,
+Storage rules **111/111**, Cloud Functions **323/323** unit + **250/250**
 emulator; `flutter analyze` clean; `dart format` clean; `flutter build apk`
-(debug, release/R8, split-per-abi) all green.
+(debug, release/R8, split-per-abi) all green. The FCM Notifications v1 feature
+added 337 of these tests and was validated physically on an Android 13 device
+(customer and Admin flows, background / foreground / release builds).
 
 ---
 
@@ -318,6 +432,13 @@ emulator; `flutter analyze` clean; `dart format` clean; `flutter build apk`
   via `--dart-define` (git-ignored).
 - A published review never exposes the reviewer's email, phone, or account
   details — only a masked display name computed server-side.
+- **Notifications:** FCM is sent only from Cloud Functions (no server key or
+  credentials in the app, no topics); device tokens and the admin ledger are
+  **server-only** collections; the inbox is server-written and clients can only
+  mark their own rows read or delete them; the device role is stamped from the
+  verified ID-token claim, and admin pushes are re-verified against the live
+  claim at send time; a tapped payload can only select a pre-approved screen and
+  is dropped for the wrong account or role.
 - AR model / garment objects require signed-in reads (approved products only
   for customers), super-admin writes, strict content-type and size gates, and
   provenance metadata (SHA-256 + version).
@@ -347,6 +468,12 @@ emulator; `flutter analyze` clean; `dart format` clean; `flutter build apk`
   (report queue, hide/restore/reject), deployed live
 - **Dynamic Home content** — Best Sellers, Popular, Featured, and Recently
   Viewed all driven by real Firestore signals instead of static/mock data
+- **Push Notifications (FCM) v1** — customer Notification Centre and
+  preferences, customer/Admin push alerts, foreground banner + background
+  notifications on four Android channels, safe deep links, server-stamped device
+  registration with logout/account-deletion cleanup, TTL retention, and a
+  deploy-time kill-switch; deployed live (21 Cloud Functions in total) and
+  validated on-device
 - Functional Contact Support (opens a prepared email to a real, monitored
   mailbox), and Profile legal/help content kept accurate against actual app
   behaviour
@@ -356,6 +483,8 @@ emulator; `flutter analyze` clean; `dart format` clean; `flutter build apk`
 - ARCore markerless (Tier 1) runtime, alongside a certified test device
 - Wider cross-device validation matrix
 - Google Play App Signing / Play-distributed AAB fingerprint registration
+- Notification extras deliberately left out of v1: back-in-stock, price-drop and
+  promotional alerts, daily Admin digest, Firebase App Check, localisation
 - iOS support
 
 ---
@@ -377,6 +506,23 @@ Documented and deliberately deferred — not silently dropped:
   query) — generous at current volume.
 - A review report filed against an account that is later deleted is not
   purged (harmless, admin-only readable).
+- **Push delivery is best-effort.** A failed send is not retried, a
+  force-stopped app receives nothing, and battery savers can delay delivery; the
+  Notification Centre / My Orders / Admin screens are the source of truth.
+- **The notification kill-switch is deploy-time configuration** kept in a
+  git-ignored `functions/.env.<projectId>` file; redeploying those functions
+  without it fails (non-interactive) or silently defaults the feature off
+  (interactive) — see [Push Notifications](#push-notifications-fcm).
+- Notifications were validated on one Android 13 phone (plus a second Admin
+  session). **Not exercised:** two devices on one customer account, Android 12
+  or lower, and an explicit offline-logout run. A logout without connectivity
+  leaves a stale server token that is cleaned by failed-send pruning or the
+  60-day TTL. The per-recipient send cap is per function instance.
+- Users still on a pre-notification app build accumulate inbox rows they cannot
+  see and receive no pushes.
+- The Admin Notifications screen lists pending orders and *low* stock (1–5);
+  an out-of-stock *push* is sent but out-of-stock products are listed on the
+  Inventory screen, not that list.
 
 ---
 
