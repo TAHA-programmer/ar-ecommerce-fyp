@@ -417,6 +417,60 @@ service cloud.firestore {
         allow update: if isOwner(uid) && isValidCartItemUpdate(request.resource.data);
         allow delete: if isOwner(uid);
       }
+
+      // FCM notifications (`26_FCM_NOTIFICATIONS_PLAN.md`) Stage S2 - the
+      // customer's notification INBOX. Rows are written EXCLUSIVELY by the
+      // notification Cloud Functions via the Admin SDK (deterministic doc id
+      // = dedupe key), so `create` is `false` for every client including an
+      // admin. The owner reads their own rows only (admin gets NO read here:
+      // a customer's inbox is personal, unlike orders), may mark a row read
+      // - the ONLY client-changeable field is `readAt`, and it must be set to
+      // the real server time (no backdating, no future time, no un-read via
+      // null) - and may delete (dismiss) a row. Admin notifications have no
+      // inbox at all (plan §4.2).
+      match /notifications/{notificationId} {
+        allow read: if isOwner(uid);
+        allow create: if false;
+        allow update: if isOwner(uid)
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+                      && request.resource.data.readAt == request.time;
+        allow delete: if isOwner(uid);
+      }
+
+      // Notification PUSH preferences: exactly one document, `prefs`. All
+      // keys are optional booleans (a missing key means ON - the server
+      // treats only an explicit `false` as opt-out) plus a required
+      // `updatedAt == request.time`. The four `pushAdmin*` keys are
+      // accepted only from a superAdmin caller; for a customer they are
+      // rejected outright (the server would ignore them anyway - the role is
+      // taken from the verified token, never from this doc). Preferences gate
+      // the PUSH only; the inbox always records every event (D7).
+      function isValidNotificationPrefs(data) {
+        return data.keys().hasOnly([
+                 'pushOrders', 'pushReviews',
+                 'pushAdminOrders', 'pushAdminStock',
+                 'pushAdminModeration', 'pushAdminPayments',
+                 'updatedAt'
+               ])
+            && data.keys().hasAll(['updatedAt'])
+            && data.updatedAt == request.time
+            && data.get('pushOrders', true) is bool
+            && data.get('pushReviews', true) is bool
+            && data.get('pushAdminOrders', true) is bool
+            && data.get('pushAdminStock', true) is bool
+            && data.get('pushAdminModeration', true) is bool
+            && data.get('pushAdminPayments', true) is bool
+            && (!data.keys().hasAny([
+                  'pushAdminOrders', 'pushAdminStock',
+                  'pushAdminModeration', 'pushAdminPayments'
+                ]) || isAdmin());
+      }
+      match /notificationSettings/prefs {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidNotificationPrefs(request.resource.data);
+        allow update: if isOwner(uid) && isValidNotificationPrefs(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
     }
 
     // Phase 8.5 (reads) + Phase 8.6 (writes). `showInCatalog` is
@@ -751,6 +805,26 @@ service cloud.firestore {
     match /reviewReports/{reportId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    // FCM notifications Stage S2 - `deviceTokens/{sha256(token)}`: the
+    // server-owned device registry (uid, token, role stamped from the
+    // verified claim, TTL). Written only by the `registerDevice` /
+    // `unregisterDevice` callables, the send path's invalid-token pruning and
+    // the Auth-deletion cleanup, all via the Admin SDK. NO client read or
+    // write, not even the owner or a superAdmin - a token is a device
+    // identifier and must never be listable. (Already denied by the
+    // catch-all; this explicit block documents the intent and is tested.)
+    match /deviceTokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    // FCM notifications Stage S2 - `notificationEvents/{dedupeKey}`: the
+    // server-only idempotency + cooldown ledger for ADMIN alerts (new order,
+    // low/out of stock, flagged review, payment anomaly). No client access
+    // of any kind.
+    match /notificationEvents/{eventKey} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

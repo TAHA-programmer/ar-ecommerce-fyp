@@ -24,4 +24,23 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
     },
   );
+
+  testWidgets(
+    'FCM Stage S6 - Notifications term: informational, not guaranteed, My Orders authoritative',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: TermsView()));
+      await tester.pumpAndSettle();
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Last updated: October 2026'), findsOneWidget);
+      expect(find.textContaining('informational only'), findsOneWidget);
+      expect(find.textContaining('Delivery is not guaranteed'), findsOneWidget);
+      expect(
+        find.textContaining('My Orders is the authoritative record'),
+        findsOneWidget,
+      );
+      // existing terms intact
+      expect(find.text('Changes to Terms'), findsOneWidget);
+      expect(find.text('Contact / Support'), findsOneWidget);
+    },
+  );
 }

@@ -95,6 +95,12 @@ import '../../features/admin/orders_payments/viewmodels/admin_order_detail_viewm
 import '../../features/admin/orders_payments/views/admin_order_detail_view.dart';
 import '../../features/admin/notifications/viewmodels/admin_notifications_viewmodel.dart';
 import '../../features/admin/notifications/views/admin_notifications_view.dart';
+import '../../features/notifications/repositories/notification_settings_repository.dart';
+import '../../features/notifications/services/notification_lifecycle.dart';
+import '../../features/notifications/services/notification_permission_service.dart';
+import '../../features/notifications/viewmodels/notification_settings_viewmodel.dart';
+import '../../features/notifications/views/notification_settings_view.dart';
+import '../../features/notifications/views/notifications_view.dart';
 
 class AppRouter {
   AppRouter._();
@@ -105,6 +111,11 @@ class AppRouter {
   /// then shows up in "Recently Viewed" without a manual pull-to-refresh.
   static final RouteObserver<PageRoute<dynamic>> routeObserver =
       RouteObserver<PageRoute<dynamic>>();
+
+  /// Root Navigator key. FCM notification taps and the foreground banner
+  /// need to navigate / show UI without a BuildContext (Stage S5).
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -593,6 +604,28 @@ class AppRouter {
                 AdminNotificationsViewModel(context.read<CommerceDatabase>()),
             child: const AdminNotificationsView(),
           ),
+        );
+      case RouteNames.notifications:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => const NotificationsView(),
+        );
+      case RouteNames.notificationSettings:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) {
+            final auth = context.read<AuthSessionState>();
+            return ChangeNotifierProvider(
+              create: (context) => NotificationSettingsViewModel(
+                repository: context.read<NotificationSettingsRepository>(),
+                permission: context.read<NotificationPermissionService>(),
+                uid: auth.isAuthenticated ? auth.userId : null,
+                isAdmin: auth.isSuperAdmin,
+                lifecycle: context.read<NotificationLifecycle>(),
+              )..load(),
+              child: const NotificationSettingsView(),
+            );
+          },
         );
       default:
         return _errorRoute(settings.name);

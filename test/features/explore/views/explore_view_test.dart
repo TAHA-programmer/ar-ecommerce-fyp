@@ -14,10 +14,16 @@ import 'package:twin_ar/core/widgets/navigation/customer_header.dart';
 import 'package:twin_ar/features/explore/widgets/explore_search_bar.dart';
 import 'package:twin_ar/features/explore/widgets/explore_product_card.dart';
 import 'package:twin_ar/core/widgets/navigation/customer_bottom_navigation.dart';
+import 'package:twin_ar/app/routes/route_names.dart';
+import 'package:twin_ar/features/notifications/models/app_notification.dart';
+import 'package:twin_ar/features/notifications/models/notification_type.dart';
+import 'package:twin_ar/features/notifications/repositories/mock_notification_inbox_repository.dart';
+import 'package:twin_ar/features/notifications/repositories/notification_inbox_repository.dart';
 
 void main() {
   Widget createTestWidget({
     required ValueChanged<RouteSettings> onRoutePushed,
+    NotificationInboxRepository? inbox,
   }) {
     final db = MockCommerceDatabase();
     return MaterialApp(
@@ -34,6 +40,10 @@ void main() {
       },
       home: MultiProvider(
         providers: [
+          if (inbox != null)
+            ChangeNotifierProvider<NotificationInboxRepository>.value(
+              value: inbox,
+            ),
           ChangeNotifierProvider(
             create: (_) => CustomerShoppingState(
               MockFavoritesRepository(),
@@ -54,6 +64,64 @@ void main() {
       ),
     );
   }
+
+  group('ExploreView notification bell (FCM Stage S5)', () {
+    AppNotification unread(String id) => AppNotification(
+      id: id,
+      type: NotificationType.orderShipped,
+      title: 't',
+      body: 'b',
+      route: 'orderDetail',
+      entityId: 'ord_1',
+      createdAt: DateTime(2026, 10, 2),
+      readAt: null,
+    );
+
+    testWidgets('no inbox provider => no bell (existing trees unchanged)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createTestWidget(onRoutePushed: (_) {}));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('customer_notifications_bell')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'with the inbox: bell + unread badge, clears live, opens the centre',
+      (tester) async {
+        final pushed = <RouteSettings>[];
+        final inbox = MockNotificationInboxRepository(
+          initial: [unread('a'), unread('b'), unread('c')],
+        );
+        await tester.pumpWidget(
+          createTestWidget(onRoutePushed: pushed.add, inbox: inbox),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('customer_notifications_bell')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('customer_notification_badge')),
+          findsOneWidget,
+        );
+
+        await inbox.markAllRead();
+        await tester.pump();
+        expect(
+          find.byKey(const Key('customer_notification_badge')),
+          findsNothing,
+        );
+
+        await tester.tap(find.byKey(const Key('customer_notifications_bell')));
+        await tester.pumpAndSettle();
+        expect(pushed.single.name, RouteNames.notifications);
+      },
+    );
+  });
 
   group('ExploreView Widget Tests', () {
     testWidgets('renders initial components after data loads', (

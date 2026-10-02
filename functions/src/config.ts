@@ -1,4 +1,4 @@
-import { defineSecret } from "firebase-functions/params";
+import { defineBoolean, defineSecret } from "firebase-functions/params";
 
 /**
  * Cloud Functions region for every TWin AR function (approved: us-central1).
@@ -176,3 +176,17 @@ export const REVIEW_MODERATION_REASON_MAX_LENGTH = 500;
  *  checks the identical claim server-side via the callable's own
  *  `request.auth.token.role`, no new admin-detection mechanism invented. */
 export const SUPER_ADMIN_ROLE = "superAdmin";
+
+/**
+ * FCM notifications (`26_FCM_NOTIFICATIONS_PLAN.md`) kill-switch. DEFAULT OFF:
+ * while false, every notification trigger returns immediately - no inbox row,
+ * no ledger claim, no push. `registerDevice` / `unregisterDevice` and the
+ * Auth-deletion cleanup deliberately keep working (the S7 smoke test registers
+ * a device while the switch is still off). Flip with a redeploy param value
+ * (`NOTIFICATIONS_ENABLED=true`) - never read at import time, only via
+ * `.value()` inside a running function.
+ */
+export const notificationsEnabled = defineBoolean("NOTIFICATIONS_ENABLED", {
+  default: false,
+  description: "Master kill-switch for FCM notification triggers (inbox + push).",
+});

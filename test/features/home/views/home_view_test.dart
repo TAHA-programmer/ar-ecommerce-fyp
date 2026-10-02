@@ -31,6 +31,10 @@ import 'package:twin_ar/features/home/widgets/home_hero_carousel.dart';
 import 'package:twin_ar/features/home/widgets/home_search_bar.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_product_details_repository.dart';
 import 'package:twin_ar/features/product_details/repositories/mock_recently_viewed_repository.dart';
+import 'package:twin_ar/features/notifications/models/app_notification.dart';
+import 'package:twin_ar/features/notifications/models/notification_type.dart';
+import 'package:twin_ar/features/notifications/repositories/mock_notification_inbox_repository.dart';
+import 'package:twin_ar/features/notifications/repositories/notification_inbox_repository.dart';
 import 'package:twin_ar/features/profile/repositories/mock_user_profile_repository.dart';
 
 const _uid = 'test-uid';
@@ -130,6 +134,7 @@ void main() {
     ValueChanged<RouteSettings>? onRoutePushed,
     List<AddressModel>? addresses,
     bool addressesLoading = false,
+    NotificationInboxRepository? inbox,
   }) async {
     final db = MockCommerceDatabase();
     final profileRepository = MockUserProfileRepository(
@@ -164,15 +169,82 @@ void main() {
         return null;
       },
       home: MultiProvider(
-        providers: homeProviders(
-          db,
-          profileState: profileState,
-          addressState: addressState,
-        ),
+        providers: [
+          ...homeProviders(
+            db,
+            profileState: profileState,
+            addressState: addressState,
+          ),
+          if (inbox != null)
+            ChangeNotifierProvider<NotificationInboxRepository>.value(
+              value: inbox,
+            ),
+        ],
         child: const HomeView(),
       ),
     );
   }
+
+  group('HomeView notification bell (FCM Stage S5)', () {
+    AppNotification unread(String id) => AppNotification(
+      id: id,
+      type: NotificationType.orderShipped,
+      title: 't',
+      body: 'b',
+      route: 'orderDetail',
+      entityId: 'ord_1',
+      createdAt: DateTime(2026, 10, 2),
+      readAt: null,
+    );
+
+    testWidgets('no inbox provider => no bell (existing trees unchanged)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(await createTestWidget());
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        find.byKey(const Key('customer_notifications_bell')),
+        findsNothing,
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+      'with the inbox: bell shows the unread count and opens the centre',
+      (tester) async {
+        final pushed = <RouteSettings>[];
+        final inbox = MockNotificationInboxRepository(
+          initial: [unread('a'), unread('b')],
+        );
+        await tester.pumpWidget(
+          await createTestWidget(inbox: inbox, onRoutePushed: pushed.add),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('customer_notifications_bell')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('customer_notification_badge')),
+          findsOneWidget,
+        );
+        expect(find.text('2'), findsWidgets);
+
+        // reading them clears the badge live
+        await inbox.markAllRead();
+        await tester.pump();
+        expect(
+          find.byKey(const Key('customer_notification_badge')),
+          findsNothing,
+        );
+
+        await tester.tap(find.byKey(const Key('customer_notifications_bell')));
+        await tester.pumpAndSettle();
+        expect(pushed.single.name, RouteNames.notifications);
+      },
+    );
+  });
 
   group('HomeView Widget Tests', () {
     testWidgets('renders loading state initially', (WidgetTester tester) async {

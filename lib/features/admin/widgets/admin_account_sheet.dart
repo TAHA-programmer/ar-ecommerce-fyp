@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
 import 'package:twin_ar/features/auth/repositories/auth_repository.dart';
+import 'package:twin_ar/features/notifications/services/notification_lifecycle.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
 import 'package:twin_ar/core/theme/app_colors.dart';
 import 'package:twin_ar/core/theme/app_radii.dart';
@@ -57,9 +58,13 @@ class AdminAccountSheet extends StatelessWidget {
     final navigator = Navigator.of(context);
     final authRepo = context.read<AuthRepository>();
     final authState = context.read<AuthSessionState>();
+    final lifecycle = context.read<NotificationLifecycle?>();
 
     navigator.pop(); // close the account sheet
 
+    // FCM: remove this device's token while still authenticated (see
+    // ProfileView._confirmLogout) - best-effort, time-boxed.
+    await lifecycle?.beforeSignOut();
     await authRepo.signOut();
     authState.clearSession();
 
@@ -130,6 +135,20 @@ class AdminAccountSheet extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).pushNamed(RouteNames.adminReviews);
+              },
+            ),
+            ListTile(
+              key: const Key('admin_account_sheet_notification_settings_tile'),
+              leading: const Icon(Icons.notifications_none),
+              title: Text(
+                'Notification settings',
+                style: AppTypography.bodyLarge,
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(
+                  context,
+                ).pushNamed(RouteNames.notificationSettings);
               },
             ),
             ListTile(

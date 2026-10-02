@@ -92,4 +92,26 @@ void main() {
     expect(find.text('What TWin AR Offers'), findsOneWidget);
     expect(find.text('1.0.0'), findsOneWidget);
   });
+
+  testWidgets(
+    'FCM Stage S6 - Help & Support explains notification management and troubleshooting honestly',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(wrapHelpSupport(MockMailLauncherService()));
+      expect(find.text('How do I manage notifications?'), findsOneWidget);
+      expect(find.textContaining('Profile > Notifications'), findsOneWidget);
+      expect(find.textContaining('only stops the push'), findsOneWidget);
+      expect(find.text('Why am I not getting notifications?'), findsOneWidget);
+      expect(
+        find.textContaining('allowed for TWin AR in your phone settings'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('delivery is never guaranteed'),
+        findsOneWidget,
+      );
+      // existing FAQs preserved
+      expect(find.text('How do I view my orders?'), findsOneWidget);
+      expect(find.text('How do payments work?'), findsOneWidget);
+    },
+  );
 }

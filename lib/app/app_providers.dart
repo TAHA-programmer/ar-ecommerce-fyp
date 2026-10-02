@@ -29,6 +29,22 @@ import '../core/services/storage_service.dart';
 import '../core/services/firebase_storage_service.dart';
 import '../core/services/mail_launcher_service.dart';
 import '../core/services/device_mail_launcher_service.dart';
+import '../features/notifications/services/callable_device_registration_backend.dart';
+import '../features/notifications/services/device_notification_permission_service.dart';
+import '../features/notifications/services/device_registration_service.dart';
+import '../features/notifications/services/firebase_fcm_token_source.dart';
+import '../features/notifications/notification_presenters.dart';
+import '../features/notifications/repositories/firestore_notification_inbox_repository.dart';
+import '../features/notifications/repositories/firestore_notification_settings_repository.dart';
+import '../features/notifications/repositories/notification_inbox_repository.dart';
+import '../features/notifications/repositories/notification_settings_repository.dart';
+import '../features/notifications/services/firebase_fcm_message_source.dart';
+import '../features/notifications/services/notification_lifecycle.dart';
+import '../features/notifications/services/notification_navigator.dart';
+import '../features/notifications/services/notification_permission_service.dart';
+import '../features/notifications/services/notification_route_tracker.dart';
+import '../features/notifications/services/notification_router.dart';
+import 'routes/app_router.dart';
 import 'viewmodels/auth_session_state.dart';
 import 'viewmodels/customer_profile_state.dart';
 
@@ -73,6 +89,10 @@ class AppProviders {
     VirtualTryOnService? virtualTryOnService,
     VirtualTryOnPhotoPickerService? virtualTryOnPhotoPickerService,
     MailLauncherService? mailLauncherService,
+    NotificationPermissionService? notificationPermissionService,
+    DeviceRegistrationService? deviceRegistrationService,
+    NotificationInboxRepository? notificationInboxRepository,
+    NotificationSettingsRepository? notificationSettingsRepository,
   }) => [
     // AuthRepository/AuthSessionState are registered before
     // CommerceDatabase because FirestoreCommerceDatabase (Phase 8.5) needs
@@ -144,6 +164,72 @@ class AppProviders {
     // test-injection seam, like the services above.
     Provider<MailLauncherService>(
       create: (_) => mailLauncherService ?? DeviceMailLauncherService(),
+    ),
+    // FCM notifications (`26_FCM_NOTIFICATIONS_PLAN.md`) Stage S4 - data-layer
+    // services only. Both are LAZY (Provider.create runs on first read) and
+    // NOTHING reads them yet: no listener is attached, no permission is
+    // requested and no token is fetched until Stage S5 wires them to
+    // AuthSessionState / the contextual opt-in / the logout paths. Optional
+    // test-injection seams, like the services above.
+    Provider<NotificationPermissionService>(
+      create: (_) =>
+          notificationPermissionService ??
+          DeviceNotificationPermissionService(),
+    ),
+    Provider<DeviceRegistrationService>(
+      create: (context) =>
+          deviceRegistrationService ??
+          DeviceRegistrationService(
+            tokens: FirebaseFcmTokenSource(),
+            backend: CallableDeviceRegistrationBackend(),
+            permission: context.read<NotificationPermissionService>(),
+          ),
+      dispose: (_, service) => service.dispose(),
+    ),
+    // Stage S5: the customer inbox (uid-isolated live view, same pattern as
+    // favorites/cart), push preferences, and the lifecycle that makes the S4
+    // services live. The lifecycle is lazy and only `start()`ed by
+    // NotificationHost in the production app.
+    ChangeNotifierProxyProvider<AuthSessionState, NotificationInboxRepository>(
+      create: (context) =>
+          notificationInboxRepository ??
+          FirestoreNotificationInboxRepository(
+            context.read<AuthSessionState>(),
+          ),
+      update: (_, authState, previous) =>
+          previous ??
+          notificationInboxRepository ??
+          FirestoreNotificationInboxRepository(authState),
+    ),
+    Provider<NotificationSettingsRepository>(
+      create: (_) =>
+          notificationSettingsRepository ??
+          FirestoreNotificationSettingsRepository(),
+    ),
+    Provider<NotificationLifecycle>(
+      create: (context) {
+        final auth = context.read<AuthSessionState>();
+        final inbox = context.read<NotificationInboxRepository>();
+        return NotificationLifecycle(
+          auth: auth,
+          registration: context.read<DeviceRegistrationService>(),
+          permission: context.read<NotificationPermissionService>(),
+          messages: FirebaseFcmMessageSource(),
+          navigator: NotificationNavigator(
+            navigatorKey: AppRouter.navigatorKey,
+            tracker: NotificationRouteTracker.instance,
+            session: () => NotificationSession(
+              uid: auth.isAuthenticated ? auth.userId : null,
+              isCustomer: auth.isCustomer,
+              isSuperAdmin: auth.isSuperAdmin,
+            ),
+          ),
+          presentOptIn: presentOptInSheet,
+          presentBanner: presentPushBanner,
+          onNotificationOpened: (id) => inbox.markRead(id),
+        );
+      },
+      dispose: (_, lifecycle) => lifecycle.dispose(),
     ),
     // Home/Explore/Product Details no longer depend on CommerceDatabase -
     // their Firestore implementations query Firestore directly (see each

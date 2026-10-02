@@ -18,5 +18,5 @@ void main() async {
     await Stripe.instance.applySettings();
   }
 
-  runApp(const TWinArApp());
+  runApp(const TWinArApp(enableNotifications: true));
 }

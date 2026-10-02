@@ -6,7 +6,16 @@ import '../../../app/routes/route_names.dart';
 class CustomerHeader extends StatelessWidget {
   final int cartCount;
 
-  const CustomerHeader({super.key, required this.cartCount});
+  /// Unread notification count for the bell. `null` hides the bell entirely
+  /// (the cart screen, and any tree without a notification inbox); `0` shows
+  /// the bell without a badge. Capped at `9+` (the inbox window is 50).
+  final int? notificationCount;
+
+  const CustomerHeader({
+    super.key,
+    required this.cartCount,
+    this.notificationCount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +35,59 @@ class CustomerHeader extends StatelessWidget {
           // Actions
           Row(
             children: [
+              if (notificationCount != null) ...[
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      key: const Key('customer_notifications_bell'),
+                      tooltip: notificationCount! > 0
+                          ? 'Notifications, $notificationCount unread'
+                          : 'Notifications',
+                      icon: const Icon(
+                        Icons.notifications_none,
+                        color: AppColors.textPrimary,
+                      ),
+                      onPressed: () {
+                        Navigator.pushNamed(context, RouteNames.notifications);
+                      },
+                    ),
+                    if (notificationCount! > 0)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: IgnorePointer(
+                          child: Container(
+                            key: const Key('customer_notification_badge'),
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              notificationCount! > 9
+                                  ? '9+'
+                                  : '$notificationCount',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+              ],
               IconButton(
                 icon: const Icon(
                   Icons.favorite_border,

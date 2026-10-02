@@ -11,6 +11,8 @@ import '../core/data/cart_repository.dart';
 import '../features/checkout/services/checkout_payment_service.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/repositories/auth_repository.dart';
+import '../features/notifications/services/notification_route_tracker.dart';
+import '../features/notifications/widgets/notification_host.dart';
 import '../features/profile/repositories/user_profile_repository.dart';
 
 class TWinArApp extends StatelessWidget {
@@ -29,6 +31,12 @@ class TWinArApp extends StatelessWidget {
   final CartRepository? cartRepositoryOverride;
   final CheckoutPaymentService? checkoutPaymentServiceOverride;
 
+  /// FCM notifications (Stage S5): when true the app starts the notification
+  /// lifecycle (device registration, tap routing, foreground banner). Only the
+  /// production `main.dart` passes true; widget tests leave it false so they
+  /// never touch FirebaseMessaging.
+  final bool enableNotifications;
+
   const TWinArApp({
     super.key,
     this.authRepositoryOverride,
@@ -39,6 +47,7 @@ class TWinArApp extends StatelessWidget {
     this.favoritesRepositoryOverride,
     this.cartRepositoryOverride,
     this.checkoutPaymentServiceOverride,
+    this.enableNotifications = false,
   });
 
   @override
@@ -51,7 +60,15 @@ class TWinArApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: RouteNames.splash,
       onGenerateRoute: AppRouter.onGenerateRoute,
-      navigatorObservers: [AppRouter.routeObserver],
+      navigatorKey: AppRouter.navigatorKey,
+      navigatorObservers: [
+        AppRouter.routeObserver,
+        NotificationRouteTracker.instance,
+      ],
+      builder: enableNotifications
+          ? (context, child) =>
+                NotificationHost(child: child ?? const SizedBox.shrink())
+          : null,
     );
 
     final providers = AppProviders.providers(

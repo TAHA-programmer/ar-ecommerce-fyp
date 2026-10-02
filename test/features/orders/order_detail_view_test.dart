@@ -102,6 +102,22 @@ void main() {
       );
     });
 
+    testWidgets(
+      'FCM deep link: shows Order Not Found first, then the details once the order arrives',
+      (tester) async {
+        await tester.pumpWidget(createWidgetUnderTest(orderId: 'ord_late'));
+        await tester.pumpAndSettle();
+        expect(find.text('Order Not Found'), findsOneWidget);
+        expect(find.text('Order Details'), findsNothing);
+
+        db.addOrder(mockOrder.copyWith(id: 'ord_late'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Order Not Found'), findsNothing);
+        expect(find.text('Order Details'), findsOneWidget);
+      },
+    );
+
     testWidgets('Displays correct order details', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();

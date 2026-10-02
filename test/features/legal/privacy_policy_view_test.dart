@@ -66,4 +66,100 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'FCM Stage S6 - Push Notifications section is accurate: opt-in, what is stored, '
+    'what is sent, controls, removal, retention, no delivery guarantee',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PrivacyPolicyView()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Push Notifications'), findsOneWidget);
+      expect(find.text('Last updated: October 2026'), findsOneWidget);
+      // optional + contextual, never at first open
+      expect(
+        find.textContaining('Push notifications are optional'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('never when you first open the app'),
+        findsOneWidget,
+      );
+      // what is stored
+      expect(find.textContaining('device notification token'), findsOneWidget);
+      expect(find.textContaining('random installation ID'), findsOneWidget);
+      // what is sent / not sent
+      expect(
+        find.textContaining('confirmed, shipped, delivered or cancelled'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('never your address, items, or payment details'),
+        findsOneWidget,
+      );
+      // controls and the D7 inbox guarantee
+      expect(find.textContaining('turn each category off'), findsOneWidget);
+      expect(
+        find.textContaining('Notification Centre still records the update'),
+        findsOneWidget,
+      );
+      // removal + retention
+      expect(
+        find.textContaining('we ask our servers to remove your device token'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Device tokens are also deleted if your account is deleted',
+        ),
+        findsOneWidget,
+      );
+      // best-effort server removal is described honestly (no absolute claim)
+      expect(
+        find.textContaining('leftover record is cleaned up automatically'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('token is removed when you log out'),
+        findsNothing,
+      );
+      expect(find.textContaining('about 90 days'), findsOneWidget);
+      // honest about delivery
+      expect(
+        find.textContaining('Push delivery is not guaranteed'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'FCM Stage S6 - Firebase Cloud Messaging is listed as a third-party service',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PrivacyPolicyView()));
+      await tester.pumpAndSettle();
+      expect(find.text('Third-Party Services'), findsOneWidget);
+      expect(
+        find.textContaining('Firebase Cloud Messaging for push notifications'),
+        findsOneWidget,
+      );
+      // the pre-existing claims are preserved
+      expect(find.textContaining('Stripe for payments'), findsOneWidget);
+      expect(
+        find.textContaining('Google Gemini for Virtual Try-On'),
+        findsWidgets,
+      );
+    },
+  );
+
+  testWidgets(
+    'FCM Stage S6 - the policy has exactly 15 sections after inserting Push Notifications',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PrivacyPolicyView()));
+      await tester.pumpAndSettle();
+      final cards = tester.widgetList<LegalSectionCard>(
+        find.byType(LegalSectionCard),
+      );
+      expect(cards.length, 15);
+    },
+  );
 }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../notifications/services/notification_lifecycle.dart';
 import '../../../app/routes/route_names.dart';
 import '../../../app/viewmodels/customer_profile_state.dart';
 import '../../../app/viewmodels/auth_session_state.dart';
@@ -140,7 +141,12 @@ class ProfileView extends StatelessWidget {
 
     final authRepo = context.read<AuthRepository>();
     final authState = context.read<AuthSessionState>();
+    final lifecycle = context.read<NotificationLifecycle?>();
 
+    // FCM: remove this device's token while still authenticated, so the
+    // previous user can never receive pushes on this phone (best-effort,
+    // time-boxed, never blocks or fails the logout).
+    await lifecycle?.beforeSignOut();
     await authRepo.signOut();
     authState.clearSession();
 
@@ -449,6 +455,15 @@ class ProfileView extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
+                          ProfileMenuItem(
+                            key: const Key('profile_notifications_item'),
+                            icon: Icons.notifications_none,
+                            title: 'Notifications',
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              RouteNames.notifications,
+                            ),
+                          ),
                           ProfileMenuItem(
                             icon: Icons.shopping_bag_outlined,
                             title: 'My Orders',

@@ -70,6 +70,12 @@ class RouteNames {
   /// across every product, reached from Profile's "My Reviews" entry.
   static const String myReviews = '/my-reviews';
 
+  /// FCM notifications Stage S5 - the customer Notification Centre (inbox)
+  /// and the push-preferences screen (shared by customer + Admin; the screen
+  /// shows the categories for the signed-in role).
+  static const String notifications = '/notifications';
+  static const String notificationSettings = '/notification-settings';
+
   // Admin Routes
   static const String adminDashboard = '/admin/dashboard';
   static const String adminProducts = '/admin/products';

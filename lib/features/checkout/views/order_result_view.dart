@@ -8,6 +8,7 @@ import '../../../core/models/order/order_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/order_id_formatter.dart';
+import '../../notifications/widgets/notification_host.dart';
 
 class OrderResultView extends StatelessWidget {
   final String orderId;
@@ -71,6 +72,10 @@ class OrderResultView extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // FCM: offer the contextual notification opt-in once, after a real
+            // order result is shown (zero-size; does nothing when already
+            // granted/declined or when notifications aren't running).
+            const NotificationOptInTrigger(),
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(

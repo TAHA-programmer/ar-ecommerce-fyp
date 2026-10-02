@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../notifications/repositories/notification_inbox_repository.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/feedback/app_toast.dart';
@@ -97,7 +98,12 @@ class _HomeViewState extends State<HomeView> with RouteAware {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     SliverToBoxAdapter(
-                      child: CustomerHeader(cartCount: viewModel.cartCount),
+                      child: CustomerHeader(
+                        cartCount: viewModel.cartCount,
+                        notificationCount: context
+                            .watch<NotificationInboxRepository?>()
+                            ?.unreadCount,
+                      ),
                     ),
                     if (viewModel.isLoading)
                       const SliverFillRemaining(

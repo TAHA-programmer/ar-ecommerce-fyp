@@ -14,11 +14,14 @@ class AppToast {
   static _ToastWidgetState? _currentState;
 
   static void _show(
-    BuildContext context,
+    BuildContext? context,
     String message,
     Color accentColor,
-    IconData icon,
-  ) {
+    IconData icon, {
+    String? title,
+    VoidCallback? onTap,
+    OverlayState? overlay,
+  }) {
     // If there is a toast currently showing, animate it out quickly before showing new one
     if (_currentEntry != null && _currentState != null) {
       _currentState!.dismiss();
@@ -27,13 +30,19 @@ class AppToast {
     }
     _currentTimer?.cancel();
 
-    final overlayState = Overlay.of(context);
+    // `overlay` is given when there is no BuildContext BELOW an Overlay (the
+    // FCM foreground banner fires from a stream with only the root Navigator's
+    // OverlayState in hand - `Overlay.of(overlayState.context)` would look for
+    // an ancestor Overlay and throw "No Overlay widget found").
+    final overlayState = overlay ?? Overlay.of(context!);
 
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) {
         return _ToastWidget(
           message: message,
+          title: title,
+          onTap: onTap,
           accentColor: accentColor,
           icon: icon,
           onStateCreated: (state) {
@@ -55,7 +64,7 @@ class AppToast {
     _currentEntry = entry;
     overlayState.insert(entry);
 
-    _currentTimer = Timer(const Duration(seconds: 3), () {
+    _currentTimer = Timer(Duration(seconds: onTap == null ? 3 : 5), () {
       if (_currentEntry == entry && _currentState != null) {
         _currentState!.dismiss();
       }
@@ -77,10 +86,37 @@ class AppToast {
   static void info(BuildContext context, String message) {
     _show(context, message, AppColors.primary, Icons.info_outline);
   }
+
+  /// A tappable push-notification banner (FCM Stage S5): bold [title] over
+  /// [message], dismissed on tap after calling [onTap]. Stays a little longer
+  /// than the 3 s status toasts so it can actually be tapped.
+  static void notification(
+    BuildContext? context, {
+    OverlayState? overlay,
+    required String title,
+    required String message,
+    required VoidCallback onTap,
+  }) {
+    assert(
+      context != null || overlay != null,
+      'AppToast.notification needs a context or an OverlayState',
+    );
+    _show(
+      context,
+      message,
+      AppColors.primary,
+      Icons.notifications_active_outlined,
+      title: title,
+      onTap: onTap,
+      overlay: overlay,
+    );
+  }
 }
 
 class _ToastWidget extends StatefulWidget {
   final String message;
+  final String? title;
+  final VoidCallback? onTap;
   final Color accentColor;
   final IconData icon;
   final VoidCallback onDismissed;
@@ -88,6 +124,8 @@ class _ToastWidget extends StatefulWidget {
 
   const _ToastWidget({
     required this.message,
+    this.title,
+    this.onTap,
     required this.accentColor,
     required this.icon,
     required this.onDismissed,
@@ -155,34 +193,59 @@ class _ToastWidgetState extends State<_ToastWidget>
           position: _slideAnimation,
           child: FadeTransition(
             opacity: _fadeAnimation,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.m,
-                vertical: AppSpacing.m,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E), // Dark charcoal
-                borderRadius: AppRadii.mediumBorder,
-                boxShadow: AppShadows.medium,
-                border: Border.all(
-                  color: widget.accentColor.withValues(alpha: 0.5),
-                  width: 1,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTap == null
+                  ? null
+                  : () {
+                      widget.onTap!();
+                      dismiss();
+                    },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.m,
+                  vertical: AppSpacing.m,
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(widget.icon, color: widget.accentColor, size: 24),
-                  const SizedBox(width: AppSpacing.s),
-                  Expanded(
-                    child: Text(
-                      widget.message,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: Colors.white,
-                        fontFamily: 'Inter',
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E), // Dark charcoal
+                  borderRadius: AppRadii.mediumBorder,
+                  boxShadow: AppShadows.medium,
+                  border: Border.all(
+                    color: widget.accentColor.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(widget.icon, color: widget.accentColor, size: 24),
+                    const SizedBox(width: AppSpacing.s),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.title != null)
+                            Text(
+                              widget.title!,
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          if (widget.message.isNotEmpty)
+                            Text(
+                              widget.message,
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

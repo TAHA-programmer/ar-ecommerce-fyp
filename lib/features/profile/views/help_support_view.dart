@@ -63,6 +63,16 @@ class HelpSupportView extends StatelessWidget {
               'Your placed orders will be available through My Orders in your Profile.',
         ),
         InfoSectionData(
+          title: 'How do I manage notifications?',
+          body:
+              'Open Profile > Notifications to see your order, refund and review updates, and use the settings icon there to choose which push notifications you receive. Turning a category off only stops the push - the update still appears in your Notification Centre.',
+        ),
+        InfoSectionData(
+          title: 'Why am I not getting notifications?',
+          body:
+              'Check that notifications are allowed for TWin AR in your phone settings and that the category is switched on in Notification settings. Battery-saver or background restrictions can delay or block them, and delivery is never guaranteed. Your Notification Centre and My Orders always show the latest status, even if a push did not arrive.',
+        ),
+        InfoSectionData(
           title: 'How do payments work?',
           body:
               'TWin AR uses secure Stripe card payments. Cash on Delivery is not supported.',

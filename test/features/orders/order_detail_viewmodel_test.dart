@@ -64,6 +64,42 @@ void main() {
     });
 
     test(
+      'FCM deep link: opened BEFORE the order has loaded, then recovers when it arrives',
+      () {
+        // A notification tap can open Order Detail before the live orders
+        // stream has delivered that order.
+        final viewModel = OrderDetailViewModel(
+          orderState: orderState,
+          orderId: 'ord_late',
+        );
+        var notifications = 0;
+        viewModel.addListener(() => notifications++);
+        expect(viewModel.isNotFound, isTrue);
+        expect(viewModel.order, isNull);
+
+        db.addOrder(mockOrder.copyWith(id: 'ord_late'));
+
+        expect(viewModel.isNotFound, isFalse);
+        expect(viewModel.order?.id, 'ord_late');
+        expect(notifications, greaterThan(0));
+
+        // ...and keeps live-updating afterwards
+        db.updateOrderStatus('ord_late', OrderStatus.shipped);
+        expect(viewModel.order?.orderStatus, OrderStatus.shipped);
+      },
+    );
+
+    test('an order that never arrives stays not-found (no phantom order)', () {
+      final viewModel = OrderDetailViewModel(
+        orderState: orderState,
+        orderId: 'ord_never',
+      );
+      db.addOrder(mockOrder.copyWith(id: 'ord_other'));
+      expect(viewModel.isNotFound, isTrue);
+      expect(viewModel.order, isNull);
+    });
+
+    test(
       'Live-updates when the order status changes elsewhere (e.g. Admin)',
       () {
         final viewModel = OrderDetailViewModel(

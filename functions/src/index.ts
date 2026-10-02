@@ -76,3 +76,19 @@ export { moderateReview } from "./moderateReview";
 // `published` one out of `productStats`. NOT deployed yet - local
 // implementation + test pass only.
 export { cleanupUserReviewsData } from "./cleanupUserReviewsData";
+
+// FCM notifications (`26_FCM_NOTIFICATIONS_PLAN.md`) Stage S3 - device
+// registration callables, the five Firestore notification triggers (all gated
+// by the `NOTIFICATIONS_ENABLED` kill-switch, default OFF) and the third
+// Auth-deletion cleanup sibling. NOT deployed yet - local implementation +
+// emulator-test pass only.
+export { registerDevice } from "./registerDevice";
+export { unregisterDevice } from "./unregisterDevice";
+export {
+  onOrderCreatedNotify,
+  onOrderStatusNotify,
+  onProductStockNotify,
+  onReviewNotify,
+  onStripeEventNotify,
+} from "./notifyTriggers";
+export { cleanupUserNotificationData } from "./cleanupUserNotificationData";

@@ -10,7 +10,7 @@ class PrivacyPolicyView extends StatelessWidget {
       title: 'Privacy Policy',
       subtitle:
           'Learn how TWin AR collects, uses, and protects your information.',
-      lastUpdated: 'Last updated: September 2026',
+      lastUpdated: 'Last updated: October 2026',
       sections: [
         LegalSectionData(
           number: 1,
@@ -62,36 +62,42 @@ class PrivacyPolicyView extends StatelessWidget {
         ),
         LegalSectionData(
           number: 9,
-          title: 'Third-Party Services',
+          title: 'Push Notifications',
           body:
-              'We may employ third-party companies and services, such as Firebase for backend infrastructure, Stripe for payments, and Google Gemini for Virtual Try-On image generation, to facilitate our application. These third parties have access to your Personal Data only to perform these tasks on our behalf.',
+              'Push notifications are optional. If you allow them, we store a device notification token (an identifier issued by Google Firebase Cloud Messaging for your phone) together with your app version and a random installation ID, linked to your account, so we can send updates to this device. We also store your notification preferences and keep a history of your order, refund and review-moderation updates in the Notification Centre inside the app. We send updates when your order is confirmed, shipped, delivered or cancelled, if a payment could not be turned into an order and was refunded, and if a review of yours is hidden or not published. Notifications show only a short order reference - never your address, items, or payment details. We ask for permission only at a relevant moment, never when you first open the app, and you can turn each category off any time in Notification settings or in your phone settings; turning a category off stops the push but your Notification Centre still records the update. When you log out, we ask our servers to remove your device token and we invalidate it on your phone, so notifications for your account stop arriving there; if that request cannot be completed (for example while you are offline), the leftover record is cleaned up automatically when a delivery to it fails or when it expires. Device tokens are also deleted if your account is deleted. Notification Centre entries are kept for a limited period (about 90 days). Push delivery is not guaranteed - your phone, battery saver or network may delay or block it - so your orders in My Orders are always the up-to-date record.',
         ),
         LegalSectionData(
           number: 10,
+          title: 'Third-Party Services',
+          body:
+              'We may employ third-party companies and services, such as Firebase for backend infrastructure and Firebase Cloud Messaging for push notifications, Stripe for payments, and Google Gemini for Virtual Try-On image generation, to facilitate our application. These third parties have access to your Personal Data only to perform these tasks on our behalf.',
+        ),
+        LegalSectionData(
+          number: 11,
           title: 'Data Security',
           body:
               'We value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it. But remember that no method of transmission over the internet, or method of electronic storage is 100% secure.',
         ),
         LegalSectionData(
-          number: 11,
+          number: 12,
           title: 'Data Retention',
           body:
               'Your data is retained only for as long as necessary to provide you with our services and for legitimate and essential business purposes, such as maintaining the performance of the app. See "Virtual Try-On Photos" above for the specific retention rules that apply to Virtual Try-On images.',
         ),
         LegalSectionData(
-          number: 12,
+          number: 13,
           title: 'User Choices and Rights',
           body:
               'You have the right to update or delete your account information at any time. Permissions such as camera access can also be managed directly through your device settings.',
         ),
         LegalSectionData(
-          number: 13,
+          number: 14,
           title: 'Changes to This Policy',
           body:
               'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.',
         ),
         LegalSectionData(
-          number: 14,
+          number: 15,
           title: 'Contact Us',
           body:
               'If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact the TWin AR support team.',

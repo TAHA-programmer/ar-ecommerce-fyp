@@ -74,6 +74,12 @@ dependencies:
   # DeviceMailLauncherService (core/services/mail_launcher_service.dart).
   url_launcher: ^6.3.2
 
+  # FCM push notifications (`26_FCM_NOTIFICATIONS_PLAN.md`, Stage S4) - device
+  # token + token-refresh stream only. Foreground banners reuse AppToast and
+  # background/terminated notifications are rendered by the OS from the FCM
+  # `notification` payload, so no flutter_local_notifications (decision D12).
+  firebase_messaging: ^16.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

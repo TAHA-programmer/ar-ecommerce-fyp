@@ -5,12 +5,20 @@ import com.tahafayyaz.twin_ar.roomar.RoomArCorePlugin
 import com.tahafayyaz.twin_ar.roomar.RoomArMarkerPlugin
 import com.tahafayyaz.twin_ar.roomar.RoomArPreviewPlugin
 import io.flutter.embedding.android.FlutterFragmentActivity
+import android.os.Bundle
 import io.flutter.embedding.engine.FlutterEngine
 
 // flutter_stripe requires the host Activity to be a FlutterFragmentActivity
 // (PaymentSheet is shown from a FragmentManager). No Flutter/business logic
 // change - navigation and appearance are unaffected.
 class MainActivity : FlutterFragmentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // FCM notifications (S4): create the four Android channels the server
+        // targets. Idempotent, silent, needs no permission.
+        NotificationChannels.ensureCreated(applicationContext)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         // Phase 9.2 R5 — Tier-2 Marker-AR (CameraX + OpenCV ArUco + Filament),

@@ -38,6 +38,7 @@ import {
   getDoc,
   getDocs,
   collection,
+  collectionGroup,
   query,
   where,
   orderBy,
@@ -3870,6 +3871,375 @@ async function main() {
 
     const anon = testEnv.unauthenticatedContext();
     await assertFails(getDoc(doc(anon.firestore(), 'productStats/p1')));
+  });
+
+  // ------------------------------------------------------------------
+  // FCM notifications Stage S2 (`26_FCM_NOTIFICATIONS_PLAN.md`):
+  // `users/{uid}/notifications` (inbox), `users/{uid}/notificationSettings/
+  // prefs`, and the server-only `deviceTokens` / `notificationEvents`.
+  // ------------------------------------------------------------------
+  console.log('notifications inbox - FCM Stage S2');
+
+  const adminCtx = () =>
+    testEnv.authenticatedContext('admin-uid', {
+      email: 'admin@example.com',
+      role: 'superAdmin',
+    });
+
+  async function seedNotification(uid, id, overrides = {}) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `users/${uid}/notifications/${id}`), {
+        type: 'order_shipped',
+        title: 'Order shipped',
+        body: 'Order #01234567 is on its way.',
+        route: 'orderDetail',
+        entityId: 'ord_0123456789abcdef0123456789abcdef01234567',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        readAt: null,
+        pushed: true,
+        pushOutcome: 'sent',
+        expireAt: Timestamp.fromMillis(1_800_000_000_000),
+        ...overrides,
+      });
+    });
+  }
+
+  await run('inbox: the owner can read their own notification', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'order_shipped_o1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), `users/${ALICE}/notifications/order_shipped_o1`)));
+  });
+
+  await run('inbox: the owner can list their newest 50 (the exact app query)', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    await seedNotification(ALICE, 'n2', { createdAt: Timestamp.fromMillis(1_700_000_001_000) });
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const snap = await assertSucceeds(
+      getDocs(
+        query(
+          collection(alice.firestore(), `users/${ALICE}/notifications`),
+          orderBy('createdAt', 'desc'),
+          limit(50),
+        ),
+      ),
+    );
+    if (snap.size !== 2) throw new Error(`expected 2 rows, got ${snap.size}`);
+  });
+
+  await run('inbox: another customer cannot read or list it', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `users/${ALICE}/notifications/n1`)));
+    await assertFails(getDocs(collection(bob.firestore(), `users/${ALICE}/notifications`)));
+  });
+
+  await run('inbox: even a superAdmin cannot read a customer\'s inbox (personal, owner-only)', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    await assertFails(getDoc(doc(adminCtx().firestore(), `users/${ALICE}/notifications/n1`)));
+  });
+
+  await run('inbox: an unauthenticated client cannot read it', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), `users/${ALICE}/notifications/n1`)));
+  });
+
+  await run('inbox: a collection-group query over every user\'s notifications is denied', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(getDocs(collectionGroup(alice.firestore(), 'notifications')));
+  });
+
+  await run('inbox: NO client can create a row - not the owner, not a superAdmin', async () => {
+    await testEnv.clearFirestore();
+    const row = {
+      type: 'order_shipped',
+      title: 'Forged',
+      body: 'Forged',
+      route: 'orderDetail',
+      entityId: 'x',
+      createdAt: serverTimestamp(),
+      readAt: null,
+    };
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(setDoc(doc(alice.firestore(), `users/${ALICE}/notifications/forged`), row));
+    await assertFails(setDoc(doc(adminCtx().firestore(), `users/${ALICE}/notifications/forged`), row));
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(setDoc(doc(bob.firestore(), `users/${ALICE}/notifications/forged`), row));
+  });
+
+  await run('inbox: the owner can mark a row read (readAt == request.time)', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(
+      updateDoc(doc(alice.firestore(), `users/${ALICE}/notifications/n1`), { readAt: serverTimestamp() }),
+    );
+  });
+
+  await run('inbox: "mark all read" as one batch of server-time writes succeeds', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    await seedNotification(ALICE, 'n2');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const batch = writeBatch(alice.firestore());
+    for (const id of ['n1', 'n2']) {
+      batch.update(doc(alice.firestore(), `users/${ALICE}/notifications/${id}`), { readAt: serverTimestamp() });
+    }
+    await assertSucceeds(batch.commit());
+  });
+
+  await run('inbox: readAt must be the real server time - a backdated, future or null value is denied', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const ref = doc(alice.firestore(), `users/${ALICE}/notifications/n1`);
+    await assertFails(updateDoc(ref, { readAt: Timestamp.fromMillis(1_000) }));
+    await assertFails(updateDoc(ref, { readAt: Timestamp.fromMillis(4_102_444_800_000) }));
+    await assertFails(updateDoc(ref, { readAt: null }));
+    await assertFails(updateDoc(ref, { readAt: 'yesterday' }));
+  });
+
+  await run('inbox: the owner cannot change any other field (title/body/type/route/entityId/createdAt/expireAt)', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const ref = doc(alice.firestore(), `users/${ALICE}/notifications/n1`);
+    for (const patch of [
+      { title: 'Hacked' },
+      { body: 'Hacked' },
+      { type: 'order_delivered' },
+      { route: 'adminInventory' },
+      { entityId: 'someone-elses-order' },
+      { createdAt: serverTimestamp() },
+      { expireAt: Timestamp.fromMillis(4_102_444_800_000) },
+      { pushed: false },
+    ]) {
+      await assertFails(updateDoc(ref, patch));
+    }
+  });
+
+  await run('inbox: readAt + any other field in the same write is denied; extra new field is denied', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    const ref = doc(alice.firestore(), `users/${ALICE}/notifications/n1`);
+    await assertFails(updateDoc(ref, { readAt: serverTimestamp(), title: 'Hacked' }));
+    await assertFails(updateDoc(ref, { readAt: serverTimestamp(), isAdmin: true }));
+  });
+
+  await run('inbox: another customer or a superAdmin cannot mark someone else\'s row read', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(updateDoc(doc(bob.firestore(), `users/${ALICE}/notifications/n1`), { readAt: serverTimestamp() }));
+    await assertFails(
+      updateDoc(doc(adminCtx().firestore(), `users/${ALICE}/notifications/n1`), { readAt: serverTimestamp() }),
+    );
+  });
+
+  await run('inbox: the owner can delete (dismiss) their own row; others cannot', async () => {
+    await testEnv.clearFirestore();
+    await seedNotification(ALICE, 'n1');
+    await seedNotification(ALICE, 'n2');
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(deleteDoc(doc(bob.firestore(), `users/${ALICE}/notifications/n1`)));
+    await assertFails(deleteDoc(doc(adminCtx().firestore(), `users/${ALICE}/notifications/n1`)));
+    await assertFails(deleteDoc(doc(testEnv.unauthenticatedContext().firestore(), `users/${ALICE}/notifications/n1`)));
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(deleteDoc(doc(alice.firestore(), `users/${ALICE}/notifications/n1`)));
+  });
+
+  console.log('notification preferences - FCM Stage S2');
+
+  const prefsRef = (ctx, uid) => doc(ctx.firestore(), `users/${uid}/notificationSettings/prefs`);
+
+  await run('prefs: the owner can create valid prefs (booleans + updatedAt == request.time)', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(
+      setDoc(prefsRef(alice, ALICE), { pushOrders: false, pushReviews: true, updatedAt: serverTimestamp() }),
+    );
+  });
+
+  await run('prefs: a partial doc (only updatedAt, or one key) is valid - missing means ON', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(setDoc(prefsRef(alice, ALICE), { updatedAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(prefsRef(alice, ALICE), { pushOrders: false, updatedAt: serverTimestamp() }));
+  });
+
+  await run('prefs: the owner can update an existing doc and read it back', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(
+      setDoc(prefsRef(alice, ALICE), { pushOrders: true, pushReviews: true, updatedAt: serverTimestamp() }),
+    );
+    await assertSucceeds(
+      updateDoc(prefsRef(alice, ALICE), { pushOrders: false, updatedAt: serverTimestamp() }),
+    );
+    const snap = await assertSucceeds(getDoc(prefsRef(alice, ALICE)));
+    if (snap.data().pushOrders !== false) throw new Error('pushOrders not persisted');
+  });
+
+  await run('prefs: non-boolean values are denied', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    for (const bad of ['no', 0, 1, null, {}, []]) {
+      await assertFails(setDoc(prefsRef(alice, ALICE), { pushOrders: bad, updatedAt: serverTimestamp() }));
+      await assertFails(setDoc(prefsRef(alice, ALICE), { pushReviews: bad, updatedAt: serverTimestamp() }));
+    }
+  });
+
+  await run('prefs: updatedAt is required and must equal request.time', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(setDoc(prefsRef(alice, ALICE), { pushOrders: true }));
+    await assertFails(
+      setDoc(prefsRef(alice, ALICE), { pushOrders: true, updatedAt: Timestamp.fromMillis(1_000) }),
+    );
+  });
+
+  await run('prefs: an unknown/extra key is denied', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(prefsRef(alice, ALICE), { pushOrders: true, role: 'superAdmin', updatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(prefsRef(alice, ALICE), { pushOrders: true, fcmToken: 'x', updatedAt: serverTimestamp() }),
+    );
+  });
+
+  await run('prefs: a customer cannot write the pushAdmin* keys', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    for (const key of ['pushAdminOrders', 'pushAdminStock', 'pushAdminModeration', 'pushAdminPayments']) {
+      await assertFails(setDoc(prefsRef(alice, ALICE), { [key]: false, updatedAt: serverTimestamp() }));
+    }
+  });
+
+  await run('prefs: a superAdmin can write their own pushAdmin* keys', async () => {
+    await testEnv.clearFirestore();
+    const admin = adminCtx();
+    await assertSucceeds(
+      setDoc(prefsRef(admin, 'admin-uid'), {
+        pushAdminOrders: true,
+        pushAdminStock: false,
+        pushAdminModeration: true,
+        pushAdminPayments: true,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      setDoc(prefsRef(admin, 'admin-uid'), { pushAdminStock: 'off', updatedAt: serverTimestamp() }),
+    );
+  });
+
+  await run('prefs: another user (customer or superAdmin) cannot read or write someone else\'s prefs', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `users/${ALICE}/notificationSettings/prefs`), {
+        pushOrders: false,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(prefsRef(bob, ALICE)));
+    await assertFails(setDoc(prefsRef(bob, ALICE), { pushOrders: true, updatedAt: serverTimestamp() }));
+    const admin = adminCtx();
+    await assertFails(getDoc(prefsRef(admin, ALICE)));
+    await assertFails(setDoc(prefsRef(admin, ALICE), { pushOrders: true, updatedAt: serverTimestamp() }));
+    await assertFails(getDoc(prefsRef(testEnv.unauthenticatedContext(), ALICE)));
+  });
+
+  await run('prefs: only the document id `prefs` is allowed under notificationSettings', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertFails(
+      setDoc(doc(alice.firestore(), `users/${ALICE}/notificationSettings/other`), {
+        pushOrders: true,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  await run('prefs: the owner can delete their prefs (reset to defaults)', async () => {
+    await testEnv.clearFirestore();
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(setDoc(prefsRef(alice, ALICE), { pushOrders: false, updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(prefsRef(alice, ALICE)));
+  });
+
+  console.log('deviceTokens / notificationEvents - server-only (FCM Stage S2)');
+
+  await run('deviceTokens: no client can read, list, create, update or delete - owner, other, superAdmin, anon', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'deviceTokens/abc123'), {
+        uid: ALICE,
+        token: 'secret-token',
+        role: 'customer',
+        platform: 'android',
+      });
+    });
+    const contexts = [
+      testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL }),
+      testEnv.authenticatedContext(BOB, { email: BOB_EMAIL }),
+      adminCtx(),
+      testEnv.unauthenticatedContext(),
+    ];
+    for (const ctx of contexts) {
+      await assertFails(getDoc(doc(ctx.firestore(), 'deviceTokens/abc123')));
+      await assertFails(getDocs(collection(ctx.firestore(), 'deviceTokens')));
+      await assertFails(
+        getDocs(query(collection(ctx.firestore(), 'deviceTokens'), where('uid', '==', ALICE))),
+      );
+      await assertFails(
+        setDoc(doc(ctx.firestore(), 'deviceTokens/new'), { uid: ALICE, token: 'x', role: 'superAdmin' }),
+      );
+      await assertFails(updateDoc(doc(ctx.firestore(), 'deviceTokens/abc123'), { role: 'superAdmin' }));
+      await assertFails(deleteDoc(doc(ctx.firestore(), 'deviceTokens/abc123')));
+    }
+  });
+
+  await run('notificationEvents: no client can read or write the admin ledger - owner, other, superAdmin, anon', async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'notificationEvents/admin_order_o1'), {
+        type: 'admin_new_order',
+        count: 1,
+      });
+    });
+    const contexts = [
+      testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL }),
+      adminCtx(),
+      testEnv.unauthenticatedContext(),
+    ];
+    for (const ctx of contexts) {
+      await assertFails(getDoc(doc(ctx.firestore(), 'notificationEvents/admin_order_o1')));
+      await assertFails(getDocs(collection(ctx.firestore(), 'notificationEvents')));
+      await assertFails(setDoc(doc(ctx.firestore(), 'notificationEvents/x'), { count: 1 }));
+      await assertFails(updateDoc(doc(ctx.firestore(), 'notificationEvents/admin_order_o1'), { count: 9 }));
+      await assertFails(deleteDoc(doc(ctx.firestore(), 'notificationEvents/admin_order_o1')));
+    }
+  });
+
+  await run('regression: the new subcollections do not loosen the parent users/{uid} rules', async () => {
+    await testEnv.clearFirestore();
+    await seedAlice();
+    const bob = testEnv.authenticatedContext(BOB, { email: BOB_EMAIL });
+    await assertFails(getDoc(doc(bob.firestore(), `users/${ALICE}`)));
+    const alice = testEnv.authenticatedContext(ALICE, { email: ALICE_EMAIL });
+    await assertSucceeds(getDoc(doc(alice.firestore(), `users/${ALICE}`)));
+    await assertFails(updateDoc(doc(alice.firestore(), `users/${ALICE}`), { role: 'superAdmin' }));
+    // an unrelated, still-unmapped users subcollection stays denied
+    await assertFails(setDoc(doc(alice.firestore(), `users/${ALICE}/fcmTokens/t1`), { token: 'x' }));
   });
 
   console.log('catch-all - other collections');

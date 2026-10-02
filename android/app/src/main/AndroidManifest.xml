@@ -9,6 +9,12 @@
          so a device without full ARCore hardware support still installs and
          simply never gets offered Tier 1. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- FCM notifications (26_FCM_NOTIFICATIONS_PLAN.md, S4). Android 13+ (API 33)
+         runtime permission; targetSdk is 36 so it is mandatory. Never requested
+         at launch - only from a contextual opt-in moment (plan D14, Stage S5).
+         firebase_messaging merges this too; declared explicitly so the intent
+         is visible and survives a plugin change. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.camera.any" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.ar" android:required="false"/>
@@ -45,6 +51,21 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- FCM notifications (S4): fallback channel/icon/colour for any FCM
+             `notification` payload that does not carry its own. The server sets
+             an explicit channelId per type (orders / account / admin_ops /
+             admin_stock); all four channels are created natively at app start
+             by NotificationChannels.kt. Ids MUST match functions/src/lib/
+             notifications/constants.ts (a drift test enforces it). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="orders" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_twin_ar" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <!-- Phase 9.2 R6 — "optional" (not "required"): the app must remain
              installable on devices Google Play doesn't list as ARCore-capable,
              or that don't have Google Play Services for AR installed at all —

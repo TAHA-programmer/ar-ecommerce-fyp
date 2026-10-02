@@ -9,7 +9,7 @@ class TermsView extends StatelessWidget {
     return const LegalScreenScaffold(
       title: 'Terms & Conditions',
       subtitle: 'Please read these terms carefully before using TWin AR.',
-      lastUpdated: 'Last updated: September 2026',
+      lastUpdated: 'Last updated: October 2026',
       sections: [
         LegalSectionData(
           number: 1,
@@ -73,12 +73,18 @@ class TermsView extends StatelessWidget {
         ),
         LegalSectionData(
           number: 11,
+          title: 'Notifications',
+          body:
+              'If you choose to receive push notifications, they are provided for your convenience and are informational only. Delivery is not guaranteed and may be delayed or blocked by your device, network or settings, so you should not rely on a notification alone - your order status in My Orders is the authoritative record. You can turn notifications off at any time in Notification settings or in your phone settings.',
+        ),
+        LegalSectionData(
+          number: 12,
           title: 'Changes to Terms',
           body:
               'We reserve the right to modify or replace these Terms & Conditions at any time. Your continued use of the application following the posting of any changes constitutes acceptance of those changes.',
         ),
         LegalSectionData(
-          number: 12,
+          number: 13,
           title: 'Contact / Support',
           body:
               'For support or questions regarding these Terms & Conditions, please contact the TWin AR support team.',
