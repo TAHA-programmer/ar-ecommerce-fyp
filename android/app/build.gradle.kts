@@ -23,6 +23,23 @@ if (hasReleaseKeystoreConfig) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// App-size audit (`27_APP_SIZE_OPTIMIZATION.md`): two OPT-IN, environment-gated
+// switches for DIRECT-INSTALL APKs only. Both default off, so a plain
+// `flutter build apk|appbundle` (and therefore the Google Play AAB) is
+// byte-for-byte the previous packaging.
+//  - TWIN_AR_COMPRESS_NATIVE_LIBS=true : store .so files deflated inside the APK
+//    (legacy packaging; the installer extracts them). Shrinks the file you hand
+//    out by roughly the compressibility of OpenCV/Flutter/Filament, at the cost
+//    of a larger on-device footprint. Never use it for the Play AAB: Play already
+//    downloads compressed and keeps libs uncompressed + page-aligned on device.
+//  - TWIN_AR_ABI_FILTERS=arm64-v8a,armeabi-v7a : ship only those ABIs in a
+//    non-split (universal) APK. `flutter build --target-platform` does NOT filter
+//    dependency-supplied libs (OpenCV/Filament/ARCore), so x86_64 would
+//    otherwise ride along. Do not combine with `--split-per-abi`.
+val compressNativeLibs = System.getenv("TWIN_AR_COMPRESS_NATIVE_LIBS") == "true"
+val abiFilterList = System.getenv("TWIN_AR_ABI_FILTERS")
+    ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+
 android {
     namespace = "com.tahafayyaz.twin_ar"
     compileSdk = flutter.compileSdkVersion
@@ -48,6 +65,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        if (abiFilterList.isNotEmpty()) {
+            ndk { abiFilters.addAll(abiFilterList) }
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = compressNativeLibs
+        }
     }
 
     signingConfigs {
