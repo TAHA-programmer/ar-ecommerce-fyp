@@ -17,8 +17,33 @@ that power the AR and Try-On experiences.
 
 ---
 
+## Download
+
+**Latest release:** [github.com/TAHA-programmer/ar-ecommerce-fyp/releases/latest](https://github.com/TAHA-programmer/ar-ecommerce-fyp/releases/latest)
+
+| File | For | Download size | SHA-256 |
+|---|---|---|---|
+| [`twin-ar-v1.0.0-arm64-v8a.apk`](https://github.com/TAHA-programmer/ar-ecommerce-fyp/releases/download/v1.0.0/twin-ar-v1.0.0-arm64-v8a.apk) | 64-bit ARM Android phones | ≈ 62.9 MB | `50de5d3f6854dd0cd6c84bec46aa21614db625190961e4dca281ddc408fce20a` |
+
+**Requirements:** Android 7.0+ (API 24), a 64-bit ARM (arm64-v8a) device. Room AR needs a working camera; Virtual Try-On accepts a photo selected from your gallery (no rear camera required). The download is about 62.9 MB; the installed app was observed at about 136 MB, so keep additional free space for installation and cache.
+
+> **Test build.** Checkout uses **Stripe test mode only** (no real payments — use Stripe's published test cards) and the app talks to the project's **live Firebase backend**; accounts you create are real accounts in that project.
+
+**Install:** download the APK on your phone → allow *Install unknown apps* for your browser or Files app → open the file → *Install*. Play Protect may warn about an unrecognized developer; that is expected for apps installed outside the Play Store.
+
+**Verify (PowerShell):**
+
+```powershell
+Get-FileHash .\twin-ar-v1.0.0-arm64-v8a.apk -Algorithm SHA256
+```
+
+The result must match the SHA-256 in the table. The APK is signed with the project's release key (certificate SHA-256 `30:49:23:80:…:55:C4:3C`). To build it yourself, see [Building release APKs and AABs](#building-release-apks-and-aabs).
+
+---
+
 ## Contents
 
+- [Download](#download)
 - [What it does](#what-it-does)
 - [Features](#features)
 - [Room AR — three-tier architecture](#room-ar--three-tier-architecture)
