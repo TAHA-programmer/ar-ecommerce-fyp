@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:twin_ar/app/viewmodels/auth_session_state.dart';
-import 'package:twin_ar/features/auth/repositories/auth_repository.dart';
-import 'package:twin_ar/features/notifications/services/notification_lifecycle.dart';
+import 'package:twin_ar/features/auth/widgets/logout_flow.dart';
 import 'package:twin_ar/app/routes/route_names.dart';
 import 'package:twin_ar/core/theme/app_colors.dart';
 import 'package:twin_ar/core/theme/app_radii.dart';
@@ -14,11 +13,9 @@ class AdminAccountSheet extends StatelessWidget {
 
   /// Mirrors the customer Profile's own logout confirmation
   /// (`ProfileView._confirmLogout`) so both surfaces ask the same question
-  /// before signing out. The `Navigator` is captured before the sheet is
-  /// popped so the post-sign-out redirect to Login still has somewhere
-  /// valid to push to, even though this widget's own `context` is gone by
-  /// then.
+  /// before signing out; the sign-out itself is the shared [LogoutFlow].
   Future<void> _confirmLogout(BuildContext context) async {
+    if (LogoutFlow.isInFlight) return; // a sign-out is already running
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -55,20 +52,10 @@ class AdminAccountSheet extends StatelessWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final navigator = Navigator.of(context);
-    final authRepo = context.read<AuthRepository>();
-    final authState = context.read<AuthSessionState>();
-    final lifecycle = context.read<NotificationLifecycle?>();
-
-    navigator.pop(); // close the account sheet
-
-    // FCM: remove this device's token while still authenticated (see
-    // ProfileView._confirmLogout) - best-effort, time-boxed.
-    await lifecycle?.beforeSignOut();
-    await authRepo.signOut();
-    authState.clearSession();
-
-    navigator.pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
+    // The sheet is deliberately NOT popped first: LogoutFlow covers the whole
+    // route stack with a non-dismissible "Signing out…" overlay and the final
+    // pushNamedAndRemoveUntil(Login) removes the sheet along with it.
+    await LogoutFlow.run(context);
   }
 
   @override

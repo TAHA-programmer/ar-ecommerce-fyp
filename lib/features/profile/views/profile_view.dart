@@ -3,11 +3,10 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../notifications/services/notification_lifecycle.dart';
+import '../../auth/widgets/logout_flow.dart';
 import '../../../app/routes/route_names.dart';
 import '../../../app/viewmodels/customer_profile_state.dart';
 import '../../../app/viewmodels/auth_session_state.dart';
-import '../../../features/auth/repositories/auth_repository.dart';
 import '../../../core/services/device_image_picker_service.dart';
 import '../../virtual_try_on/services/virtual_try_on_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -103,6 +102,7 @@ class ProfileView extends StatelessWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    if (LogoutFlow.isInFlight) return; // a sign-out is already running
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -139,22 +139,9 @@ class ProfileView extends StatelessWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final authRepo = context.read<AuthRepository>();
-    final authState = context.read<AuthSessionState>();
-    final lifecycle = context.read<NotificationLifecycle?>();
-
-    // FCM: remove this device's token while still authenticated, so the
-    // previous user can never receive pushes on this phone (best-effort,
-    // time-boxed, never blocks or fails the logout).
-    await lifecycle?.beforeSignOut();
-    await authRepo.signOut();
-    authState.clearSession();
-
-    if (context.mounted) {
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
-    }
+    // Non-dismissible "Signing out…" overlay + re-entry guard; FCM cleanup ->
+    // sign-out -> clear session -> Login order lives in LogoutFlow.
+    await LogoutFlow.run(context);
   }
 
   /// Phase 9.3 Stage 5 (tracker §5.2 step 10 / D4) — removes every Virtual

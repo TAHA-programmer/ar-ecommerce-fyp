@@ -57,6 +57,17 @@ class _ConfigurableGoogleAuthRepository implements AuthRepository {
   Stream<AuthResult?> authStateChanges() => _delegate.authStateChanges();
 }
 
+/// Counts [signIn] calls so a duplicate submit can be detected.
+class _CountingSignInRepository extends MockAuthRepository {
+  int signInCalls = 0;
+
+  @override
+  Future<AuthResult> signIn({required String email, required String password}) {
+    signInCalls++;
+    return super.signIn(email: email, password: password);
+  }
+}
+
 void main() {
   group('LoginViewModel', () {
     late LoginViewModel viewModel;
@@ -118,6 +129,27 @@ void main() {
 
         expect(result.success, isFalse);
         expect(sessionState.isAuthenticated, isFalse);
+      },
+    );
+
+    test(
+      'a second submitLogin while one is in flight is ignored (re-entry guard)',
+      () async {
+        final repository = _CountingSignInRepository();
+        final vm = LoginViewModel(repository, sessionState);
+        vm.updateEmail('customer@twinar.com');
+        vm.updatePassword('Customer123');
+
+        final first = vm.submitLogin();
+        final second = await vm.submitLogin();
+
+        expect(second.cancelled, isTrue);
+        expect(repository.signInCalls, 1);
+
+        final firstResult = await first;
+        expect(firstResult.success, isTrue);
+        expect(vm.isLoading, isFalse);
+        expect(sessionState.isAuthenticated, isTrue);
       },
     );
 

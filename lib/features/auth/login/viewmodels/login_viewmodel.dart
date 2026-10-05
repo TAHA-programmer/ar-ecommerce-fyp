@@ -67,6 +67,11 @@ class LoginViewModel extends ChangeNotifier {
   }
 
   Future<AuthResult> submitLogin() async {
+    if (_isLoading) {
+      // Same re-entry guard as [submitGoogleSignIn]: a second submit while
+      // one is in flight must not start a second sign-in.
+      return AuthResult.cancelled();
+    }
     if (_email.isEmpty || !_isValidEmail(_email)) {
       return AuthResult.failure(errorMessage: 'Invalid email or password.');
     }
