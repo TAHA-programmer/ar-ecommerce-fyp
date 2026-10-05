@@ -1,550 +1,530 @@
-# TWin AR — E-Commerce App with Augmented Reality
+# TWin AR — E-Commerce with Augmented Reality
 
-A production-grade Android e-commerce application built with Flutter and Firebase,
-featuring an **in-room Augmented Reality product preview**, **camera-based Virtual
-Try-On for clothing**, a real Stripe checkout, a Ratings & Reviews system,
-**push notifications (Firebase Cloud Messaging)**, and a full admin management
-panel.
+![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-3.44-02569B?logo=flutter&logoColor=white)
+![Firebase](https://img.shields.io/badge/backend-Firebase-FFCA28?logo=firebase&logoColor=black)
+![Stripe](https://img.shields.io/badge/payments-Stripe%20test%20mode-635BFF?logo=stripe&logoColor=white)
 
-> Final Year Project (FYP-2). The AR subsystem lets a customer place a
-> true-to-scale 3D model of a furniture product into their own room, from a
-> phone that is **not** ARCore-certified, using a three-tier device-adaptive
-> rendering architecture.
+**TWin AR** is a full-stack Android shopping app built with Flutter and Firebase.
+Customers browse a live catalogue, check out with Stripe (test mode), and — for
+supported products — **place true-to-scale furniture in their own room with
+Augmented Reality** or **try clothing on virtually** before buying. A built-in
+admin panel manages the catalogue, orders, reviews and the 3D / garment assets
+that power the AR and Try-On experiences.
+
+> Final Year Project (FYP-2). The AR subsystem works on phones that are **not**
+> ARCore-certified, using a three-tier, device-adaptive rendering design.
 
 ---
 
 ## Contents
 
-- [Overview](#overview)
+- [What it does](#what-it-does)
 - [Features](#features)
-- [Room AR — Three-Tier Architecture](#room-ar--three-tier-architecture)
+- [Room AR — three-tier architecture](#room-ar--three-tier-architecture)
 - [Virtual Try-On](#virtual-try-on)
-- [Push Notifications (FCM)](#push-notifications-fcm)
-- [Tech Stack](#tech-stack)
-- [Architecture & Patterns](#architecture--patterns)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
+- [Push notifications (FCM)](#push-notifications-fcm)
+- [Tech stack](#tech-stack)
+- [Architecture and project structure](#architecture-and-project-structure)
+- [Getting started](#getting-started)
+- [Backend setup and deployment](#backend-setup-and-deployment)
 - [Testing](#testing)
-- [Security Model](#security-model)
-- [Project Status](#project-status)
-- [Known Limitations](#known-limitations)
+- [Building release APKs and AABs](#building-release-apks-and-aabs)
+- [Security model](#security-model)
+- [Project status](#project-status)
 - [Support](#support)
-- [Screenshots](#screenshots)
 - [Author](#author)
 
 ---
 
-## Overview
+## What it does
 
-TWin AR is a complete storefront + back office:
+| Role | What they can do |
+|---|---|
+| **Customer** | Browse, search and filter products · manage cart, favourites and addresses · pay with Stripe (**test mode**) · track orders · rate and review delivered products · preview furniture in AR · try clothing on virtually · receive order and moderation notifications |
+| **Super-admin** | Manage products, categories, stock, orders and payments · moderate reviews · upload, validate, version and enable/disable 3D models and garment assets · see live pending-order and low-stock alerts |
+| **Backend** | Real Firebase (Auth, Firestore, Storage, Cloud Functions, Cloud Messaging). Cloud Functions are the only trusted creators of orders, payments and reviews, and stock is reserved transactionally before any charge. |
 
-- **Customers** browse a Firestore-backed catalogue, filter and search, manage a
-  cart, favourites and delivery addresses, check out with real (test-mode)
-  Stripe payments, track their orders, and rate/review products they've
-  received — and, for supported products, preview them in AR or try clothing on
-  virtually before buying. Order, refund and review-moderation updates arrive
-  as optional push notifications and are always kept in an in-app
-  Notification Centre.
-- **Super-admins** manage products, categories, inventory stock, orders &
-  payments, customer reviews, and upload / validate / version / enable-disable /
-  delete the 3D models and garment assets that power the AR and Virtual Try-On
-  experiences — all from an in-app admin panel gated by Firebase custom claims.
-- The backend is **real Firebase** (Auth, Firestore, Storage, Cloud Functions,
-  Cloud Messaging)
-  on a live project, with Cloud Functions as the exclusive trusted creator of
-  orders, payments, and reviews, and a transactional stock-reservation model.
+The app is **Android-only** (`com.tahafayyaz.twin_ar`, min SDK 24); the `ios/`
+folder is the unused default Flutter scaffold. Payments run against Stripe
+**test mode only** — there is no live-money checkout.
 
 ---
 
 ## Features
 
 ### Customer app
-- Email/password authentication **and Google Sign-In**, with reactive session
-  persistence and password reset
-- Home (curated rails driven by real signals — Best Sellers by units sold,
-  Popular by favourite count, Featured, Recently Viewed), Explore (search +
-  category/price/attribute filters)
-- Product Details with image gallery, variants, specifications, and live
-  ratings/reviews
-- Cart with per-line stock gating and quantity caps; Firestore-persisted per user
-- Checkout with a real Stripe **test-mode** PaymentSheet (PKR), server-side
-  order/payment creation and stock reservation
-- Orders list + Order Detail with a live status timeline
-- **Ratings & Reviews** — rate and review a product after it's delivered, edit
-  within a grace window, see other customers' reviews (author names are
-  masked, e.g. "Ayesha K." — never an email or phone number), and report a
-  review you believe is spam, offensive, or fake
-- **"View in Your Room"** AR preview for AR-enabled products
-- **Virtual Try-On** for supported clothing — capture or choose a photo,
-  generate a preview, and manage/delete your own Try-On data at any time
-- **Notification Centre & preferences** — a server-written inbox of order
-  (placed / confirmed / shipped / delivered / cancelled), payment-refund and
-  review-moderation updates, with unread badge on the Home/Explore bell, mark
-  read / mark all read / swipe to delete, and per-category push switches
-  (see [Push Notifications](#push-notifications-fcm))
-- Profile, delivery address book (single authoritative default), favourites,
-  My Reviews — all cross-device synced
-- Help & Support (FAQ covering ordering, AR, Try-On, reviews, payments, notifications) with a
-  working **Contact Support** action that opens your email app addressed to
-  the project's real support mailbox; Privacy Policy and Terms & Conditions
-  kept in sync with what the app actually does and stores
+
+| Area | Highlights |
+|---|---|
+| **Sign-in** | Email/password and **Google Sign-In**, session persistence, password reset, confirmed logout with a blocking "Signing out…" state |
+| **Discovery** | Home rails driven by real signals (Best Sellers by units sold, Popular by favourites, Featured, Recently Viewed) · Explore with search and category / price / attribute filters |
+| **Product details** | Image gallery, variants, specifications, live ratings and reviews |
+| **Cart and checkout** | Per-user Firestore cart with stock gating and quantity caps · Stripe PaymentSheet (PKR, test mode) · server-side order and payment creation |
+| **Orders** | Order list and detail with a live status timeline |
+| **Ratings and reviews** | Review a product after delivery, edit within a 30-day window, masked public author names (e.g. "Ayesha K."), report spam or abuse |
+| **Room AR** | "View in Your Room" for AR-enabled products — see [below](#room-ar--three-tier-architecture) |
+| **Virtual Try-On** | Photo-based clothing preview — see [below](#virtual-try-on) |
+| **Notifications** | In-app Notification Centre with unread badge and per-category push switches — see [below](#push-notifications-fcm) |
+| **Account** | Profile, address book (single default), favourites, My Reviews, Help & Support with a working **Contact Support** email action, Privacy Policy and Terms |
 
 ### Admin panel
-- Dashboard (products / orders / revenue / low-stock metrics)
-- Product management (add / edit / draft / publish / delete) with a single
-  reusable form; progressive disclosure by category
-- Dynamic, Firestore-backed categories with real image upload and a
-  protected-seed-category policy
-- Inventory management (staged per-row stock edits, low-stock filter,
-  server-stamped "last updated")
-- Orders & Payments (Orders tab + Payments tab), Admin Order Detail with a
-  status-mutation lifecycle
-- **AR & Media management** — real `.glb` model upload with byte-level
-  validation (magic bytes, structure, self-contained, bounding-box vs declared
-  dimensions, floor-centred, SHA-256, size), dimension capture, an interactive
-  3D preview, versioned replace-without-downtime, enable/disable the customer
-  entry point, and an explicit confirmed delete workflow — with upload rollback
-  and orphan-object cleanup; a matching garment-asset pipeline for Virtual
-  Try-On
-- **Reviews Moderation** — every review across every product, filterable by
-  status/flagged, with a report audit trail and hide / restore / reject actions
-- **Notifications** — a dedicated screen listing pending orders and low-stock
-  products, with a live numeric badge on the bell (never a fake or hardcoded
-  count, and never shown when there's nothing to flag). It stays a live,
-  state-derived view; **push alerts** (new order, low / out of stock, flagged
-  review, payment issue) complement it and deep-link into the relevant screen
-  — they are not stored as an Admin inbox
-- Account menu with a real, confirmed sign-out flow — no placeholder tiles, no
-  "mock" labels
+
+| Area | Highlights |
+|---|---|
+| **Dashboard** | Product, order, revenue and low-stock metrics |
+| **Products and categories** | Add / edit / draft / publish / delete with one reusable form · Firestore-backed categories with image upload and protected seed categories |
+| **Inventory** | Staged per-row stock edits, low-stock filter, server-stamped "last updated" |
+| **Orders and payments** | Orders and Payments tabs, order detail with a status lifecycle |
+| **AR and media** | Real `.glb` upload with byte-level validation (magic bytes, structure, bounding box vs declared size, floor-centred, SHA-256, size cap), interactive 3D preview, versioned replace, enable/disable the customer entry point, confirmed delete with rollback and orphan cleanup; matching garment-asset pipeline for Try-On |
+| **Reviews moderation** | Every review across products, filter by status or flagged, report audit trail, hide / restore / reject |
+| **Notifications** | Live list of pending orders and low-stock products with a numeric bell badge (state-derived, never hard-coded), plus push alerts that deep-link into the right screen |
+| **Account** | Confirmed sign-out |
 
 ### Backend (Firebase)
-- Custom-claim (`superAdmin`) role authorization — never email-based
-- Hardened `firestore.rules` + `storage.rules` with full emulator test suites
-- Cloud Functions (Node 22, `us-central1`) — **21 live in total**: 13 existing
-  plus the 8 notification functions below:
-  - **Checkout**: `createPaymentIntent` (auth + authoritative pricing +
-    **atomic stock reservation before any charge**), `stripeWebhook`
-    (signature-verified, idempotent, creates orders/payments from session
-    snapshots), `releaseExpiredReservations` (scheduled 5-minute sweep)
-  - **Ratings & Reviews**: `submitReview`, `deleteReview`, `reportReview`,
-    `moderateReview`, `cleanupUserReviewsData`
-  - **Virtual Try-On**: `generateTryOn` (Google Gemini image generation),
-    `cleanupExpiredTryOnMedia`, `cleanupUserTryOnData`
-  - **Home content signals**: `adjustFavoriteCount`, `adjustStatsOnOrderCancel`
-    (maintain the `productStats/{id}` aggregate behind Best Sellers/Popular)
-  - **Notifications (FCM)**: `registerDevice`, `unregisterDevice` (callables),
-    `onOrderCreatedNotify`, `onOrderStatusNotify`, `onProductStockNotify`,
-    `onReviewNotify`, `onStripeEventNotify` (Firestore triggers) and
-    `cleanupUserNotificationData` (Auth-deletion cleanup, a sibling of the
-    Try-On and Reviews cleanups). All triggers sit behind a
-    `NOTIFICATIONS_ENABLED` kill-switch.
-- Content-addressed image storage with same-save rollback
+
+- Roles are Firebase **custom claims** (`superAdmin`); email is never used to grant admin.
+- Hardened `firestore.rules` and `storage.rules`, each with an emulator test suite.
+- **21 Cloud Functions** (Node 22, `us-central1`):
+
+| Group | Functions |
+|---|---|
+| Checkout | `createPaymentIntent` (auth + authoritative pricing + atomic stock reservation before any charge), `stripeWebhook` (signature-verified, idempotent), `releaseExpiredReservations` (5-minute sweep) |
+| Ratings and reviews | `submitReview`, `deleteReview`, `reportReview`, `moderateReview`, `cleanupUserReviewsData` |
+| Virtual Try-On | `generateTryOn` (Google Gemini), `cleanupExpiredTryOnMedia`, `cleanupUserTryOnData` |
+| Home signals | `adjustFavoriteCount`, `adjustStatsOnOrderCancel` (maintain the `productStats` aggregate) |
+| Notifications | `registerDevice`, `unregisterDevice`, `onOrderCreatedNotify`, `onOrderStatusNotify`, `onProductStockNotify`, `onReviewNotify`, `onStripeEventNotify`, `cleanupUserNotificationData` — behind a `NOTIFICATIONS_ENABLED` kill-switch |
 
 ---
 
-## Room AR — Three-Tier Architecture
+## Room AR — three-tier architecture
 
-The primary test device (Infinix Hot 40) is not ARCore-certified, so the app
-probes the device at runtime and selects the best experience it can actually
-run. The **same GLB per product** feeds all three tiers (authoring contract:
-`+Y` up, front `−Z`, floor-centred, real metres).
+The app probes the device at runtime and picks the best experience it can
+actually run. The **same GLB per product** feeds all three tiers (authoring
+contract: `+Y` up, front `−Z`, floor-centred, real metres).
 
-| Tier | Name | Chosen when | How it works |
+| Tier | Name | Used when | How it works |
 |---|---|---|---|
-| **1** | ARCore markerless | Device is ARCore-certified | Google Play Services for AR — markerless plane detection, tap-to-place at true scale *(architecture in place; runtime scheduled for a later iteration with certified hardware)* |
-| **2** | OpenCV Marker AR | Non-ARCore Android + camera + OpenGL ES 3.0 | CameraX feed + OpenCV ArUco marker (`DICT_5X5_100`, printed A4) + `solvePnP` pose + Google Filament rendering; One-Euro pose smoothing, marker-size calibration for absolute scale, tap-to-place, drag (clamped), rotate, "Face me", contact shadow, honest *Searching / Tracking / Holding / Too Far* states |
-| **3** | Interactive 3D Preview | Camera AR unavailable (no camera / permission denied) | A no-camera transparent Filament **orbit** viewer — drag to rotate, two-finger pan, pinch zoom, double-tap reset; "actual size · W·D·H" caption |
+| **1** | ARCore markerless | Device is ARCore-certified | Google Play Services for AR: plane detection, tap-to-place at true scale, drag / rotate / reset. Validated on a physical ARCore-capable device. |
+| **2** | OpenCV marker AR | No ARCore, but camera + OpenGL ES 3.0 | CameraX feed, OpenCV ArUco marker (`DICT_5X5_100`, printed A4 sheet), `solvePnP` pose, Google Filament rendering, One-Euro smoothing, marker-size calibration for absolute scale, tap-to-place, clamped drag, rotate, contact shadow, honest *Searching / Tracking / Holding / Too Far* states |
+| **3** | Interactive 3D preview | Camera AR unavailable (no camera or permission denied) | Camera-less Filament orbit viewer: drag to rotate, two-finger pan, pinch zoom, double-tap reset, "actual size · W·D·H" caption |
+
+**Customer flow:** Product Details → **View in Your Room** → preparation screen
+(adapts to the detected tier) → Start AR / View 3D Preview. Only products with a
+valid, approved model show the entry point.
 
 **Secure model delivery.** Models are fetched from Firebase Storage **by object
-path** (never a URL), downloaded to a private staging file with a hard size cap,
-then verified — GLB magic bytes + declared length + chunk structure + **SHA-256**
-+ a **scene-graph bounding-box match** against the declared dimensions (±3 %) +
-floor-centred sanity — before an atomic promote into an on-disk cache keyed by
-`path + version + sha`. On a failed refresh it serves a fully-revalidated
-last-known-good file, else the byte-identical app-bundled model. The renderer is
-never handed an unverified or partial file.
-
-**Customer flow:** `Product Details → "View in Your Room" → preparation screen
-(adapts to the resolved tier) → Start AR / View 3D Preview`.
+path** (never a URL), downloaded to a staging file with a hard size cap, then
+verified — GLB magic bytes, declared length, chunk structure, **SHA-256**, a
+scene-graph bounding-box match against the declared dimensions (±3 %) and a
+floor-centred check — before an atomic promote into an on-disk cache keyed by
+`path + version + sha`. If a refresh fails it serves a re-validated last-known-good
+file, else the byte-identical bundled model, so AR still works offline. The
+renderer is never handed an unverified file.
 
 ---
 
 ## Virtual Try-On
 
-For supported clothing products, a customer can preview how a garment might
-look on them without a live camera feed:
+For supported clothing, a customer can preview a garment on themselves:
 
-1. Choose the male/female model type and give explicit, per-session consent.
-2. Capture a photo with the camera, or pick one from the gallery.
-3. The photo is uploaded and sent to **Google Gemini** (via the server-side
-   `generateTryOn` Cloud Function) to generate a preview image — the source
-   photo is deleted immediately after generation.
-4. The generated preview is deleted when the customer closes it, deletes it
-   themselves, or automatically within 24 hours, whichever comes first.
+1. Choose the model type and give explicit, per-session consent.
+2. Capture a photo or pick one from the gallery.
+3. The photo is uploaded and sent to **Google Gemini** through the server-side
+   `generateTryOn` Cloud Function; the source photo is deleted right after
+   generation.
+4. The generated preview is deleted when the customer closes or deletes it, or
+   automatically within 24 hours.
 
-Every Try-On asset (garment references, generated previews) is managed through
-an Admin garment pipeline mirroring the Room AR asset workflow, and a customer
-can delete all of their own Try-On data at any time from **Profile → Delete My
-Try-On Data**.
+Garment references are managed through an admin pipeline that mirrors the Room
+AR asset workflow, and customers can erase all of their Try-On data at any time
+from **Profile → Delete My Try-On Data**.
 
 ---
 
-## Push Notifications (FCM)
+## Push notifications (FCM)
 
-Server-driven push notifications over **Firebase Cloud Messaging**, built so a
-push is only ever a *convenience* — the in-app state is always the source of
-truth.
+Server-driven push over **Firebase Cloud Messaging**. A push is only a
+convenience: the in-app Notification Centre, My Orders and the admin screens are
+always the source of truth, and delivery is **best-effort** (Doze, battery savers,
+a force-stopped app or no network can delay or drop it).
 
-**What is sent**
-
-| Audience | Events |
+| Audience | Push events |
 |---|---|
-| Customer | Order confirmed, shipped, delivered, cancelled; a payment refunded because a reservation was lost; a review hidden / not published by moderation |
-| Customer (inbox only, no push) | Order placed; review restored |
-| Admin | New paid order; product low stock (crossing into 1–5) and out of stock; a review flagged by repeated reports; a payment issue |
+| Customer | Order confirmed / shipped / delivered / cancelled · payment refunded because a reservation was lost · review hidden or not published by moderation |
+| Customer (inbox only) | Order placed · review restored |
+| Admin | New paid order · low stock (1–5) and out of stock · review flagged by repeated reports · payment issue |
 
-Customer notices never include an address, items or amounts (only a short order
-reference), and a cancellation never promises a refund. Stock alerts use a
-cooldown so flapping around the threshold cannot spam.
-
-**Customer experience**
-- **Notification Centre** (bell on Home/Explore, plus Profile → Notifications):
-  newest first, grouped by day, with loading / empty / error-with-retry states
-  and an "off" banner when the OS permission is not granted. It works offline
-  from the Firestore cache.
-- **Preferences** (Notification settings): customers can switch **Order
-  updates** and **Reviews & moderation** off; Admin has four switches (new
-  orders, stock, moderation, payments). Switching a category off stops only the
-  *push* — the Notification Centre still records the update.
-- **Permission** (Android 13+ `POST_NOTIFICATIONS`) is requested only at a
-  relevant moment — after the first order, from Settings, or as a one-time Admin
-  explainer — never at app launch, and a "Not now" is remembered.
-- **Foreground / background / terminated:** a push while the app is open shows
-  a tappable in-app banner (no duplicate system notification); otherwise the OS
-  renders it from the FCM `notification` payload on one of four Android
-  channels — *Order updates* (high), *Account & reviews* (low),
-  *Store alerts* (high), *Stock & moderation* (default).
-- **Safe deep links:** a payload is strictly validated (version, allow-listed
-  type, audience, id shape) and mapped to a **hard-coded** destination — it never
-  carries a route or URL. A notification for a different signed-in account, or
-  an Admin destination for a non-admin, is dropped; a tap during splash/login is
-  held, re-validated against the current session, then opened on top of the
-  stack.
-
-**Device registration & cleanup**
-- The app registers its FCM token through the `registerDevice` callable; the
-  **server stamps the role from the verified ID-token claim** (never the request
-  body). Tokens live in a **server-only** `deviceTokens` collection keyed by the
-  token's SHA-256, capped at 10 devices per user, and a token re-registered by
-  another account moves ownership (shared-device safe).
-- On logout the app asks the server to remove the token (best-effort,
-  time-boxed) and always invalidates the local token; a leftover record is
-  removed by failed-send pruning or its 60-day TTL. Deleting an account also
-  deletes its tokens, inbox and preferences.
-
-**Data model, rules & TTL**
-- `users/{uid}/notifications/{dedupeKey}` — server-written inbox; deterministic
-  ids make every trigger idempotent. Clients may only set `readAt` (to the
-  server time) or delete their own rows.
-- `users/{uid}/notificationSettings/prefs` — owner-writable booleans (missing =
-  on; admin keys accepted only from a super-admin).
-- `deviceTokens` and `notificationEvents` (admin dedupe/cooldown ledger) have
-  **no client access**.
-- Firestore **TTL policies** on `expireAt`: device tokens (60 days), inbox rows
-  (90 days), ledger (7 days).
-- FCM is sent only from Cloud Functions (Admin SDK, direct-to-token — no topics,
-  no server key in the app). Dead tokens are pruned; transient failures never
-  delete a device.
-
-**Deployment requirement (kill-switch).** The 8 functions read a
-`NOTIFICATIONS_ENABLED` boolean parameter. Deploys are non-interactive, so the
-project's git-ignored `functions/.env.<projectId>` file must define that
-parameter; if it is missing, a non-interactive deploy fails and an interactive
-one defaults the flag **off**. Deploy the notification functions **by name** with
-`--force` (functions with a retry policy require it) and never with a bare
-`firebase deploy` that would touch the other 13.
-
-```bash
-firebase deploy --only functions:registerDevice,functions:unregisterDevice,\
-functions:onOrderCreatedNotify,functions:onOrderStatusNotify,\
-functions:onProductStockNotify,functions:onReviewNotify,\
-functions:onStripeEventNotify,functions:cleanupUserNotificationData --force
-```
-
-Push delivery is **best-effort** by nature (Doze, battery savers, a
-force-stopped app, no network); nothing in the app depends on a push arriving.
+- **Notification Centre** — newest first, grouped by day, loading / empty / error
+  states, works offline from the Firestore cache; unread badge on the Home and
+  Explore bell.
+- **Preferences** — customers can switch off *Order updates* and *Reviews &
+  moderation* pushes (the inbox still records them); admins have four switches.
+- **Permission** (Android 13+) is requested at a relevant moment — after the first
+  order, from Settings, or via a one-time admin explainer — never at launch.
+- **Foreground / background / terminated** — an in-app tappable banner while open;
+  otherwise the OS renders it on one of four Android channels.
+- **Safe deep links** — payloads are strictly validated and mapped to hard-coded
+  screens (never a route or URL); a notification for another account, or an admin
+  screen for a non-admin, is dropped.
+- **Device registration** — the server stamps the role from the verified ID-token
+  claim; tokens live in a server-only collection keyed by SHA-256, capped at 10
+  per user, and are removed on logout and on account deletion (plus failed-send
+  pruning and a 60-day TTL).
+- Customer notices never contain an address, items or amounts.
 
 ---
 
-## Tech Stack
+## Tech stack
 
-- **Flutter** (Dart SDK `^3.12.2`; developed on Flutter 3.44 / Dart 3.12), **Provider** for state
-- **Firebase**: Auth (Email/Password + Google Sign-In), Cloud Firestore,
-  Storage, Cloud Functions (Node 22 / TypeScript), Cloud Messaging (FCM)
-- **Stripe** `flutter_stripe` (test mode only — no live account)
-- **Google Gemini** — server-side Virtual Try-On image generation
-- **Native Android (Kotlin)** for AR: CameraX, OpenCV 4.12 (ArUco + `solvePnP`),
-  Google Filament (glTF rendering), platform channels
-- `google_sign_in`, `url_launcher`, `file_picker`, `image_picker`,
-  `firebase_messaging`, `permission_handler`, `printing` / `pdf`, `path_provider`, `crypto`,
-  `shared_preferences`
-- Emulator-based rule testing (`@firebase/rules-unit-testing`), `vitest` for
-  Cloud Functions
+| Layer | Technology |
+|---|---|
+| App | **Flutter** (Dart `^3.12.2`, developed on Flutter 3.44) · **Provider** state management |
+| Firebase | Auth (Email/Password + Google Sign-In) · Cloud Firestore · Storage · Cloud Functions (Node 22, TypeScript) · Cloud Messaging |
+| Payments | Stripe via `flutter_stripe` (**test mode only**) |
+| AI | Google Gemini (server-side, Virtual Try-On image generation) |
+| Native Android (Kotlin) | CameraX · OpenCV 4.12 (ArUco, `solvePnP`) · Google Filament (glTF) · ARCore · platform channels |
+| Other packages | `google_sign_in`, `firebase_messaging`, `permission_handler`, `file_picker`, `image_picker`, `url_launcher`, `printing` / `pdf`, `path_provider`, `crypto`, `shared_preferences` |
+| Testing | `flutter_test`, `@firebase/rules-unit-testing`, `vitest` |
 
 ---
 
-## Architecture & Patterns
+## Architecture and project structure
 
-- **Feature-first** directory layout under `lib/features/`
-- **MVVM + Provider + Repository** — `View` (widgets) → `ViewModel`
-  (`ChangeNotifier`, owns all state and decisions) → `Repository` / `Service`
-  (data access). No Clean-Architecture use-case layer.
-- A single shared `CommerceDatabase` abstraction (`FirestoreCommerceDatabase` in
-  production, `MockCommerceDatabase` as the test double) backs both the customer
-  and admin surfaces
-- Narrow, purpose-fit service interfaces (`AuthRepository`, `StorageService`,
-  `CategoryRepository`, `MailLauncherService`, …) each with a real
-  implementation and an in-memory/fake test double
-- Thin platform-channel boundaries for the native AR engine — all pose /
-  placement / tier decisions live in Dart ViewModels; the native side only
-  renders
-
----
-
-## Project Structure
+- **Feature-first** layout under `lib/features/`.
+- **MVVM + Provider + Repository** — View (widgets) → ViewModel (`ChangeNotifier`,
+  owns state and decisions) → Repository / Service (data access).
+- One shared `CommerceDatabase` abstraction (`FirestoreCommerceDatabase` in
+  production, `MockCommerceDatabase` for tests) backs both customer and admin.
+- Narrow service interfaces (`AuthRepository`, `StorageService`, …), each with a
+  real implementation and a test double.
+- Thin platform-channel boundaries for the native AR engine: tier, pose and
+  placement decisions live in Dart; the native side only renders.
 
 ```
 lib/
   app/                     App shell, routing, providers, AuthSessionState
-  core/
-    data/                  CommerceDatabase (+ Firestore/Mock), Firestore mappers
-    models/                Product, order, category, auth, AR-metadata models
-    services/              StorageService, MailLauncherService (+ real/mock), theme, utils, widgets
+  core/                    CommerceDatabase, models, services, theme, shared widgets
   features/
-    home/  explore/  product_details/  cart/  checkout/  orders/
-    favorites/  address/  profile/  auth/  onboarding/  splash/  legal/
-    reviews/                   Ratings & Reviews — write/edit/delete, My Reviews,
-                                product review sections, report flow
-    recently_viewed/           Per-customer product-view history
-    notifications/             Notification Centre, preferences, FCM registration,
-                                payload router / navigator, lifecycle
-    virtual_try_on/            Consent → capture → upload → generate → result
-    admin/
-      dashboard/  product_management/  inventory/  orders_payments/
-      ar_media_management/       Admin GLB/garment upload / validate / preview / manage
-      reviews_moderation/        Admin report queue + hide/restore/reject
-      notifications/             Live pending-orders + low-stock notifications
-    room_ar/
-      capability/              Native probe + decideRoomArTier (tier routing)
-      marker_ar/               Tier-2 engine (MVVM + native channel)
-      preview/                 Tier-3 orbit renderer (MVVM + native channel)
-      model_delivery/          Storage fetch + GLB inspector + cache + LKG
-      views/ viewmodels/       Room-AR preparation screen
-
-android/app/src/main/kotlin/com/tahafayyaz/twin_ar/roomar/
-                             Native AR: CameraX + OpenCV + Filament renderers
-android/app/src/main/kotlin/com/tahafayyaz/twin_ar/NotificationChannels.kt
-                             The four FCM notification channels
-functions/                   Cloud Functions (Stripe, reviews, Try-On, home stats,
-                             notifications — lib/notifications/)
+    home/ explore/ product_details/ cart/ checkout/ orders/ favorites/
+    address/ profile/ auth/ onboarding/ splash/ legal/ recently_viewed/
+    reviews/                 Ratings & reviews, My Reviews, report flow
+    notifications/           Notification Centre, preferences, FCM registration
+    virtual_try_on/          Consent → capture → upload → generate → result
+    admin/                   dashboard, product_management, inventory,
+                             orders_payments, ar_media_management,
+                             reviews_moderation, notifications
+    room_ar/                 capability (tier routing), tier1_arcore, marker_ar,
+                             preview, model_delivery, preparation screen
+android/app/src/main/kotlin/…/roomar/   Native AR: ARCore, CameraX, OpenCV, Filament
+functions/                 Cloud Functions (TypeScript)
 firestore.rules  storage.rules  firestore.indexes.json
-firestore-tests/  storage-tests/   Emulator rule-test suites
-scripts/                     Node helpers: seeding, catalogue migrations, GLB upload
-test/                        Flutter unit + widget tests
+firestore-tests/  storage-tests/        Emulator rule-test suites
+scripts/                   Node admin helpers (seeding, migrations, GLB upload)
+test/                      Flutter unit and widget tests
 ```
 
 ---
 
-## Getting Started
+## Getting started
+
+This section covers **running the Flutter app**. Deploying or changing the
+Firebase backend is a separate task — see
+[Backend setup and deployment](#backend-setup-and-deployment).
 
 ### Prerequisites
-- Flutter SDK (Dart `>= 3.12.2`) and the Android toolchain
-- A Firebase project — **or** use the committed config, which targets the
-  project used during development (`android/app/google-services.json`,
-  `lib/firebase_options.dart`). To point at your own project, run
-  `flutterfire configure` and replace those files.
-- Node 22 (only if you want to run/deploy the Cloud Functions or the emulator
-  rule tests)
 
-### Run
-```bash
+| Tool | Version / note |
+|---|---|
+| Flutter SDK | 3.44 (Dart `>= 3.12.2`); check with `flutter doctor` |
+| Android toolchain | Android Studio or command-line SDK, a JDK 17+ (Android Studio's bundled JDK works), Android SDK platform 36; Gradle and the Android Gradle plugin are fetched by the wrapper |
+| Device | A real Android phone (API 24+) is strongly recommended — camera AR and Try-On need a camera; emulators cannot exercise them |
+| Node.js 22 + Firebase CLI | Only for the backend, Cloud Functions or emulator tests |
+| A recent JDK | Only to run the Firebase emulators (see the Firebase CLI docs for the minimum version) |
+
+### What the repository contains — and what you must supply
+
+A fresh clone does **not** include git-ignored files. Supply what you need:
+
+| Item | In the repo? | Needed for |
+|---|---|---|
+| `android/app/google-services.json`, `lib/firebase_options.dart`, `.firebaserc` | Yes — they point at the author's Firebase project `twin-ar-d4d75` | Building the app. Availability of that backend to third parties is not guaranteed; to use your own, run `flutterfire configure` and deploy your own backend |
+| `dart_defines.json` (Stripe **test** publishable key) | **No** (git-ignored; `dart_defines.example.json` is the template) | Every build and run — without it Checkout shows "Card payment is temporarily unavailable" |
+| `android/key.properties` + a release keystore | **No** (git-ignored) | Signing release builds. If absent, release builds are signed with the **debug** key |
+| Google Sign-In fingerprints (SHA-1 / SHA-256) registered in your Firebase project | Your project setting | Google Sign-In on your own builds |
+| Stripe secret key, webhook secret, Gemini key, `functions/.env.<projectId>` | **No** (never committed) | Backend deployment only |
+| Firebase Admin credentials (ADC or service-account key) | **No** | The Node admin scripts only |
+
+### Run on a device (Windows PowerShell)
+
+```powershell
+git clone https://github.com/TAHA-programmer/ar-ecommerce-fyp.git
+cd ar-ecommerce-fyp
+
 flutter pub get
 
-# Create your Stripe test-mode config (git-ignored):
-cp dart_defines.example.json dart_defines.json
-#   then edit dart_defines.json and set your own pk_test_... key
+# Create your local Stripe test-mode config (git-ignored), then edit it:
+Copy-Item dart_defines.example.json dart_defines.json
+notepad dart_defines.json          # set STRIPE_PUBLISHABLE_KEY to your own pk_test_... key
 
+flutter devices                    # confirm your phone is listed
 flutter run --dart-define-from-file=dart_defines.json
 ```
 
-> **Every build** — debug, release, or an AAB — must pass
-> `--dart-define-from-file=dart_defines.json`, or Checkout silently shows
-> "Card payment is temporarily unavailable" regardless of backend health.
+> **Every build** — debug, release or AAB — must pass
+> `--dart-define-from-file=dart_defines.json`, otherwise the Stripe key is missing
+> at runtime.
 
-### Build
-```bash
-flutter build apk --release --dart-define-from-file=dart_defines.json
-flutter build apk --release --split-per-abi --dart-define-from-file=dart_defines.json
+**Google Sign-In on your own build.** Register your keystore's fingerprints in the
+Firebase console (Project settings → your Android app) and refresh
+`google-services.json`. For the debug key:
+
+```powershell
+cd android
+.\gradlew.bat signingReport        # prints SHA-1 / SHA-256 for each variant
+cd ..
 ```
 
-The app is **Android-only** (`com.tahafayyaz.twin_ar`); the `ios/` folder is the
-unused default Flutter scaffold.
+**Becoming an admin.** There is no in-app "invite admin". Sign up normally, then
+promote exactly one account with the local script described in
+`scripts/super_admin_bootstrap/README.md` (it sets the `superAdmin` custom claim
+using Firebase Admin credentials on your machine).
+
+---
+
+## Backend setup and deployment
+
+Running the app does not deploy anything. These steps change a **real Firebase
+project** — run them only against a project you own. `.firebaserc` defaults to
+`twin-ar-d4d75`; point it at yours first:
+
+```powershell
+npm install -g firebase-tools
+firebase login
+firebase use --add                 # choose YOUR project and alias it "default"
+```
+
+**Project requirements:** Blaze (pay-as-you-go) plan for Cloud Functions, Cloud
+Scheduler and Secret Manager; Authentication (Email/Password and Google),
+Firestore, Storage and Cloud Messaging enabled.
+
+**Secrets and parameters** (never commit these):
+
+```powershell
+firebase functions:secrets:set STRIPE_SECRET_KEY       # Stripe TEST secret key (sk_test_...)
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET   # signing secret of your test-mode webhook
+firebase functions:secrets:set GEMINI_API_KEY          # Google Gemini key (Virtual Try-On)
+```
+
+Create `functions\.env.<projectId>` (git-ignored) containing
+`NOTIFICATIONS_ENABLED=true`. If it is missing, a non-interactive deploy fails
+and an interactive one defaults notifications **off**.
+
+**Deploy:**
+
+```powershell
+cd functions; npm ci; npm run build; cd ..
+firebase deploy --only firestore:rules,firestore:indexes,storage   # rules, indexes (incl. TTL policies)
+firebase deploy --only functions                                    # all 21 functions
+```
+
+To redeploy only the notification functions, deploy them **by name** with
+`--force` (functions with a retry policy require it) rather than a bare deploy:
+
+```powershell
+firebase deploy --only "functions:registerDevice,functions:unregisterDevice,functions:onOrderCreatedNotify,functions:onOrderStatusNotify,functions:onProductStockNotify,functions:onReviewNotify,functions:onStripeEventNotify,functions:cleanupUserNotificationData" --force
+```
+
+**Stripe webhook.** In the Stripe Dashboard (test mode) add an endpoint at
+`https://us-central1-<projectId>.cloudfunctions.net/stripeWebhook` for the
+payment-intent and refund events and store its signing secret as
+`STRIPE_WEBHOOK_SECRET`. The webhook rejects live-mode events.
+
+**Seeding data.** The `scripts/` folder holds Node helpers (catalogue and category
+seeding, Storage GLB upload, migrations). Each has its own `README.md`, uses
+Firebase Admin credentials on your machine (for example
+`gcloud auth application-default login`) and writes to a live project — read the
+README and dry-run first.
 
 ---
 
 ## Testing
 
-```bash
-flutter test                                   # Flutter unit + widget tests
+```powershell
+flutter analyze
+flutter test                              # Flutter unit + widget tests
 
-# Emulator rule tests (require the Firebase CLI):
-cd storage-tests   && npm ci && npm test        # Storage security rules
-cd firestore-tests && npm ci && npm test        # Firestore security rules
-cd functions       && npm ci && npm test        # Cloud Functions (unit)
-cd functions       && npm run test:emulator     # Cloud Functions (emulator)
+# Rule and function suites (need Node 22, the Firebase CLI and a JDK):
+cd storage-tests;   npm ci; npm test; cd ..     # Storage rules
+cd firestore-tests; npm ci; npm test; cd ..     # Firestore rules
+cd functions;       npm ci; npm test; npm run test:emulator; cd ..   # Functions: unit + emulator
 ```
 
-Current status: `flutter test` **1828 passing**, Firestore rules **321/321**,
-Storage rules **111/111**, Cloud Functions **323/323** unit + **250/250**
-emulator; `flutter analyze` clean; `dart format` clean; `flutter build apk`
-(debug, release/R8, split-per-abi) all green. The FCM Notifications v1 feature
-added 337 of these tests and was validated physically on an Android 13 device
-(customer and Admin flows, background / foreground / release builds).
+Last recorded results: `flutter test` **1833 passing**, Firestore rules 321/321,
+Storage rules 111/111, Cloud Functions 323 unit + 250 emulator; `flutter analyze`
+and `dart format` clean. Features were also validated by hand on physical Android
+devices.
 
 ---
 
-## Security Model
+## Building release APKs and AABs
 
-- **Roles** are Firebase **custom claims** (`superAdmin`) — email-based admin
-  detection is never used.
-- `firestore.rules` / `storage.rules` are hardened and covered by full emulator
-  test suites; every block is field-shape / type / size validated where it
-  matters.
-- **Orders, payments, and reviews** are `create: if false` for every direct
-  client write — created **exclusively** by Cloud Functions via the Admin SDK,
-  which independently verify eligibility (e.g. a review requires a genuinely
-  delivered order for that product) before writing anything.
-- **Stock** is reserved in an **atomic Firestore transaction before any Stripe
-  PaymentIntent exists**; the webhook restores it exactly once on failure, and a
-  scheduled sweep releases abandoned reservations.
-- Stripe is **test mode only** — the secret key lives in Firebase Secret Manager
-  (never in the repo); only the publishable `pk_test_` key reaches the client,
-  via `--dart-define` (git-ignored).
-- A published review never exposes the reviewer's email, phone, or account
-  details — only a masked display name computed server-side.
-- **Notifications:** FCM is sent only from Cloud Functions (no server key or
-  credentials in the app, no topics); device tokens and the admin ledger are
-  **server-only** collections; the inbox is server-written and clients can only
-  mark their own rows read or delete them; the device role is stamped from the
-  verified ID-token claim, and admin pushes are re-verified against the live
-  claim at send time; a tapped payload can only select a pre-approved screen and
-  is dropped for the wrong account or role.
-- AR model / garment objects require signed-in reads (approved products only
-  for customers), super-admin writes, strict content-type and size gates, and
+All commands run from the repository root in **PowerShell** and need
+`--dart-define-from-file=dart_defines.json`.
+
+### Signing
+
+Create a keystore once and keep it **outside Git**:
+
+```powershell
+keytool -genkeypair -v -keystore C:\keys\twinar-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then create `android\key.properties` (git-ignored):
+
+```properties
+keyAlias=upload
+keyPassword=<your key password>
+storeFile=C:/keys/twinar-upload.jks
+storePassword=<your store password>
+```
+
+Without this file, release builds still succeed but are signed with the debug key.
+
+### Which artifact for whom
+
+| Audience | Artifact | Command |
+|---|---|---|
+| **Google Play** | App Bundle (`.aab`) | `flutter build appbundle --release …` |
+| **Supervisor / direct install (modern phone)** | arm64-v8a split APK | `flutter build apk --release --split-per-abi …` (**optimized recipe below**) |
+| Older 32-bit phone | armeabi-v7a split APK | same command |
+| Emulator | x86_64 split APK | same command |
+| One file for any phone | arm64 + armeabi-v7a universal APK | optimized recipe, ABI filter |
+
+An AAB is an **upload format**, not an installable file: Google Play (or
+`bundletool`) derives per-device split APKs from it.
+
+### Standard builds
+
+```powershell
+$defs = "--dart-define-from-file=dart_defines.json"
+$sym  = "C:\twin_ar_symbols\1.0.0"        # keep OUTSIDE Git; one folder per release
+
+# Play Store bundle  →  build\app\outputs\bundle\release\app-release.aab
+flutter build appbundle --release --split-debug-info=$sym $defs
+
+# Plain universal APK (all ABIs, large)
+flutter build apk --release --split-debug-info=$sym $defs
+```
+
+`--split-debug-info` trims a little size and moves symbols out of the binary.
+Keep the symbols folder for each release — `flutter symbolize -i <stack-trace> -d <folder>`
+needs it to read crash traces. Never commit it.
+
+### Optimized direct-install recipe
+
+For hand-distributed APKs, two **opt-in** environment switches (read by
+`android/app/build.gradle.kts`, both off by default) shrink the file:
+
+| Variable | Effect |
+|---|---|
+| `TWIN_AR_COMPRESS_NATIVE_LIBS=true` | Stores native `.so` libraries compressed inside the APK (the installer extracts them) |
+| `TWIN_AR_ABI_FILTERS=arm64-v8a,armeabi-v7a` | Ships only those ABIs in a **non-split** APK (Flutter's `--target-platform` does not filter OpenCV / Filament / ARCore libraries, so x86_64 would otherwise ride along) |
+
+```powershell
+$defs = "--dart-define-from-file=dart_defines.json"
+$sym  = "C:\twin_ar_symbols\1.0.0-direct"
+
+# Per-ABI APKs  →  build\app\outputs\flutter-apk\app-arm64-v8a-release.apk (supervisor), …
+$env:TWIN_AR_COMPRESS_NATIVE_LIBS = "true"
+flutter build apk --release --split-per-abi --split-debug-info=$sym $defs
+
+# Single APK for phones (arm64 + armeabi-v7a); do not combine with --split-per-abi
+$env:TWIN_AR_ABI_FILTERS = "arm64-v8a,armeabi-v7a"
+flutter build apk --release --split-debug-info=$sym $defs
+
+# Reset the switches so later builds use default packaging
+Remove-Item Env:\TWIN_AR_COMPRESS_NATIVE_LIBS, Env:\TWIN_AR_ABI_FILTERS -ErrorAction SilentlyContinue
+```
+
+> **Never use these switches for the Play AAB.** Play already downloads compressed
+> and keeps native libraries uncompressed and page-aligned on the device.
+
+### Measured sizes (this project)
+
+| Artifact | Size |
+|---|---|
+| Direct-install arm64 APK (optimized) | ≈ 62.9 MB |
+| Direct-install armeabi-v7a APK (optimized) | ≈ 60.7 MB |
+| Release AAB (upload file) | ≈ 157 MB |
+| Play download to an arm64 phone (bundletool estimate) | ≈ 59.7 MB |
+| Installed size of the arm64 APK on a phone (Settings) | ≈ 136 MB |
+
+The installed size is larger than the APK because Android also keeps the extracted
+native libraries (OpenCV, Flutter engine, Filament), compiled code and app data.
+These are measurements of this build on the author's setup, not guarantees.
+
+---
+
+## Security model
+
+- **Roles** are custom claims (`superAdmin`); email-based admin detection is never used.
+- **Rules** are hardened and covered by emulator test suites; writes are
+  validated for field shape, type and size.
+- **Orders, payments and reviews** are `create: if false` for every direct client
+  write — created exclusively by Cloud Functions via the Admin SDK, which verify
+  eligibility first (for example a review requires a genuinely delivered order).
+- **Stock** is reserved in an atomic Firestore transaction **before** any Stripe
+  PaymentIntent exists; the webhook restores it once on failure and a scheduled
+  sweep releases abandoned reservations.
+- **Stripe is test mode only.** The secret key lives in Firebase Secret Manager
+  (never in the repo); only the publishable `pk_test_` key reaches the app, via
+  `--dart-define` from a git-ignored file.
+- **Reviews** never expose an email, phone or account details — only a masked
+  display name computed server-side.
+- **Notifications:** FCM is sent only from Cloud Functions (no server key in the
+  app, no topics); tokens and the admin ledger are server-only; the inbox is
+  server-written (clients can only mark their own rows read or delete them); a
+  tapped payload can only open a pre-approved screen and is dropped for the wrong
+  account or role.
+- **AR / garment assets** require signed-in reads (approved products only for
+  customers), super-admin writes, strict content-type and size gates, and
   provenance metadata (SHA-256 + version).
 
 ---
 
-## Project Status
+## Project status
 
 **Delivered**
-- Full customer storefront + Firestore backend
-- Admin panel (products, categories, inventory, orders & payments, AR & Media,
-  reviews moderation, live notifications)
-- Real Stripe test-mode checkout with server-side order/payment creation and
-  atomic stock reservation
-- Firebase Auth (Email/Password + **Google Sign-In**) with custom-claim roles;
-  hardened security rules
-- **Room AR** — three-tier device-adaptive architecture; marker-based AR and the
-  interactive 3D preview implemented and validated on-device for the flagship
-  product set; secure Firebase Storage model delivery with integrity
-  verification; admin model-management workflow
-- **Virtual Try-On** — camera-based clothing try-on for supported products:
-  Admin garment-asset pipeline, a secure server-side Cloud Function
-  (Gemini image generation), and a customer capture → upload → generate →
-  result flow, validated on-device across a curated clothing catalogue
-- **Ratings & Reviews** — post-delivery rating/review with an edit window,
-  masked public author names, customer reporting, and full Admin moderation
-  (report queue, hide/restore/reject), deployed live
-- **Dynamic Home content** — Best Sellers, Popular, Featured, and Recently
-  Viewed all driven by real Firestore signals instead of static/mock data
-- **Push Notifications (FCM) v1** — customer Notification Centre and
-  preferences, customer/Admin push alerts, foreground banner + background
-  notifications on four Android channels, safe deep links, server-stamped device
-  registration with logout/account-deletion cleanup, TTL retention, and a
-  deploy-time kill-switch; deployed live (21 Cloud Functions in total) and
-  validated on-device
-- Functional Contact Support (opens a prepared email to a real, monitored
-  mailbox), and Profile legal/help content kept accurate against actual app
-  behaviour
 
-**Future Work**
-- Broaden the validated AR model catalogue to further products
-- ARCore markerless (Tier 1) runtime, alongside a certified test device
-- Wider cross-device validation matrix
-- Google Play App Signing / Play-distributed AAB fingerprint registration
-- Notification extras deliberately left out of v1: back-in-stock, price-drop and
-  promotional alerts, daily Admin digest, Firebase App Check, localisation
+- Full customer storefront and admin panel on a Firestore backend
+- Stripe test-mode checkout with server-side order creation and atomic stock reservation
+- Email/password and Google authentication with custom-claim roles
+- **Room AR** across three tiers (ARCore, OpenCV marker, 3D preview) with secure
+  Storage model delivery and an admin model-management workflow
+- **Virtual Try-On** with an admin garment pipeline and a server-side Gemini function
+- **Ratings and reviews** with full admin moderation
+- **Dynamic Home** content driven by real Firestore signals
+- **Push notifications (FCM) v1** — Notification Centre, preferences, customer and
+  admin alerts, safe deep links, device registration with cleanup, TTL retention
+- Optimized, signed release builds for direct install and Google Play
+
+**Future work**
+
+- Broaden the validated AR model catalogue to more products
+- Wider cross-device validation
+- Google Play App Signing: register the Play-managed signing fingerprints for Google Sign-In
+- Notification extras left out of v1: back-in-stock, price-drop and promotional
+  alerts, an admin digest, Firebase App Check, localisation
 - iOS support
-
----
-
-## Known Limitations
-
-Documented and deliberately deferred — not silently dropped:
-
-- **Order cancellation does not restore stock.** Cancelling a paid/reserved
-  order does not increment `stockQuantity` back; the correct fix is a
-  transactional Cloud Function change. Operational workaround: manually
-  restore the cancelled quantity via Admin Inventory.
-- **A long-open Admin Edit Product form can overwrite a newer concurrent stock
-  edit** on save, since the form resends its originally-loaded stock value
-  verbatim. Operational workaround: keep Admin Edit Product sessions short;
-  use the dedicated Inventory screen for stock-only edits.
-- **Rating-sorted product lists** consider at most the 500 most relevant
-  published reviews per product (a bounded in-memory re-sort, not an indexed
-  query) — generous at current volume.
-- A review report filed against an account that is later deleted is not
-  purged (harmless, admin-only readable).
-- **Push delivery is best-effort.** A failed send is not retried, a
-  force-stopped app receives nothing, and battery savers can delay delivery; the
-  Notification Centre / My Orders / Admin screens are the source of truth.
-- **The notification kill-switch is deploy-time configuration** kept in a
-  git-ignored `functions/.env.<projectId>` file; redeploying those functions
-  without it fails (non-interactive) or silently defaults the feature off
-  (interactive) — see [Push Notifications](#push-notifications-fcm).
-- Notifications were validated on one Android 13 phone (plus a second Admin
-  session). **Not exercised:** two devices on one customer account, Android 12
-  or lower, and an explicit offline-logout run. A logout without connectivity
-  leaves a stale server token that is cleaned by failed-send pruning or the
-  60-day TTL. The per-recipient send cap is per function instance.
-- Users still on a pre-notification app build accumulate inbox rows they cannot
-  see and receive no pushes.
-- The Admin Notifications screen lists pending orders and *low* stock (1–5);
-  an out-of-stock *push* is sent but out-of-stock products are listed on the
-  Inventory screen, not that list.
 
 ---
 
 ## Support
 
-Found an issue or have a question about the app? Contact
-**twinar.support@gmail.com**, or use **Profile → Help & Support → Contact
-Support** in the app itself, which opens a prepared email to the same address.
-
----
-
-## Screenshots
-
-_Add screenshots here (`docs/screenshots/…`)._
-
-| Home | Explore | Product Details | Room AR |
-|---|---|---|---|
-| | | | |
-
-| Admin Dashboard | Product Form | AR & Media | 3D Preview |
-|---|---|---|---|
-| | | | |
+Questions or issues: **twinar.support@gmail.com**, or use **Profile → Help &
+Support → Contact Support** in the app, which opens a prepared email to the same
+address.
 
 ---
 
@@ -554,6 +534,4 @@ _Add screenshots here (`docs/screenshots/…`)._
 
 Built with Flutter, Firebase, OpenCV and Google Filament.
 
-_© 2026 Taha Fayyaz. All rights reserved. This repository is published for
-academic review; add an explicit open-source `LICENSE` file if you wish to
-license it for reuse._
+_© 2026 Taha Fayyaz. All rights reserved._
